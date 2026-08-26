@@ -234,23 +234,33 @@ export class CodeGenerator {
 
     const oreGenCalls = collect('oreGenCalls')
     if (oreGenCalls.length) {
+      const className = `${toPascalCase(this.project.meta.modId)}OreWorldGen`
       const w = new JavaWriter(`${this.ctx.pkg}.worldgen`, this.mapping.imports)
+      w.useRaw(`import ${this.ctx.pkg}.init.ModBlocks;`)
+      w.use('World', 'Chunk', 'ChunkDecoratorOverworld', 'WorldFeatureOre', 'TilePos', 'Random')
       w.useRaw(
-        `import static ${this.ctx.pkg}.${this.ctx.entryClass}.MOD_ID;`,
-        `import ${this.ctx.pkg}.init.ModBlocks;`
+        'import org.spongepowered.asm.mixin.Final;',
+        'import org.spongepowered.asm.mixin.Mixin;',
+        'import org.spongepowered.asm.mixin.Shadow;',
+        'import org.spongepowered.asm.mixin.injection.At;',
+        'import org.spongepowered.asm.mixin.injection.Inject;',
+        'import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;'
       )
-      w.use('World')
-      w.line(`public final class OreWorldGen {`)
-      w.line('')
-      w.line('\t/** Invoked per-chunk from the decoration hook wired in the entrypoint. */')
-      w.line('\tpublic static void decorate(World world, int chunkX, int chunkZ) {')
-      oreGenCalls.forEach((c) => w.block(indentChunk(c, 2)))
-      w.line('\t}')
-      w.line('}')
+      w.block(
+        render(this.mapping.oreGen.mixinClass, {
+          className,
+          veins: oreGenCalls.join('\n\n')
+        })
+      )
       files.push({
-        path: `${javaRoot}/worldgen/OreWorldGen.java`,
+        path: `${javaRoot}/worldgen/${className}.java`,
         content: w.toString(this.header('Ore world generation')),
         language: 'java'
+      })
+      files.push({
+        path: `src/main/resources/${this.project.meta.modId}.mixins.json`,
+        content: render(this.mapping.oreGen.mixinsJson, { pkg: this.ctx.pkg, className }),
+        language: 'json'
       })
     }
 
@@ -288,7 +298,6 @@ export class CodeGenerator {
     if (has.hasBlocks || has.hasItems || has.hasRecipes || has.hasBiomes || has.hasEntities) {
       w.useRaw(`import ${this.ctx.pkg}.init.*;`)
     }
-    if (has.hasOreGen) w.useRaw(`import ${this.ctx.pkg}.worldgen.OreWorldGen;`)
 
     const idEntries = Object.entries(m.idRanges).filter(
       ([k, v]) => !k.startsWith('$') && typeof v === 'object' && v !== null

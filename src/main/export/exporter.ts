@@ -1,5 +1,5 @@
 import { dialog, ipcMain, shell } from 'electron'
-import { mkdir, writeFile, readdir, stat } from 'fs/promises'
+import { mkdir, writeFile, readdir, rm, stat } from 'fs/promises'
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { IPC } from '../../shared/ipc'
@@ -96,6 +96,9 @@ export async function exportWorkspace(
   const meta = project.meta
 
   log.push(`Exporting "${meta.name}" → ${root}`)
+
+  const generatedRoot = join(root, 'src/main/java', `com/${meta.modId}`)
+  await rm(generatedRoot, { recursive: true, force: true })
 
   const files = new CodeGenerator(project).generate()
   for (const f of files) {
@@ -268,6 +271,10 @@ ${obfuscate ? obfuscationTask() : ''}`
     log.push('  + build.gradle / settings.gradle / gradle.properties (obfuscation OFF)')
   }
 
+  const mixinConfigs = files
+    .filter((f) => f.path.endsWith('.mixins.json'))
+    .map((f) => f.path.split('/').pop() as string)
+
   const fmj = {
     ...mapping.fabricModJson,
     id: meta.modId,
@@ -275,6 +282,7 @@ ${obfuscate ? obfuscationTask() : ''}`
     name: meta.name,
     description: meta.description || `${meta.name}, a Better Than Adventure! mod.`,
     authors: meta.authors.length ? meta.authors : ['Unknown'],
+    ...(mixinConfigs.length ? { mixins: mixinConfigs } : {}),
     entrypoints: {
       main: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`],
       beforeGameStart: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`],

@@ -35,6 +35,14 @@ export function emitOre(el: ArtemisElement, ctx: EmitContext): EmitContribution 
 
   const decl = blockDecl(el.name, p, ctx, extraMethods)
 
+  const oreGenCall = render(ctx.mapping.oreGen.vein, {
+    FIELD,
+    veinSize: p.veinSize,
+    veinsPerChunk: p.veinsPerChunk,
+    minY: p.minY,
+    maxY: p.maxY
+  })
+
   if (p.generateSet) {
     const s = p.set
     const setVars = {
@@ -82,6 +90,7 @@ export function emitOre(el: ArtemisElement, ctx: EmitContext): EmitContribution 
 
   return {
     blockDecls: [decl],
-    itemDecls
+    itemDecls,
+    oreGenCalls: p.veinsPerChunk > 0 ? [oreGenCall] : []
   }
 }

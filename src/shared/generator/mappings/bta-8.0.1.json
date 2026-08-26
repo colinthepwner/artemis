@@ -41,7 +41,11 @@
     "ItemToolPickaxe": "net.minecraft.core.item.tool.ItemToolPickaxe",
     "ItemToolAxe": "net.minecraft.core.item.tool.ItemToolAxe",
     "ItemToolShovel": "net.minecraft.core.item.tool.ItemToolShovel",
-    "ItemToolHoe": "net.minecraft.core.item.tool.ItemToolHoe"
+    "ItemToolHoe": "net.minecraft.core.item.tool.ItemToolHoe",
+    "Chunk": "net.minecraft.core.world.chunk.Chunk",
+    "ChunkDecoratorOverworld": "net.minecraft.core.world.generate.chunk.perlin.overworld.ChunkDecoratorOverworld",
+    "WorldFeatureOre": "net.minecraft.core.world.generate.feature.WorldFeatureOre",
+    "TilePos": "net.minecraft.core.world.pos.TilePos"
   },
   "idRanges": {
     "$comment": "BTA still runs on numeric registry IDs. Artemis allocates sequentially from these bases at generate time (deterministic: element creation order). Bases sit high above vanilla + common mods; the generated config exposes them so end users can shift the whole band on conflict.",
@@ -259,5 +263,11 @@
       "net.minecraft.**",
       "com.mojang.**"
     ]
+  },
+  "oreGen": {
+    "$comment": "Ore worldgen is a Mixin in BTA 8: ChunkDecorator.decorate(Chunk) is the only hook and halplibe offers nothing for it, so the mod injects at the TAIL of ChunkDecoratorOverworld.decorate and places its own veins. remap=false because BTA ships unmapped. The per-chunk Random is seeded from the chunk coordinates so terrain stays reproducible for a given seed.",
+    "mixinClass": "@Mixin(value = ChunkDecoratorOverworld.class, remap = false)\npublic class {{className}} {\n\t@Shadow\n\t@Final\n\tprivate World world;\n\n\t@Inject(method = \"decorate(Lnet/minecraft/core/world/chunk/Chunk;)V\", at = @At(\"TAIL\"))\n\tpublic void artemisPlaceOres(Chunk chunk, CallbackInfo ci) {\n\t\tint chunkX = chunk.pos.x;\n\t\tint chunkZ = chunk.pos.z;\n\t\tint originX = chunkX * 16;\n\t\tint originZ = chunkZ * 16;\n\t\tRandom random = new Random((long) chunkX * 341873128712L + (long) chunkZ * 132897987541L);\n\n{{veins}}\n\t}\n}",
+    "vein": "\t\tfor (int i = 0; i < {{veinsPerChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint y = {{minY}} + random.nextInt(Math.max(1, {{maxY}} - {{minY}}));\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tnew WorldFeatureOre(ModBlocks.{{FIELD}}.id(), {{veinSize}})\n\t\t\t\t.place(this.world, random, new TilePos(x, y, z));\n\t\t}",
+    "mixinsJson": "{\n\t\"required\": true,\n\t\"minVersion\": \"0.8\",\n\t\"package\": \"{{pkg}}.worldgen\",\n\t\"compatibilityLevel\": \"JAVA_17\",\n\t\"mixins\": [\n\t\t\"{{className}}\"\n\t],\n\t\"injectors\": {\n\t\t\"defaultRequire\": 1\n\t}\n}\n"
   }
 }
