@@ -90,19 +90,28 @@ const KIND_MAP: Record<CompletionItem['kind'], string> = {
   snippet: 'text'
 }
 
-function completionSource(items: CompletionItem[]) {
-  const byOwner = new Map<string, CompletionItem[]>()
-  const global: CompletionItem[] = []
-  for (const item of items) {
-    if (item.owner) {
-      const list = byOwner.get(item.owner) ?? []
-      list.push(item)
-      byOwner.set(item.owner, list)
-    } else {
-      global.push(item)
+function completionSource(getItems: () => CompletionItem[]) {
+  let indexed: CompletionItem[] | null = null
+  let byOwner = new Map<string, CompletionItem[]>()
+  let everything: CompletionItem[] = []
+
+  const reindex = (): void => {
+    const items = getItems()
+    if (items === indexed) return
+    indexed = items
+    byOwner = new Map()
+    const global: CompletionItem[] = []
+    for (const item of items) {
+      if (item.owner) {
+        const list = byOwner.get(item.owner) ?? []
+        list.push(item)
+        byOwner.set(item.owner, list)
+      } else {
+        global.push(item)
+      }
     }
+    everything = [...global, ...[...byOwner.values()].flat()]
   }
-  const everything = [...global, ...[...byOwner.values()].flat()]
 
   const toOption = (m: CompletionItem) => ({
     label: m.label,
@@ -113,6 +122,7 @@ function completionSource(items: CompletionItem[]) {
   })
 
   return (ctx: CompletionContext): CompletionResult | null => {
+    reindex()
 
     const dotted = ctx.matchBefore(/([A-Z][A-Za-z0-9_]*)\.\w*$/)
     if (dotted) {
@@ -143,6 +153,9 @@ export function CodeEditor(props: {
   const project = useProjectStore((s) => s.project)
   const completions = useMemo(() => (project ? buildCompletions(project) : []), [project])
 
+  const completionsRef = useRef(completions)
+  completionsRef.current = completions
+
   useEffect(() => {
     if (!host.current) return
     const extensions: Extension[] = [
@@ -159,7 +172,10 @@ export function CodeEditor(props: {
       java(),
       syntaxHighlighting(artemisHighlight),
       artemisTheme,
-      autocompletion({ override: [completionSource(completions)], activateOnTyping: true }),
+      autocompletion({
+        override: [completionSource(() => completionsRef.current)],
+        activateOnTyping: true
+      }),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
@@ -187,7 +203,7 @@ export function CodeEditor(props: {
       view.current = null
     }
 
-  }, [props.readOnly, completions])
+  }, [props.readOnly])
 
   useEffect(() => {
     const v = view.current
