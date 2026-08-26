@@ -44,6 +44,7 @@ export interface AnySetProps {
   miningLevel: number
   damage: number
   armorDurability: number
+
   totalProtection: number
   blastProtection: number
   fireProtection: number
@@ -57,7 +58,7 @@ export const ANYSET_DEFAULTS: AnySetProps = {
   miningLevel: 2,
   damage: 4,
   armorDurability: 600,
-  totalProtection: 20,
+  totalProtection: 0.25,
   blastProtection: 0.3,
   fireProtection: 0.2
 }

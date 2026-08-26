@@ -192,8 +192,14 @@ function OreFormInner({
                       <Field label="Armor Durability">
                         <NumberInput value={set.armorDurability} onChange={(v) => patchSet('armorDurability', v)} min={1} />
                       </Field>
-                      <Field label="Total Protection">
-                        <NumberInput value={set.totalProtection} onChange={(v) => patchSet('totalProtection', v)} min={0} />
+                      <Field label="Melee Protection" hint="0 to 1">
+                        <NumberInput
+                          value={set.totalProtection}
+                          onChange={(v) => patchSet('totalProtection', v)}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                        />
                       </Field>
                       <Field label="Blast Protection" hint="0 to 1">
                         <NumberInput value={set.blastProtection} onChange={(v) => patchSet('blastProtection', v)} min={0} max={1} step={0.05} />

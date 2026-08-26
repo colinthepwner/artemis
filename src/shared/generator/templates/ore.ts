@@ -26,23 +26,14 @@ export function emitOre(el: ArtemisElement, ctx: EmitContext): EmitContribution 
     itemDecls.push(
       [
         render(ib.decl, { FIELD: BASE_FIELD }),
-        '\t' + render(ib.methods['icon'], { modId: ctx.meta.modId, registryName: base }),
         render(ib.build, { displayName: baseDisplay, registryName: base })
       ].join('\n')
     )
 
-    extraMethods.push(`.setBlockDrop(() -> new ItemStack[]{new ItemStack(ModItems.${BASE_FIELD})})`)
+    extraMethods.push(`// TODO: drop ModItems.${BASE_FIELD} needs a custom BlockLogic in BTA 8.0.1`)
   }
 
   const decl = blockDecl(el.name, p, ctx, extraMethods)
-
-  const oreGenCall = render(ctx.mapping.oreGen.call, {
-    FIELD: `ModBlocks.${FIELD}`,
-    veinSize: p.veinSize,
-    veinsPerChunk: p.veinsPerChunk,
-    minY: p.minY,
-    maxY: p.maxY
-  })
 
   if (p.generateSet) {
     const s = p.set
@@ -70,13 +61,17 @@ export function emitOre(el: ArtemisElement, ctx: EmitContext): EmitContribution 
     }
 
     if (s.armor) {
+
       itemDecls.push(
         render(ctx.mapping.armorMaterial.decl, {
           ...setVars,
           durability: s.armorDurability,
-          totalProtection: s.totalProtection,
-          blastProtection: s.blastProtection,
-          fireProtection: s.fireProtection
+          combat: s.totalProtection,
+          blast: s.blastProtection,
+          fall: 0,
+          fire: s.fireProtection,
+          drown: 0,
+          generic: 0
         })
       )
       for (const piece of Object.values(ctx.mapping.armorMaterial.pieces)) {
@@ -87,7 +82,6 @@ export function emitOre(el: ArtemisElement, ctx: EmitContext): EmitContribution 
 
   return {
     blockDecls: [decl],
-    itemDecls,
-    oreGenCalls: [oreGenCall]
+    itemDecls
   }
 }

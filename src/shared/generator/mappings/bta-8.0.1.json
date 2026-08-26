@@ -21,12 +21,10 @@
     "World": "net.minecraft.core.world.World",
     "BlockBuilder": "turniplabs.halplibe.helper.BlockBuilder",
     "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
-    "ItemHelper": "turniplabs.halplibe.helper.ItemHelper",
     "EntityHelper": "turniplabs.halplibe.helper.EntityHelper",
     "BiomeHelper": "turniplabs.halplibe.helper.BiomeHelper",
     "RecipeBuilder": "turniplabs.halplibe.helper.RecipeBuilder",
     "ArmorHelper": "turniplabs.halplibe.helper.ArmorHelper",
-    "ToolHelper": "turniplabs.halplibe.helper.ToolHelper",
     "ModInitializer": "net.fabricmc.api.ModInitializer",
     "GameStartEntrypoint": "turniplabs.halplibe.util.GameStartEntrypoint",
     "RecipeEntrypoint": "turniplabs.halplibe.util.RecipeEntrypoint",
@@ -34,11 +32,16 @@
     "Toml": "turniplabs.halplibe.util.toml.Toml",
     "Logger": "org.slf4j.Logger",
     "LoggerFactory": "org.slf4j.LoggerFactory",
-    "OreGenHelper": "turniplabs.halplibe.helper.OreGenHelper",
     "WorldFeature": "net.minecraft.core.world.generate.feature.WorldFeature",
     "Random": "java.util.Random",
-    "BlockModelCrossedSquares": "net.minecraft.client.render.block.model.BlockModelCrossedSquares",
-    "Materials": "net.minecraft.core.block.material.Materials"
+    "Materials": "net.minecraft.core.block.material.Materials",
+    "ItemArmor": "net.minecraft.core.item.ItemArmor",
+    "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
+    "ItemToolSword": "net.minecraft.core.item.tool.ItemToolSword",
+    "ItemToolPickaxe": "net.minecraft.core.item.tool.ItemToolPickaxe",
+    "ItemToolAxe": "net.minecraft.core.item.tool.ItemToolAxe",
+    "ItemToolShovel": "net.minecraft.core.item.tool.ItemToolShovel",
+    "ItemToolHoe": "net.minecraft.core.item.tool.ItemToolHoe"
   },
   "idRanges": {
     "$comment": "BTA still runs on numeric registry IDs. Artemis allocates sequentially from these bases at generate time (deterministic: element creation order). Bases sit high above vanilla + common mods; the generated config exposes them so end users can shift the whole band on conflict.",
@@ -131,38 +134,34 @@
     "dropLine": "\t\tthis.dropItem({{itemExpr}}, this.random.nextInt({{dropCountMax}}) + 1);"
   },
   "itemBuilder": {
+    "$comment": "halplibe ItemBuilder, verified against 6.1.4. build() takes the finished Item, and there is no setIcon: item art is stitched from assets/<modid>/textures/item/<key>.png by key.",
     "decl": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)",
     "build": "\t.build(new Item(\"{{displayName}}\", \"{{registryName}}\", nextItemID()));",
     "methods": {
-      "icon": ".setIcon(\"{{modId}}:item/{{registryName}}\")",
       "stackSize": ".setStackSize({{value}})",
-      "fuel": ".setFuelYield({{value}})",
-      "container": ".setContainerItem({{value}})"
+      "maxDamage": ".setMaxDamage({{value}})"
     }
   },
   "toolMaterial": {
-    "$comment": "AnySet backbone: one ToolMaterial feeds the whole tool run. Args: durability, efficiency, damage(int), silkTouchLevel? -> BTA 8 signature kept tokenized so only this string changes on update.",
+    "$comment": "One ToolMaterial feeds the whole tool run. Verified: ToolMaterial has a no-arg constructor plus setDurability/setEfficiency(float,float)/setMiningLevel/setDamage, and each tool is a plain net.minecraft.core.item.tool.ItemToolX(name, key, id, material). There is no ToolHelper.",
     "decl": "public static final ToolMaterial {{FIELD}}_TOOL_MATERIAL = new ToolMaterial()\n\t.setDurability({{durability}})\n\t.setEfficiency({{efficiency}}f, {{efficiencyOnProper}}f)\n\t.setMiningLevel({{miningLevel}})\n\t.setDamage({{damage}});",
     "tools": {
-      "sword": "public static final Item {{FIELD}}_SWORD = ToolHelper.createSword(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_sword\"), \"{{displayName}} Sword\", \"{{registryName}}_sword\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
-      "pickaxe": "public static final Item {{FIELD}}_PICKAXE = ToolHelper.createPickaxe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_pickaxe\"), \"{{displayName}} Pickaxe\", \"{{registryName}}_pickaxe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
-      "axe": "public static final Item {{FIELD}}_AXE = ToolHelper.createAxe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_axe\"), \"{{displayName}} Axe\", \"{{registryName}}_axe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
-      "shovel": "public static final Item {{FIELD}}_SHOVEL = ToolHelper.createShovel(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_shovel\"), \"{{displayName}} Shovel\", \"{{registryName}}_shovel\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
-      "hoe": "public static final Item {{FIELD}}_HOE = ToolHelper.createHoe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_hoe\"), \"{{displayName}} Hoe\", \"{{registryName}}_hoe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);"
+      "sword": "public static final Item {{FIELD}}_SWORD = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolSword(\"{{displayName}} Sword\", \"{{registryName}}_sword\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "pickaxe": "public static final Item {{FIELD}}_PICKAXE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolPickaxe(\"{{displayName}} Pickaxe\", \"{{registryName}}_pickaxe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "axe": "public static final Item {{FIELD}}_AXE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolAxe(\"{{displayName}} Axe\", \"{{registryName}}_axe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "shovel": "public static final Item {{FIELD}}_SHOVEL = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolShovel(\"{{displayName}} Shovel\", \"{{registryName}}_shovel\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "hoe": "public static final Item {{FIELD}}_HOE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolHoe(\"{{displayName}} Hoe\", \"{{registryName}}_hoe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));"
     }
   },
   "armorMaterial": {
-    "decl": "public static final ArmorMaterial {{FIELD}}_ARMOR_MATERIAL = ArmorHelper.createArmorMaterial(MOD_ID, \"{{registryName}}\", {{durability}}, {{totalProtection}}f, {{blastProtection}}f, {{fireProtection}}f);",
+    "$comment": "ArmorHelper.createArmorMaterial(namespace, key, durability, f x6) where the floats are protection percentages per DamageType in declaration order: COMBAT, BLAST, FALL, FIRE, DROWN, GENERIC. Pieces are plain ItemArmor<HumanArmorShape> instances; createArmorItem does not exist.",
+    "decl": "public static final ArmorMaterial {{FIELD}}_ARMOR_MATERIAL = ArmorHelper.createArmorMaterial(MOD_ID, \"{{registryName}}\", {{durability}}, {{combat}}f, {{blast}}f, {{fall}}f, {{fire}}f, {{drown}}f, {{generic}}f);",
     "pieces": {
-      "helmet": "public static final Item {{FIELD}}_HELMET = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_helmet\"), \"{{displayName}} Helmet\", \"{{registryName}}_helmet\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 0);",
-      "chestplate": "public static final Item {{FIELD}}_CHESTPLATE = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_chestplate\"), \"{{displayName}} Chestplate\", \"{{registryName}}_chestplate\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 1);",
-      "leggings": "public static final Item {{FIELD}}_LEGGINGS = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_leggings\"), \"{{displayName}} Leggings\", \"{{registryName}}_leggings\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 2);",
-      "boots": "public static final Item {{FIELD}}_BOOTS = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_boots\"), \"{{displayName}} Boots\", \"{{registryName}}_boots\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 3);"
+      "helmet": "public static final Item {{FIELD}}_HELMET = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Helmet\", \"{{registryName}}_helmet\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.HEAD));",
+      "chestplate": "public static final Item {{FIELD}}_CHESTPLATE = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Chestplate\", \"{{registryName}}_chestplate\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.CHEST));",
+      "leggings": "public static final Item {{FIELD}}_LEGGINGS = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Leggings\", \"{{registryName}}_leggings\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.LEGS));",
+      "boots": "public static final Item {{FIELD}}_BOOTS = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Boots\", \"{{registryName}}_boots\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.BOOTS));"
     }
-  },
-  "oreGen": {
-    "$comment": "World-gen hook for ores; emitted into the mod's worldgen feature class and invoked from the entrypoint.",
-    "call": "OreGenHelper.generateOre(world, chunkX, chunkZ, {{FIELD}}.id(), {{veinSize}}, {{veinsPerChunk}}, {{minY}}, {{maxY}});"
   },
   "recipes": {
     "$comment": "RecipeBuilder idioms. Shaped rows are 3 strings; symbols map char->itemstack expression.",

@@ -13,7 +13,6 @@ export interface BtaMapping {
   itemBuilder: { decl: string; build: string; methods: Record<string, string> }
   toolMaterial: { decl: string; tools: Record<string, string> }
   armorMaterial: { decl: string; pieces: Record<string, string> }
-  oreGen: { call: string }
   recipes: Record<string, string>
   biome: { decl: string; methods: Record<string, string>; attach: string }
   tree: { featureClass: string }
