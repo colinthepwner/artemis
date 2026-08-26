@@ -666,29 +666,35 @@ function PixelEditor(): JSX.Element {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       >
-        {}
-        <div className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2.5">
-          <span className="text-2xs font-semibold uppercase tracking-wider text-gold-400/80">
+        {
+
+}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/[0.04] px-4 py-2.5">
+          <span className="justify-self-start text-2xs font-semibold uppercase tracking-wider text-gold-400/80">
             Texture Editor
           </span>
           <input
-            className={cn('input-base w-52 py-1 font-mono text-xs', saveBlocked && 'shadow-glow-ember')}
+            className={cn(
+              'input-base w-64 py-1 text-center font-mono text-xs',
+              saveBlocked && 'shadow-glow-ember'
+            )}
             placeholder="texture name (required)"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <div className="flex-1" />
-          {
+          <div className="flex items-center gap-3 justify-self-end">
+            {
 }
-          <span className="w-12 text-right font-mono text-2xs text-mist-600">
-            {hover !== null ? `${hx}, ${hy}` : ''}
-          </span>
-          <button
-            onClick={close}
-            className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
-          >
-            <X size={15} />
-          </button>
+            <span className="w-12 text-right font-mono text-2xs text-mist-600">
+              {hover !== null ? `${hx}, ${hy}` : ''}
+            </span>
+            <button
+              onClick={close}
+              className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         <div className="flex min-h-0 gap-5 overflow-y-auto p-5">
