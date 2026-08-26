@@ -47,6 +47,9 @@ const api: ArtemisApi = {
       return () => ipcRenderer.removeListener(IPC.TestState, listener)
     }
   },
+  vanilla: {
+    art: (btaVersion) => ipcRenderer.invoke(IPC.VanillaArt, btaVersion)
+  },
   update: {
     onState: (cb) => {
       const listener = (_e: Electron.IpcRendererEvent, state: UpdateState): void => cb(state)

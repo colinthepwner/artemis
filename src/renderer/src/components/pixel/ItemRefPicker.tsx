@@ -4,6 +4,7 @@ import { getVanillaRegistry } from '@shared/generator/vanilla'
 import { projectRegistryEntries } from '@shared/generator/registry'
 import { artworkFor } from '@shared/generator/artwork'
 import { vanillaIcon } from './vanillaIcons'
+import { useVanillaArt } from './useVanillaArt'
 import { PickerDialog, type PickerEntry } from '@/components/ui/PickerDialog'
 import { cn } from '@/lib/cn'
 
@@ -68,6 +69,7 @@ function ItemRefPicker(props: {
   onPick: (ref: string) => void
 }): JSX.Element {
   const project = useProjectStore((s) => s.project)
+  const art = useVanillaArt()
 
   const vanilla = useMemo(
     () => getVanillaRegistry(project?.meta.targetBta ?? '8.0.1'),
@@ -84,6 +86,7 @@ function ItemRefPicker(props: {
           sub: e.field,
           kind: 'block' as const,
           icon: vanillaIcon(e.field, 'block'),
+          image: art.blocks[e.field],
           group: 'Blocks'
         }))
       )
@@ -96,12 +99,13 @@ function ItemRefPicker(props: {
           sub: e.field,
           kind: 'item' as const,
           icon: vanillaIcon(e.field, 'item'),
+          image: art.items[e.field],
           group: 'Items'
         }))
       )
     }
     return rows
-  }, [vanilla, props.filter])
+  }, [vanilla, art, props.filter])
 
   const modEntries = useMemo<PickerEntry[]>(() => {
     if (!project) return []

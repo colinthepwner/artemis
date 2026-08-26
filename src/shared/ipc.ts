@@ -32,6 +32,8 @@ export const IPC = {
 
   TestState: 'test:state',
 
+  VanillaArt: 'vanilla:art',
+
   UpdateState: 'update:state'
 } as const
 
@@ -115,5 +117,9 @@ export interface ArtemisApi {
   update: {
 
     onState(cb: (state: UpdateState) => void): () => void
+  }
+  vanilla: {
+
+    art(btaVersion: string): Promise<{ blocks: Record<string, string>; items: Record<string, string> }>
   }
 }

@@ -47,7 +47,8 @@ if (!window.artemis) {
       onLog: () => () => {},
       onState: () => () => {}
     },
-    update: { onState: () => () => {} }
+    update: { onState: () => () => {} },
+    vanilla: { art: async () => ({ blocks: {}, items: {} }) }
   }
 }
 

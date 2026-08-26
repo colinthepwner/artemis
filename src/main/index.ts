@@ -5,6 +5,7 @@ import { registerProjectIpc } from './ipc/project'
 import { registerExportIpc } from './export/exporter'
 import { registerTestIpc } from './test/runner'
 import { checkForUpdates } from './updater'
+import { registerVanillaIpc } from './vanillaTextures'
 
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
 
@@ -59,6 +60,7 @@ app.whenReady().then(() => {
   registerProjectIpc()
   registerExportIpc()
   registerTestIpc()
+  registerVanillaIpc()
   createWindow()
 
   app.on('activate', () => {
