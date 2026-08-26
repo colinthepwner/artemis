@@ -529,6 +529,35 @@ function PixelEditor(): JSX.Element {
   const patchLayer = (id: string, patch: Partial<Omit<Layer, 'id' | 'grid'>>): void =>
     setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)))
 
+  const layerListRef = useRef<HTMLDivElement>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  const beginLayerDrag = (id: string): void => {
+    pushUndo()
+    setDraggingId(id)
+  }
+
+  const dragLayerTo = (id: string, clientY: number): void => {
+    const rows = layerListRef.current?.querySelectorAll('[data-layer-row]')
+    if (!rows?.length) return
+    let over = rows.length - 1
+    for (let i = 0; i < rows.length; i++) {
+      if (clientY < rows[i].getBoundingClientRect().bottom) {
+        over = i
+        break
+      }
+    }
+    const list = layersRef.current
+    const from = list.findIndex((l) => l.id === id)
+
+    const to = list.length - 1 - over
+    if (from < 0 || to < 0 || to >= list.length || to === from) return
+    const next = [...list]
+    next.splice(to, 0, ...next.splice(from, 1))
+    layersRef.current = next
+    setLayers(next)
+  }
+
   const composite = useMemo(() => compositeLayers(layers, fx), [layers, fx])
   const displayed = composite.grid
 
@@ -947,12 +976,13 @@ function PixelEditor(): JSX.Element {
                   <Plus size={13} />
                 </button>
               </div>
-              <div className="space-y-0.5 rounded-lg bg-ink-900/50 p-1.5 shadow-panel">
+              <div ref={layerListRef} className="space-y-0.5 rounded-lg bg-ink-900/50 p-1.5 shadow-panel">
                 {[...layers].reverse().map((l) => (
                   <LayerRow
                     key={l.id}
                     layer={l}
                     active={l.id === activeId}
+                    dragging={draggingId === l.id}
                     canDelete={layers.length > 1}
                     isTop={layers[layers.length - 1].id === l.id}
                     isBottom={layers[0].id === l.id}
@@ -961,6 +991,9 @@ function PixelEditor(): JSX.Element {
                     onMove={(dir) => moveLayer(l.id, dir)}
                     onDuplicate={() => duplicateLayer(l.id)}
                     onDelete={() => deleteLayer(l.id)}
+                    onDragStart={() => beginLayerDrag(l.id)}
+                    onDragTo={(y) => dragLayerTo(l.id, y)}
+                    onDragEnd={() => setDraggingId(null)}
                   />
                 ))}
                 {
@@ -1053,9 +1086,12 @@ function PixelEditor(): JSX.Element {
   )
 }
 
+const DRAG_SLOP = 4
+
 function LayerRow(props: {
   layer: Layer
   active: boolean
+  dragging: boolean
   canDelete: boolean
   isTop: boolean
   isBottom: boolean
@@ -1064,13 +1100,61 @@ function LayerRow(props: {
   onMove: (dir: 1 | -1) => void
   onDuplicate: () => void
   onDelete: () => void
+  onDragStart: () => void
+  onDragTo: (clientY: number) => void
+  onDragEnd: () => void
 }): JSX.Element {
   const { layer: l } = props
+
+  const [editing, setEditing] = useState(false)
+  const press = useRef<{ x: number; y: number } | null>(null)
+  const dragged = useRef(false)
+
+  useEffect(() => {
+    if (!props.active) setEditing(false)
+  }, [props.active])
+
+  const endPress = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (!press.current) return
+    press.current = null
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    if (dragged.current) {
+      props.onDragEnd()
+      return
+    }
+
+    if (props.active) setEditing(true)
+    else props.onSelect()
+  }
+
   return (
     <div
-      onClick={props.onSelect}
+      data-layer-row
+      onPointerDown={(e) => {
+
+        if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
+        press.current = { x: e.clientX, y: e.clientY }
+        dragged.current = false
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        const p = press.current
+        if (!p) return
+        if (!dragged.current) {
+          if (Math.abs(e.clientX - p.x) < DRAG_SLOP && Math.abs(e.clientY - p.y) < DRAG_SLOP) return
+          dragged.current = true
+          props.onDragStart()
+        }
+        props.onDragTo(e.clientY)
+      }}
+      onPointerUp={endPress}
+      onPointerCancel={endPress}
+      title="Click to select, click again to rename, drag to reorder"
       className={cn(
-        'group flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors',
+        'group flex select-none items-center gap-1 rounded-md px-1 py-0.5 transition-colors',
+        props.dragging ? 'cursor-grabbing ring-1 ring-gold-500/40' : 'cursor-grab',
         props.active ? 'bg-ink-750 shadow-panel' : 'hover:bg-ink-800'
       )}
     >
@@ -1084,15 +1168,24 @@ function LayerRow(props: {
       >
         {l.visible ? <Eye size={12} /> : <EyeOff size={12} className="text-mist-600" />}
       </button>
-      {props.active ? (
+      {editing ? (
         <input
-          className="w-0 min-w-0 flex-1 bg-transparent text-xs text-mist-100 outline-none"
+          autoFocus
+          className="w-0 min-w-0 flex-1 cursor-text select-text bg-transparent text-xs text-mist-100 outline-none"
           value={l.name}
-          onClick={(e) => e.stopPropagation()}
           onChange={(e) => props.onPatch({ name: e.target.value })}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur()
+          }}
         />
       ) : (
-        <span className={cn('min-w-0 flex-1 truncate text-xs', l.visible ? 'text-mist-400' : 'text-mist-600')}>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-xs',
+            props.active ? 'text-mist-100' : l.visible ? 'text-mist-400' : 'text-mist-600'
+          )}
+        >
           {l.name}
         </span>
       )}
