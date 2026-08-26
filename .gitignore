@@ -1,0 +1,19 @@
+node_modules/
+out/
+release/
+dist/
+
+# incremental build state, can carry absolute paths
+*.tsbuildinfo
+
+# updater leftovers, swept on next launch
+*.old-update
+.artemis-update-*.exe
+
+# generated at build time from the source logo
+resources/icon.ico
+resources/icon.png
+
+*.log
+.DS_Store
+Thumbs.db

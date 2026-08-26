@@ -1,0 +1,234 @@
+{
+  "$comment": "=== BTA 8.0.1 mapping ============================================ Every version-specific fact the code generator knows lives in THIS file: fully-qualified class names, halplibe builder-method shapes, registration idioms, ID ranges, gradle coordinates. To support a new BTA version: duplicate this file as bta-<ver>.json, fix the strings that changed, register it in mappings/index.ts. No UI or emitter code should ever need touching. Snippet tokens use {{name}} and are filled by the emitters.",
+  "id": "bta-8.0.1",
+  "btaVersion": "8.0.1",
+  "displayName": "Better Than Adventure! 8.0.1",
+
+  "imports": {
+    "$comment": "Symbol -> FQN. Emitters reference symbols only; the JavaWriter resolves + dedupes imports from this table.",
+    "Block": "net.minecraft.core.block.Block",
+    "Blocks": "net.minecraft.core.block.Blocks",
+    "Items": "net.minecraft.core.item.Items",
+    "BlockLogic": "net.minecraft.core.block.BlockLogic",
+    "Material": "net.minecraft.core.block.material.Material",
+    "BlockSounds": "net.minecraft.core.sound.BlockSounds",
+    "BlockTags": "net.minecraft.core.block.tag.BlockTags",
+    "Item": "net.minecraft.core.item.Item",
+    "ItemStack": "net.minecraft.core.item.ItemStack",
+    "ToolMaterial": "net.minecraft.core.item.material.ToolMaterial",
+    "ArmorMaterial": "net.minecraft.core.item.material.ArmorMaterial",
+    "Biome": "net.minecraft.core.world.biome.Biome",
+    "EntityLiving": "net.minecraft.core.entity.EntityLiving",
+    "World": "net.minecraft.core.world.World",
+    "BlockBuilder": "turniplabs.halplibe.helper.BlockBuilder",
+    "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
+    "ItemHelper": "turniplabs.halplibe.helper.ItemHelper",
+    "EntityHelper": "turniplabs.halplibe.helper.EntityHelper",
+    "BiomeHelper": "turniplabs.halplibe.helper.BiomeHelper",
+    "RecipeBuilder": "turniplabs.halplibe.helper.RecipeBuilder",
+    "ArmorHelper": "turniplabs.halplibe.helper.ArmorHelper",
+    "ToolHelper": "turniplabs.halplibe.helper.ToolHelper",
+    "ModInitializer": "net.fabricmc.api.ModInitializer",
+    "GameStartEntrypoint": "turniplabs.halplibe.util.GameStartEntrypoint",
+    "RecipeEntrypoint": "turniplabs.halplibe.util.RecipeEntrypoint",
+    "TomlConfigHandler": "turniplabs.halplibe.util.TomlConfigHandler",
+    "Toml": "turniplabs.halplibe.util.toml.Toml",
+    "Logger": "org.slf4j.Logger",
+    "LoggerFactory": "org.slf4j.LoggerFactory",
+    "OreGenHelper": "turniplabs.halplibe.helper.OreGenHelper",
+    "WorldFeature": "net.minecraft.core.world.generate.feature.WorldFeature",
+    "Random": "java.util.Random",
+    "BlockModelCrossedSquares": "net.minecraft.client.render.block.model.BlockModelCrossedSquares"
+  },
+
+  "idRanges": {
+    "$comment": "BTA still runs on numeric registry IDs. Artemis allocates sequentially from these bases at generate time (deterministic: element creation order). Bases sit high above vanilla + common mods; the generated config exposes them so end users can shift the whole band on conflict.",
+    "block": { "start": 1500 },
+    "item": { "start": 18000 },
+    "entity": { "start": 120 },
+    "biome": { "start": 60 }
+  },
+
+  "materials": {
+    "$comment": "UI dropdown value -> Material field expression.",
+    "stone": "Material.stone",
+    "dirt": "Material.dirt",
+    "wood": "Material.wood",
+    "metal": "Material.metal",
+    "sand": "Material.sand",
+    "glass": "Material.glass",
+    "grass": "Material.grass",
+    "leaves": "Material.leaves",
+    "plant": "Material.plant",
+    "cloth": "Material.cloth",
+    "ice": "Material.ice",
+    "snow": "Material.snow",
+    "cactus": "Material.cactus",
+    "moss": "Material.moss",
+    "water": "Material.water",
+    "lava": "Material.lava"
+  },
+
+  "sounds": {
+    "stone": "BlockSounds.STONE",
+    "wood": "BlockSounds.WOOD",
+    "gravel": "BlockSounds.GRAVEL",
+    "grass": "BlockSounds.GRASS",
+    "metal": "BlockSounds.METAL",
+    "glass": "BlockSounds.GLASS",
+    "cloth": "BlockSounds.CLOTH",
+    "sand": "BlockSounds.SAND"
+  },
+
+  "blockTags": {
+    "$comment": "UI toggle key -> BlockTags constant. Tool mineability doubles as the effective-tool system in BTA.",
+    "mineableByPickaxe": "BlockTags.MINEABLE_BY_PICKAXE",
+    "mineableByAxe": "BlockTags.MINEABLE_BY_AXE",
+    "mineableByShovel": "BlockTags.MINEABLE_BY_SHOVEL",
+    "mineableByHoe": "BlockTags.MINEABLE_BY_HOE",
+    "mineableBySword": "BlockTags.MINEABLE_BY_SWORD",
+    "brokenByFluids": "BlockTags.BROKEN_BY_FLUIDS",
+    "growsFlowers": "BlockTags.GROWS_FLOWERS",
+    "passesLightThrough": "BlockTags.PASSES_LIGHT_THROUGH"
+  },
+
+  "blockBuilder": {
+    "$comment": "halplibe BlockBuilder chain. `decl` is the field skeleton; `methods` maps Artemis property keys -> chain fragments (only emitted when the property is set / non-default). {{luminance}} is 0-15, {{hardness}}/{{resistance}} floats.",
+    "decl": "public static final Block<BlockLogic> {{FIELD}} = new BlockBuilder(MOD_ID)",
+    "build": "\t.build(\"{{displayName}}\", \"{{registryName}}\", nextBlockID(), {{material}});",
+    "methods": {
+      "hardness": ".setHardness({{value}}f)",
+      "resistance": ".setResistance({{value}}f)",
+      "luminance": ".setLuminance({{value}})",
+      "sound": ".setBlockSound({{value}})",
+      "tags": ".setTags({{value}})",
+      "dropsItself": ".setBlockDrop(() -> new ItemStack[]{new ItemStack({{FIELD}})})",
+      "dropsNothing": ".setBlockDrop(() -> null)",
+      "textureAll": ".setTextures(\"{{modId}}:block/{{registryName}}\")",
+      "textureTopBottomSides": ".setTopTexture(\"{{modId}}:block/{{registryName}}_top\")\n\t.setBottomTexture(\"{{modId}}:block/{{registryName}}_bottom\")\n\t.setSideTextures(\"{{modId}}:block/{{registryName}}_side\")",
+      "infiniburn": ".setInfiniburn()",
+      "notInCreativeMenu": ".setNotInCreativeMenu()",
+      "modelCross": ".setBlockModel(BlockModelCrossedSquares::new)"
+    }
+  },
+
+  "tree": {
+    "$comment": "Whole-file template for the tree WorldFeature. The world mutation API is the most version-volatile surface in BTA, so the entire generate() body lives here rather than in an emitter.",
+    "featureClass": "public class {{className}} extends WorldFeature {\n\n\t@Override\n\tpublic boolean place(World world, Random random, int x, int y, int z) {\n\t\tint height = {{minHeight}} + random.nextInt({{heightRange}});\n\n\t\t// trunk\n\t\tfor (int dy = 0; dy < height; dy++) {\n\t\t\tworld.setBlockWithNotify(x, y + dy, z, ModBlocks.{{LOG_FIELD}}.id());\n\t\t}\n\n\t\t// leaf canopy: 2-layer blob around the crown\n\t\tfor (int dy = height - 2; dy <= height + 1; dy++) {\n\t\t\tint radius = dy > height - 1 ? 1 : 2;\n\t\t\tfor (int dx = -radius; dx <= radius; dx++) {\n\t\t\t\tfor (int dz = -radius; dz <= radius; dz++) {\n\t\t\t\t\tif (Math.abs(dx) == radius && Math.abs(dz) == radius && random.nextBoolean()) continue;\n\t\t\t\t\tif (world.getBlockId(x + dx, y + dy, z + dz) == 0) {\n\t\t\t\t\t\tworld.setBlockWithNotify(x + dx, y + dy, z + dz, ModBlocks.{{LEAVES_FIELD}}.id());\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\treturn true;\n\t}\n}"
+  },
+
+  "mob": {
+    "$comment": "Whole-file template for generated mob classes. {{extends}} comes from entity.mobClassExtends; hostile mobs get the melee-attack override block via {{hostileBody}}.",
+    "classTemplate": "public class {{className}} extends {{extends}} {\n\n\tpublic {{className}}(World world) {\n\t\tsuper(world);\n\t\tthis.setSize(0.6f, 1.8f);\n\t\tthis.setMaxHealth({{health}});\n\t\tthis.moveSpeed = {{moveSpeed}}f;\n\t\tthis.textureIdentifier = \"{{texture}}\";\n\t}\n{{hostileBody}}\n\t@Override\n\tpublic void dropFewItems(boolean hitByPlayer) {\n{{dropBody}}\n\t}\n}",
+    "hostileBody": "\n\t@Override\n\tprotected void attackEntity(net.minecraft.core.entity.Entity target, float distance) {\n\t\tif (distance < 2.0f && this.attackTime <= 0) {\n\t\t\tthis.attackTime = 20;\n\t\t\ttarget.hurt(this, {{attackDamage}}, net.minecraft.core.util.helper.DamageType.COMBAT);\n\t\t}\n\t}\n",
+    "dropLine": "\t\tthis.dropItem({{itemExpr}}, this.random.nextInt({{dropCountMax}}) + 1);"
+  },
+
+  "itemBuilder": {
+    "decl": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)",
+    "build": "\t.build(new Item(\"{{displayName}}\", \"{{registryName}}\", nextItemID()));",
+    "methods": {
+      "icon": ".setIcon(\"{{modId}}:item/{{registryName}}\")",
+      "stackSize": ".setStackSize({{value}})",
+      "fuel": ".setFuelYield({{value}})",
+      "container": ".setContainerItem({{value}})"
+    }
+  },
+
+  "toolMaterial": {
+    "$comment": "AnySet backbone: one ToolMaterial feeds the whole tool run. Args: durability, efficiency, damage(int), silkTouchLevel? -> BTA 8 signature kept tokenized so only this string changes on update.",
+    "decl": "public static final ToolMaterial {{FIELD}}_TOOL_MATERIAL = new ToolMaterial()\n\t.setDurability({{durability}})\n\t.setEfficiency({{efficiency}}f, {{efficiencyOnProper}}f)\n\t.setMiningLevel({{miningLevel}})\n\t.setDamage({{damage}});",
+    "tools": {
+      "sword": "public static final Item {{FIELD}}_SWORD = ToolHelper.createSword(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_sword\"), \"{{displayName}} Sword\", \"{{registryName}}_sword\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
+      "pickaxe": "public static final Item {{FIELD}}_PICKAXE = ToolHelper.createPickaxe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_pickaxe\"), \"{{displayName}} Pickaxe\", \"{{registryName}}_pickaxe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
+      "axe": "public static final Item {{FIELD}}_AXE = ToolHelper.createAxe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_axe\"), \"{{displayName}} Axe\", \"{{registryName}}_axe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
+      "shovel": "public static final Item {{FIELD}}_SHOVEL = ToolHelper.createShovel(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_shovel\"), \"{{displayName}} Shovel\", \"{{registryName}}_shovel\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);",
+      "hoe": "public static final Item {{FIELD}}_HOE = ToolHelper.createHoe(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_hoe\"), \"{{displayName}} Hoe\", \"{{registryName}}_hoe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL);"
+    }
+  },
+
+  "armorMaterial": {
+    "decl": "public static final ArmorMaterial {{FIELD}}_ARMOR_MATERIAL = ArmorHelper.createArmorMaterial(MOD_ID, \"{{registryName}}\", {{durability}}, {{totalProtection}}f, {{blastProtection}}f, {{fireProtection}}f);",
+    "pieces": {
+      "helmet": "public static final Item {{FIELD}}_HELMET = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_helmet\"), \"{{displayName}} Helmet\", \"{{registryName}}_helmet\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 0);",
+      "chestplate": "public static final Item {{FIELD}}_CHESTPLATE = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_chestplate\"), \"{{displayName}} Chestplate\", \"{{registryName}}_chestplate\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 1);",
+      "leggings": "public static final Item {{FIELD}}_LEGGINGS = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_leggings\"), \"{{displayName}} Leggings\", \"{{registryName}}_leggings\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 2);",
+      "boots": "public static final Item {{FIELD}}_BOOTS = ArmorHelper.createArmorItem(new ItemBuilder(MOD_ID).setIcon(\"{{modId}}:item/{{registryName}}_boots\"), \"{{displayName}} Boots\", \"{{registryName}}_boots\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, 3);"
+    }
+  },
+
+  "oreGen": {
+    "$comment": "World-gen hook for ores; emitted into the mod's worldgen feature class and invoked from the entrypoint.",
+    "call": "OreGenHelper.generateOre(world, chunkX, chunkZ, {{FIELD}}.id(), {{veinSize}}, {{veinsPerChunk}}, {{minY}}, {{maxY}});"
+  },
+
+  "recipes": {
+    "$comment": "RecipeBuilder idioms. Shaped rows are 3 strings; symbols map char->itemstack expression.",
+    "shapedOpen": "RecipeBuilder.Shaped(MOD_ID)",
+    "shapedRow": "\t.setShape({{rows}})",
+    "shapedSymbol": "\t.addInput('{{char}}', {{stack}})",
+    "shapedBuild": "\t.create(\"{{recipeName}}\", {{output}});",
+    "shapelessOpen": "RecipeBuilder.Shapeless(MOD_ID)",
+    "shapelessInput": "\t.addInput({{stack}})",
+    "shapelessBuild": "\t.create(\"{{recipeName}}\", {{output}});",
+    "furnace": "RecipeBuilder.Furnace(MOD_ID).setInput({{input}}).create(\"{{recipeName}}\", {{output}});"
+  },
+
+  "biome": {
+    "$comment": "Registration mirrors how the BOP/Twilight-style BTA ports do it: declare Biome, register through BiomeHelper with climate + surface config, then attach to world-type ranges.",
+    "decl": "public static final Biome {{FIELD}} = BiomeHelper.createBiome(MOD_ID, \"{{registryName}}\", b -> b\n{{chain}});",
+    "methods": {
+      "climate": "\t.setClimate({{temperature}}f, {{humidity}}f)",
+      "colors": "\t.setGrassColor(0x{{grassColor}}).setFoliageColor(0x{{foliageColor}})",
+      "topBlock": "\t.setTopBlock({{value}})",
+      "fillerBlock": "\t.setFillerBlock({{value}})",
+      "spawns": "\t.addSpawn({{entityClass}}.class, {{weight}})",
+      "treeDensity": "\t.setTreeDensity({{value}})"
+    },
+    "attach": "BiomeHelper.addBiomeToOverworld({{FIELD}}, {{temperature}}f, {{humidity}}f, {{variance}}f);"
+  },
+
+  "entity": {
+    "decl": "EntityHelper.createEntity({{className}}.class, {{className}}::new, nextEntityID(), \"{{registryName}}\");",
+    "mobClassExtends": "EntityLiving"
+  },
+
+  "entrypoint": {
+    "$comment": "Main mod class skeleton. {{BODY_*}} slots are filled by CodeGenerator with per-element registration/init calls.",
+    "interfaces": ["ModInitializer", "GameStartEntrypoint", "RecipeEntrypoint"]
+  },
+
+  "fabricModJson": {
+    "schemaVersion": 1,
+    "environment": "*",
+    "entrypoints": { "main": [], "beforeGameStart": [], "recipesReady": [] },
+    "depends": { "fabricloader": ">=0.13.3", "halplibe": ">=5.0.0", "minecraft": "8.0.1" }
+  },
+
+  "gradle": {
+    "$comment": "Workspace scaffold facts used by the Phase-5 export engine. halplibe release is resolved live at export; fallbackVersion is the offline pin. gradleVersion must sit in babric-loom 1.7.x's supported window (8.6-8.10).",
+    "javaVersion": 17,
+    "gradleVersion": "8.10.2",
+    "loomVendor": "babric",
+    "loomPlugin": "babric-loom",
+    "loomVersion": "1.7.3",
+    "fabricLoaderVersion": "0.15.6-babric.1",
+    "btaMaven": "https://maven.thesignalumproject.net/releases",
+    "babricMaven": "https://maven.glass-launcher.net/babric",
+    "halplibe": {
+      "githubRepo": "Turnip-Labs/bta-halplibe",
+      "mavenGroup": "turniplabs",
+      "artifact": "halplibe",
+      "fallbackVersion": "5.1.0"
+    }
+  },
+
+  "obfuscation": {
+    "$comment": "ProGuard-based name obfuscation for the exported mod. The keep-list protects everything the loader/Mixin/reflection reach; package names here are BTA-version-specific so they live in the mapping. shrink/optimize are intentionally OFF in the generated config, renaming is the safe subset; shrinking dead-strips reflectively-used members and optimization rewrites bytecode Mixin can't follow.",
+    "proguardVersion": "7.5.0",
+    "mixinPackage": "org.spongepowered.asm.mixin",
+    "fabricApiPackage": "net.fabricmc.api",
+    "reflectiveClassPatterns": ["**.entity.**", "**.worldgen.**"],
+    "minecraftPackages": ["net.minecraft.**", "com.mojang.**"]
+  }
+}
