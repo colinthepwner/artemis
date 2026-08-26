@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Box, Package } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import { getVanillaRegistry } from '@shared/generator/vanilla'
 import { projectRegistryEntries } from '@shared/generator/registry'
+import { artworkFor } from '@shared/generator/artwork'
+import { vanillaIcon } from './vanillaIcons'
 import { PickerDialog, type PickerEntry } from '@/components/ui/PickerDialog'
 import { cn } from '@/lib/cn'
 
@@ -82,7 +83,7 @@ function ItemRefPicker(props: {
           label: e.name,
           sub: e.field,
           kind: 'block' as const,
-          icon: Box,
+          icon: vanillaIcon(e.field, 'block'),
           group: 'Blocks'
         }))
       )
@@ -94,7 +95,7 @@ function ItemRefPicker(props: {
           label: e.name,
           sub: e.field,
           kind: 'item' as const,
-          icon: Package,
+          icon: vanillaIcon(e.field, 'item'),
           group: 'Items'
         }))
       )
@@ -106,21 +107,15 @@ function ItemRefPicker(props: {
     if (!project) return []
     return projectRegistryEntries(project)
       .filter((r) => (props.filter ? r.kind === props.filter : true))
-      .map((r) => {
-        const texId =
-          project.textureAssignments[`item/${r.registryName}`] ??
-          project.textureAssignments[`block/${r.registryName}`]
-        const tex = texId ? project.textures.find((t) => t.id === texId) : undefined
-        return {
-          id: r.registryName,
-          label: r.displayName,
-          sub: r.registryName,
-          kind: r.kind,
-          icon: r.kind === 'block' ? Box : Package,
-          image: tex?.data,
-          group: r.kind === 'block' ? 'Blocks' : 'Items'
-        }
-      })
+      .map((r) => ({
+        id: r.registryName,
+        label: r.displayName,
+        sub: r.registryName,
+        kind: r.kind,
+        icon: vanillaIcon(r.registryName.toUpperCase(), r.kind),
+        image: artworkFor(project, r),
+        group: r.kind === 'block' ? 'Blocks' : 'Items'
+      }))
   }, [project, props.filter])
 
   const what =

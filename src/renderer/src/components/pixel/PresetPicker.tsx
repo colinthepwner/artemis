@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useProjectStore } from '@/store/projectStore'
+import { projectRegistryEntries } from '@shared/generator/registry'
+import { artworkFor } from '@shared/generator/artwork'
 import { PickerDialog, type PickerEntry } from '@/components/ui/PickerDialog'
 import { TEXTURE_PRESETS, gridToDataUrl, type Grid } from './presets'
 
@@ -18,6 +20,7 @@ export function PresetPicker(props: {
   onPick: (pick: PresetPick) => void
   onClose: () => void
 }): JSX.Element {
+  const project = useProjectStore((s) => s.project)
   const textures = useProjectStore((s) => s.project?.textures)
 
   const presets = useMemo(
@@ -34,22 +37,55 @@ export function PresetPicker(props: {
     [props.accent]
   )
 
-  const mine = useMemo<PickerEntry[]>(
-    () => (textures ?? []).map((t) => ({ id: t.id, label: t.name, image: t.data })),
-    [textures]
-  )
+  const mod = useMemo(() => {
+    const rows: { entry: PickerEntry; pick: PresetPick }[] = []
+    if (!project) return rows
+    const claimed = new Set<string>()
+
+    for (const r of projectRegistryEntries(project)) {
+      const art = artworkFor(project, r)
+      if (!art) continue
+      claimed.add(art)
+      rows.push({
+        entry: {
+          id: `ref:${r.registryName}`,
+          label: r.displayName,
+          sub: r.registryName,
+          kind: r.kind,
+          image: art,
+          group: r.kind === 'block' ? 'Blocks' : 'Items'
+        },
+        pick: { dataUrl: art, name: r.registryName }
+      })
+    }
+
+    for (const t of textures ?? []) {
+      if (claimed.has(t.data)) continue
+      rows.push({
+        entry: {
+          id: `tex:${t.id}`,
+          label: t.name,
+          image: t.data,
+          kind: t.kind ?? 'block',
+          group: 'Not used yet'
+        },
+        pick: { dataUrl: t.data, name: t.name }
+      })
+    }
+    return rows
+  }, [project, textures])
 
   return (
     <PickerDialog
       title="Start from a texture"
       subtitle="Fills the active layer. Your other layers stay put."
       tabs={[
-        { id: 'vanilla', label: 'Vanilla (BTA)', entries: presets.map((p) => p.entry) },
+        { id: 'vanilla', label: 'Presets', entries: presets.map((p) => p.entry) },
         {
           id: 'mod',
           label: 'This Mod',
-          entries: mine,
-          empty: 'This mod has no textures yet. Paint one and it shows up here.'
+          entries: mod.map((m) => m.entry),
+          empty: 'This mod has no artwork yet. Paint something and it shows up here.'
         }
       ]}
       accessory={(tabId) =>
@@ -74,8 +110,8 @@ export function PresetPicker(props: {
           if (hit) props.onPick({ grid: hit.preset.generate(props.accent), name: hit.preset.id })
           return
         }
-        const tex = textures?.find((t) => t.id === entry.id)
-        if (tex) props.onPick({ dataUrl: tex.data, name: tex.name })
+        const hit = mod.find((m) => m.entry.id === entry.id)
+        if (hit) props.onPick(hit.pick)
       }}
       onClose={props.onClose}
     />
