@@ -101,9 +101,12 @@ export async function exportWorkspace(
   await rm(generatedRoot, { recursive: true, force: true })
 
   const files = new CodeGenerator(project).generate()
+  const overrides = project.codeOverrides ?? {}
   for (const f of files) {
-    await write(root, f.path, f.content)
-    log.push(`  + ${f.path}`)
+
+    const edited = overrides[f.path]
+    await write(root, f.path, edited ?? f.content)
+    log.push(`  + ${f.path}${edited === undefined ? '' : '  (hand-edited)'}`)
   }
 
   const halplibeVersion = await resolveHalplibeVersion(mapping.gradle.halplibe, log)

@@ -15,6 +15,12 @@ export interface BtaMapping {
   armorMaterial: { decl: string; pieces: Record<string, string> }
   recipes: Record<string, string>
 
+  api: {
+    classes: Record<string, { doc: string; members: string[] }>
+    staticFields: Record<string, string>
+    snippets: { label: string; detail: string; body: string }[]
+  }
+
   oreGen: { mixinClass: string; vein: string; mixinsJson: string }
   biome: { decl: string; methods: Record<string, string>; attach: string }
   tree: { featureClass: string }

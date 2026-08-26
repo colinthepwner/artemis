@@ -1,12 +1,55 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { AlertTriangle, Maximize2, Minimize2, Pencil, RotateCcw } from 'lucide-react'
 import type { ArtemisElement } from '@shared/project'
 import { previewElement, type GeneratedFile } from '@shared/generator/CodeGenerator'
 import { useProjectStore } from '@/store/projectStore'
+import { CodeEditor } from './CodeEditor'
 import { cn } from '@/lib/cn'
 
 export function CodePreview({ element }: { element: ArtemisElement }): JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  const body = <PreviewBody element={element} expanded={expanded} onExpand={setExpanded} />
+
+  if (!expanded) return body
+
+  return (
+    <>
+      <div className="flex flex-1 items-center justify-center px-8 text-center">
+        <p className="text-2xs leading-relaxed text-mist-600">Editing full screen.</p>
+      </div>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center">
+        <motion.div
+          className="acrylic absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.12 }}
+          onClick={() => setExpanded(false)}
+        />
+        <motion.div
+          className="relative flex h-[92vh] w-[92vw] max-w-[1400px] flex-col overflow-hidden rounded-xl bg-ink-850 shadow-raised"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {body}
+        </motion.div>
+      </div>
+    </>
+  )
+}
+
+function PreviewBody({
+  element,
+  expanded,
+  onExpand
+}: {
+  element: ArtemisElement
+  expanded: boolean
+  onExpand: (v: boolean) => void
+}): JSX.Element {
   const project = useProjectStore((s) => s.project)
+  const setCodeOverride = useProjectStore((s) => s.setCodeOverride)
   const [activeIdx, setActiveIdx] = useState(0)
 
   const result = useMemo(() => {
@@ -28,91 +71,82 @@ export function CodePreview({ element }: { element: ArtemisElement }): JSX.Eleme
   }
 
   const files = result.files
-  const active = files[Math.min(activeIdx, files.length - 1)]
+  const idx = Math.min(activeIdx, Math.max(0, files.length - 1))
+  const active = files[idx]
+  const override = active ? project?.codeOverrides[active.path] : undefined
+  const edited = override !== undefined
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {}
-      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/[0.04] px-2 py-1.5">
-        {files.map((f, i) => (
+      <div className="flex shrink-0 items-center gap-1 border-b border-white/[0.04] px-2 py-1.5">
+        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+          {files.map((f, i) => {
+            const isEdited = project?.codeOverrides[f.path] !== undefined
+            return (
+              <button
+                key={f.path}
+                onClick={() => setActiveIdx(i)}
+                className={cn(
+                  'flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-1 font-mono text-2xs transition-colors',
+                  i === idx
+                    ? 'bg-ink-750 text-gold-300'
+                    : 'text-mist-500 hover:bg-ink-800 hover:text-mist-300'
+                )}
+              >
+                {f.path.split('/').pop()}
+                {isEdited && <Pencil size={9} className="text-gold-400" />}
+              </button>
+            )
+          })}
+        </div>
+
+        {edited && active && (
           <button
-            key={f.path}
-            onClick={() => setActiveIdx(i)}
-            className={cn(
-              'whitespace-nowrap rounded px-2 py-1 font-mono text-2xs transition-colors',
-              i === (activeIdx < files.length ? activeIdx : files.length - 1)
-                ? 'bg-ink-750 text-gold-300'
-                : 'text-mist-500 hover:bg-ink-800 hover:text-mist-300'
-            )}
+            onClick={() => setCodeOverride(active.path, null)}
+            title="Discard the edits and follow the form again"
+            className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-2xs text-mist-500 transition-colors hover:bg-ink-750 hover:text-ember-400"
           >
-            {f.path.split('/').pop()}
+            <RotateCcw size={11} /> Revert
           </button>
-        ))}
+        )}
+        <button
+          onClick={() => onExpand(!expanded)}
+          title={expanded ? 'Collapse' : 'Edit full screen'}
+          className="shrink-0 rounded p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+        >
+          {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
       </div>
 
+      {edited && (
+        <div className="flex shrink-0 items-center gap-2 bg-gold-500/10 px-3 py-1.5">
+          <Pencil size={11} className="shrink-0 text-gold-400" />
+          <span className="text-2xs leading-snug text-gold-300">
+            Hand-edited. This file is exported as written and no longer follows the form.
+          </span>
+        </div>
+      )}
+
       {active ? (
-        <pre className="selectable min-h-0 flex-1 overflow-auto bg-ink-900/60 p-4 font-mono text-[11.5px] leading-[1.55]">
-          <JavaCode source={active.content} />
-        </pre>
+        <CodeEditor
+          key={active.path}
+          value={override ?? active.content}
+          onChange={(next) => setCodeOverride(active.path, next === active.content ? null : next)}
+          className="min-h-0 flex-1 overflow-hidden bg-ink-900/60"
+        />
       ) : (
         <div className="flex flex-1 items-center justify-center text-2xs text-mist-600">
           Nothing generated yet. Fill in the form.
         </div>
       )}
+
+      <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.04] px-3 py-1.5">
+        <span className="truncate font-mono text-[10px] text-mist-600">{active?.path}</span>
+        <div className="flex-1" />
+        <span className="shrink-0 text-[10px] text-mist-600">
+          Ctrl+Space completions · Ctrl+F find
+        </span>
+      </div>
     </div>
-  )
-}
-
-const TOKEN_RE = new RegExp(
-  [
-    '(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*)',
-    '("(?:[^"\\\\]|\\\\.)*")',
-    "('(?:[^'\\\\]|\\\\.)*')",
-    '(@\\w+)',
-    '\\b(package|import|public|private|protected|static|final|class|interface|extends|implements|new|return|void|if|else|for|while|int|float|double|boolean|true|false|null|this|super|override)\\b',
-    '\\b(\\d+(?:\\.\\d+)?[fFdDlL]?|0x[0-9a-fA-F]+)\\b',
-    '\\b([A-Z][A-Za-z0-9_]*)\\b'
-  ].join('|'),
-  'g'
-)
-
-const TOKEN_CLASS = [
-  '',
-  'text-mist-600 italic',
-  'text-moss-400',
-  'text-moss-400',
-  'text-sky-400',
-  'text-gold-400',
-  'text-[#d0879b]',
-  'text-sky-400/90'
-]
-
-function JavaCode({ source }: { source: string }): JSX.Element {
-  const parts = useMemo(() => {
-    const out: { text: string; cls: string }[] = []
-    let last = 0
-    for (const m of source.matchAll(TOKEN_RE)) {
-      const idx = m.index ?? 0
-      if (idx > last) out.push({ text: source.slice(last, idx), cls: '' })
-      const groupIdx = m.slice(1).findIndex((g) => g !== undefined) + 1
-      out.push({ text: m[0], cls: TOKEN_CLASS[groupIdx] ?? '' })
-      last = idx + m[0].length
-    }
-    if (last < source.length) out.push({ text: source.slice(last), cls: '' })
-    return out
-  }, [source])
-
-  return (
-    <code className="text-mist-200">
-      {parts.map((p, i) =>
-        p.cls ? (
-          <span key={i} className={p.cls}>
-            {p.text}
-          </span>
-        ) : (
-          p.text
-        )
-      )}
-    </code>
   )
 }

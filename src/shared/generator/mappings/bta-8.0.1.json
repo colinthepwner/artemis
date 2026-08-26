@@ -269,5 +269,127 @@
     "mixinClass": "@Mixin(value = ChunkDecoratorOverworld.class, remap = false)\npublic class {{className}} {\n\t@Shadow\n\t@Final\n\tprivate World world;\n\n\t@Inject(method = \"decorate(Lnet/minecraft/core/world/chunk/Chunk;)V\", at = @At(\"TAIL\"))\n\tpublic void artemisPlaceOres(Chunk chunk, CallbackInfo ci) {\n\t\tint chunkX = chunk.pos.x;\n\t\tint chunkZ = chunk.pos.z;\n\t\tint originX = chunkX * 16;\n\t\tint originZ = chunkZ * 16;\n\t\tRandom random = new Random((long) chunkX * 341873128712L + (long) chunkZ * 132897987541L);\n\n{{veins}}\n\t}\n}",
     "vein": "\t\tfor (int i = 0; i < {{veinsPerChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint y = {{minY}} + random.nextInt(Math.max(1, {{maxY}} - {{minY}}));\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tnew WorldFeatureOre(ModBlocks.{{FIELD}}.id(), {{veinSize}})\n\t\t\t\t.place(this.world, random, new TilePos(x, y, z));\n\t\t}",
     "mixinsJson": "{\n\t\"required\": true,\n\t\"minVersion\": \"0.8\",\n\t\"package\": \"{{pkg}}.worldgen\",\n\t\"compatibilityLevel\": \"JAVA_17\",\n\t\"mixins\": [\n\t\t\"{{className}}\"\n\t],\n\t\"injectors\": {\n\t\t\"defaultRequire\": 1\n\t}\n}\n"
+  },
+  "api": {
+    "$comment": "Symbols the code editor offers as completions. Every signature here was read off the real halplibe 6.1.4 jar and the BTA 8.0.1 client jar with javap, so this doubles as the reference for what actually exists. Members are written as they should be typed.",
+    "classes": {
+      "BlockBuilder": {
+        "doc": "halplibe block factory. Terminates with build().",
+        "members": [
+          "setHardness(1.5f)",
+          "setResistance(6f)",
+          "setLuminance(15)",
+          "setLightOpacity(0)",
+          "setSlipperiness(0.6f)",
+          "setFlammability(5, 20)",
+          "setUnbreakable()",
+          "setInfiniburn()",
+          "setUseInternalLight()",
+          "setTicking(true)",
+          "setBlockSound(BlockSounds.STONE)",
+          "setBlockItem(item -> item)",
+          "setTags(BlockTags.MINEABLE_BY_PICKAXE)",
+          "addTags(BlockTags.MINEABLE_BY_PICKAXE)",
+          "setDisableStats()",
+          "setParticleGravity(1f)",
+          "setOverrideColor(MaterialColor.stone)",
+          "setStatParent(() -> null)",
+          "setCreativeInventoryPlacement(null)",
+          "setTileEntity(() -> null)",
+          "build(\"Name\", \"key\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE))"
+        ]
+      },
+      "ItemBuilder": {
+        "doc": "halplibe item factory. build() takes the finished Item.",
+        "members": [
+          "setKey(\"key\")",
+          "setStackSize(64)",
+          "setMaxDamage(0)",
+          "setContainerItem(() -> null)",
+          "setTags()",
+          "addTags()",
+          "setCreativeInventoryPlacement(null)",
+          "build(new Item(\"Name\", \"key\", nextItemID()))"
+        ]
+      },
+      "ArmorHelper": {
+        "doc": "Only makes materials. There is no createArmorItem.",
+        "members": [
+          "createArmorMaterial(MOD_ID, \"key\", 600, 0.25f, 0.3f, 0f, 0.2f, 0f, 0f)"
+        ]
+      },
+      "RecipeBuilder": {
+        "doc": "Static entry points, one per recipe kind.",
+        "members": [
+          "Shaped(MOD_ID)",
+          "Shapeless(MOD_ID)",
+          "Furnace(MOD_ID)",
+          "BlastFurnace(MOD_ID)",
+          "Trommel(MOD_ID)",
+          "initNameSpace(MOD_ID)",
+          "ModifyWorkbench(MOD_ID)",
+          "ModifyFurnace(MOD_ID)"
+        ]
+      },
+      "ModelHelper": {
+        "doc": "Attach models and colors to registered content.",
+        "members": [
+          "setBlockModel(block, () -> null)",
+          "setItemModel(item, () -> null)",
+          "setBlockColor(block, () -> null)",
+          "setEntityModel(clazz, renderer)"
+        ]
+      },
+      "EntityHelper": {
+        "doc": "Entity registration.",
+        "members": [
+          "createEntity(Clazz.class, id, factory)",
+          "addMapping(Clazz.class, id)"
+        ]
+      },
+      "ToolMaterial": {
+        "doc": "Chainable, no-arg constructor. Vanilla instances are lowercase.",
+        "members": [
+          "setDurability(512)",
+          "setEfficiency(8f, 12f)",
+          "setMiningLevel(2)",
+          "setDamage(4)",
+          "setSilkTouch(false)",
+          "setBlockHitDelay(0)"
+        ]
+      },
+      "World": {
+        "doc": "The world a feature or logic is acting on.",
+        "members": [
+          "getBlockId(x, y, z)",
+          "setBlockWithNotify(x, y, z, id)",
+          "getHeightValue(x, z)",
+          "getWorldType()",
+          "getBlockBiome(x, y, z)"
+        ]
+      }
+    },
+    "staticFields": {
+      "Materials": "materials",
+      "BlockSounds": "sounds",
+      "BlockTags": "blockTags"
+    },
+    "snippets": [
+      {
+        "label": "block",
+        "detail": "a registered block",
+        "body": "public static final Block<BlockLogic> NAME = new BlockBuilder(MOD_ID)\n\t.setHardness(1.5f)\n\t.setBlockSound(BlockSounds.STONE)\n\t.build(\"Name\", \"name\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE));"
+      },
+      {
+        "label": "item",
+        "detail": "a registered item",
+        "body": "public static final Item NAME = new ItemBuilder(MOD_ID)\n\t.build(new Item(\"Name\", \"name\", nextItemID()));"
+      },
+      {
+        "label": "recipeShaped",
+        "detail": "a shaped crafting recipe",
+        "body": "RecipeBuilder.Shaped(MOD_ID)\n\t.setShape(\"XX\", \"XX\")\n\t.addInput('X', Blocks.STONE)\n\t.create(\"name\", new ItemStack(Items.STICK));"
+      }
+    ]
   }
 }

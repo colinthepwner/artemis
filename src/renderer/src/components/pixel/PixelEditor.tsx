@@ -273,8 +273,13 @@ function PixelEditor(): JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
-      if (e.ctrlKey && e.key === 'z') return (e.preventDefault(), undo())
-      if (e.ctrlKey && e.key === 'y') return (e.preventDefault(), redo())
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && key === 'z') {
+        e.preventDefault()
+
+        return e.shiftKey ? redo() : undo()
+      }
+      if ((e.ctrlKey || e.metaKey) && key === 'y') return (e.preventDefault(), redo())
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (e.key === 'Escape') {
         if (shapeAnchor.current !== null) {
@@ -729,7 +734,7 @@ function PixelEditor(): JSX.Element {
 
             {}
             <Panel>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <ToolButton icon={Pencil} active={tool === 'pencil'} onClick={() => setTool('pencil')} label="Pencil (B)" />
                 <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E), or right-drag" />
                 <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F)" />
@@ -743,13 +748,9 @@ function PixelEditor(): JSX.Element {
                 <Divider />
                 <ToolButton icon={Pipette} active={tool === 'eyedropper'} onClick={() => setTool('eyedropper')} label="Pick color (I), or Alt-click" />
                 <ToolButton icon={FlipHorizontal2} active={mirror} onClick={() => setMirror((m) => !m)} label="Mirror painting (X)" />
-                <div className="flex-1" />
-                <ToolButton icon={Undo2} onClick={undo} label="Undo (Ctrl+Z)" />
-                <ToolButton icon={Redo2} onClick={redo} label="Redo (Ctrl+Y)" />
-                <ToolButton icon={Trash2} onClick={clearActive} label="Clear layer (Del)" />
               </div>
 
-              <div className="mt-2 flex items-center gap-1 border-t border-white/[0.04] pt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-white/[0.04] pt-2">
                 <span className="mr-1 text-2xs text-mist-600">Layer</span>
                 <ToolButton icon={FlipHorizontal} onClick={() => transform(flipHGrid)} label="Flip horizontal" />
                 <ToolButton icon={FlipVertical} onClick={() => transform(flipVGrid)} label="Flip vertical" />
@@ -759,6 +760,14 @@ function PixelEditor(): JSX.Element {
                 <ToolButton icon={ArrowUp} onClick={() => transform((g) => shiftGrid(g, 0, -1))} label="Nudge up" />
                 <ToolButton icon={ArrowDown} onClick={() => transform((g) => shiftGrid(g, 0, 1))} label="Nudge down" />
                 <ToolButton icon={ArrowRight} onClick={() => transform((g) => shiftGrid(g, 1, 0))} label="Nudge right" />
+
+                {
+}
+                <div className="ml-auto flex items-center gap-1 rounded-md bg-ink-950/60 px-1 py-0.5 shadow-panel">
+                  <ToolButton icon={Undo2} onClick={undo} label="Undo (Ctrl+Z)" />
+                  <ToolButton icon={Redo2} onClick={redo} label="Redo (Ctrl+Y or Ctrl+Shift+Z)" />
+                  <ToolButton icon={Trash2} onClick={clearActive} label="Clear layer (Del)" danger />
+                </div>
               </div>
             </Panel>
 
@@ -1090,6 +1099,7 @@ function Divider(): JSX.Element {
 function ToolButton(props: {
   icon: LucideIcon
   active?: boolean
+  danger?: boolean
   onClick: () => void
   label: string
 }): JSX.Element {
@@ -1102,7 +1112,9 @@ function ToolButton(props: {
         'rounded-md p-1.5 transition-colors',
         props.active
           ? 'bg-gold-500/15 text-gold-300 shadow-glow-gold'
-          : 'text-mist-500 hover:bg-ink-750 hover:text-mist-200'
+          : props.danger
+            ? 'text-mist-500 hover:bg-ember-500/15 hover:text-ember-400'
+            : 'text-mist-500 hover:bg-ink-750 hover:text-mist-200'
       )}
     >
       <Icon size={15} />

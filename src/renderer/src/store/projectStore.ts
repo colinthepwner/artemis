@@ -27,6 +27,7 @@ function normalize(parsed: ArtemisProject): ArtemisProject {
   }
   parsed.textures ??= []
   parsed.textureAssignments ??= {}
+  parsed.codeOverrides ??= {}
   parsed.meta.obfuscate ??= true
 
   const itemAssigned = new Set(
@@ -59,6 +60,8 @@ interface ProjectState {
   updateElement: (id: string, patch: { name?: string; properties?: Record<string, unknown> }) => void
   removeElement: (id: string) => void
   elementsOf: (kind: ElementKind) => ArtemisElement[]
+
+  setCodeOverride: (path: string, content: string | null) => void
 
   addTexture: (name: string, data: string, kind: 'block' | 'item') => string
   updateTexture: (id: string, patch: { name?: string; data?: string }) => void
@@ -210,6 +213,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   elementsOf: (kind) => get().project?.elements.filter((el) => el.kind === kind) ?? [],
+
+  setCodeOverride: (path, content) =>
+    set((s) => {
+      if (!s.project) return s
+      const overrides = { ...s.project.codeOverrides }
+      if (content === null) delete overrides[path]
+      else overrides[path] = content
+      return { project: { ...s.project, codeOverrides: overrides }, dirty: true }
+    }),
 
   addTexture: (name, data, kind) => {
     const id = crypto.randomUUID()

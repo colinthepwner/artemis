@@ -53,6 +53,8 @@ export interface ArtemisProject {
   textures: ProjectTexture[]
 
   textureAssignments: Record<string, string>
+
+  codeOverrides: Record<string, string>
 }
 
 export function createEmptyProject(name: string, modId: string): ArtemisProject {
@@ -69,7 +71,8 @@ export function createEmptyProject(name: string, modId: string): ArtemisProject 
     },
     elements: [],
     textures: [],
-    textureAssignments: {}
+    textureAssignments: {},
+    codeOverrides: {}
   }
 }
 
