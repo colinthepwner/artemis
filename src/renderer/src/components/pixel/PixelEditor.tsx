@@ -28,6 +28,7 @@ import {
   Slash,
   Sparkles,
   Square,
+  Stamp,
   Sun,
   SunMedium,
   Trash2,
@@ -46,6 +47,8 @@ import {
   type Grid
 } from './presets'
 import { PresetPicker, type PresetPick } from './PresetPicker'
+import { StencilDialog, type StencilApplyOptions } from './StencilDialog'
+import type { Stencil, StencilResult } from './stencils'
 import { bakeLighting, compositeLayers, DEFAULT_FX, type PixelFx } from './effects'
 import { cn } from '@/lib/cn'
 
@@ -206,6 +209,7 @@ function PixelEditor(): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
   const [shapePreview, setShapePreview] = useState<number[] | null>(null)
   const [presetOpen, setPresetOpen] = useState(false)
+  const [stencilOpen, setStencilOpen] = useState(false)
   const undoStack = useRef<Layer[][]>([])
   const redoStack = useRef<Layer[][]>([])
   const strokeActive = useRef(false)
@@ -657,6 +661,48 @@ function PixelEditor(): JSX.Element {
     else if (pick.dataUrl) void dataUrlToGrid(pick.dataUrl).then(commit)
   }
 
+  const activeIndex = layers.findIndex((l) => l.id === active.id)
+
+  const stencilBase = useMemo(
+    () => compositeLayers(layers.slice(0, activeIndex + 1)).grid,
+    [layers, activeIndex]
+  )
+
+  const applyStencil = (
+    stencil: Stencil,
+    result: StencilResult,
+    opts: StencilApplyOptions
+  ): void => {
+    setStencilOpen(false)
+    pushUndo()
+    let next: Layer[]
+    let stacked = false
+
+    if (result.cut) {
+      const gone = new Set(result.cut)
+      next = layers.map((l) =>
+        opts.allLayers || l.id === active.id
+          ? { ...l, grid: l.grid.map((c, i) => (gone.has(i) ? '' : c)) }
+          : l
+      )
+    } else {
+      const add = result.grid ?? EMPTY
+      if (opts.newLayer && layers.length < MAX_LAYERS) {
+        const layer = makeLayer(stencil.label, add.slice())
+        next = [...layers.slice(0, activeIndex + 1), layer, ...layers.slice(activeIndex + 1)]
+        stacked = true
+      } else {
+        next = layers.map((l) =>
+          l.id === active.id ? { ...l, grid: l.grid.map((c, i) => add[i] || c) } : l
+        )
+      }
+    }
+
+    layersRef.current = next
+    setLayers(next)
+    if (stacked) setActiveId(next[activeIndex + 1].id)
+  }
+
   const finalName = name.trim()
   const nameTaken = (allTextures ?? []).some(
     (t) => t.id !== textureId && t.name.toLowerCase() === finalName.toLowerCase()
@@ -958,6 +1004,13 @@ function PixelEditor(): JSX.Element {
               <LayoutGrid size={12} /> Start from a texture
             </button>
 
+            <button
+              onClick={() => setStencilOpen(true)}
+              className="-mt-2 flex items-center justify-center gap-1.5 rounded-md bg-ink-750 py-2 text-2xs font-semibold uppercase tracking-wide text-mist-200 shadow-panel transition-colors hover:bg-ink-700 hover:text-gold-300"
+            >
+              <Stamp size={12} /> Add a stencil
+            </button>
+
             {}
             <div>
               <div className="mb-1 flex items-center justify-between">
@@ -1049,6 +1102,17 @@ function PixelEditor(): JSX.Element {
             onAccent={setAccent}
             onPick={applyPick}
             onClose={() => setPresetOpen(false)}
+          />
+        )}
+
+        {stencilOpen && (
+          <StencilDialog
+            below={stencilBase}
+            full={flat.grid}
+            angle={fx.light.angle}
+            canAddLayer={layers.length < MAX_LAYERS}
+            onApply={applyStencil}
+            onClose={() => setStencilOpen(false)}
           />
         )}
 
@@ -1315,12 +1379,17 @@ function BakeButton(props: { disabled: boolean; onClick: () => void }): JSX.Elem
     <button
       onClick={props.onClick}
       disabled={props.disabled}
-      title="Bake this effect into the active layer (undoable)"
+      title={
+        props.disabled
+          ? 'Turn Light on first, then Apply bakes it into the layers'
+          : 'Bake this effect into the layers (undoable)'
+      }
       className={cn(
         'rounded-md px-2 py-1 text-2xs uppercase tracking-wide transition-colors',
+
         props.disabled
-          ? 'text-mist-700'
-          : 'bg-ink-750 text-mist-300 hover:bg-ink-700 hover:text-gold-300'
+          ? 'cursor-not-allowed bg-ink-800/60 text-mist-600 ring-1 ring-inset ring-white/[0.05]'
+          : 'bg-ink-750 text-mist-300 shadow-panel hover:bg-ink-700 hover:text-gold-300'
       )}
     >
       Apply
