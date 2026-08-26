@@ -92,7 +92,11 @@ export class CodeGenerator {
   private stackExpr(ref: string, count: number, writer: JavaWriter): string {
     const trimmed = ref.trim()
     const countArg = count === 1 ? '' : `, ${count}`
-    if (!trimmed) return `/* TODO: missing item reference */ null`
+
+    if (!trimmed) {
+      writer.use('ItemStack')
+      return `/* TODO: pick an item */ (ItemStack) null`
+    }
 
     if (trimmed.startsWith('block:')) {
       writer.use('Blocks', 'ItemStack')

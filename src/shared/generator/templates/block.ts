@@ -32,15 +32,14 @@ export function blockDecl(
   if (p.luminance > 0) chain.push(render(bb.methods['luminance'], { ...vars, value: p.luminance }))
 
   const tags = p.tags.map((t) => ctx.mapping.blockTags[t]).filter(Boolean)
+  if (p.notInCreativeMenu && ctx.mapping.blockTags['notInCreativeMenu']) {
+    tags.push(ctx.mapping.blockTags['notInCreativeMenu'])
+  }
   if (tags.length) chain.push(render(bb.methods['tags'], { ...vars, value: tags.join(', ') }))
 
-  if (p.textureMode === 'topBottomSides') chain.push(render(bb.methods['textureTopBottomSides'], vars))
-  else chain.push(render(bb.methods['textureAll'], vars))
-
-  if (p.drops === 'self') chain.push(render(bb.methods['dropsItself'], vars))
-  else if (p.drops === 'nothing') chain.push(render(bb.methods['dropsNothing'], vars))
-
-  if (p.notInCreativeMenu) chain.push(render(bb.methods['notInCreativeMenu'], vars))
+  if (p.drops === 'nothing') {
+    chain.push('// TODO: drops nothing needs a custom BlockLogic in BTA 8.0.1')
+  }
 
   chain.push(...extraMethods)
 
