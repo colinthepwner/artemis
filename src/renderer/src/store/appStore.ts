@@ -36,7 +36,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   section: 'dashboard',
   editingId: null,
-  inspectorOpen: true,
+
+  inspectorOpen: false,
   createMenuOpen: false,
   textureEditor: null,
   navigate: (section) => set({ section, editingId: null }),

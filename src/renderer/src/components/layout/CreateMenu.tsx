@@ -111,7 +111,8 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
 
           <div className="mt-5 grid grid-cols-3 gap-2">
             {SINGLES.map(({ title, entry }) => (
-              <div key={entry.kind}>
+
+              <div key={entry.kind} className="grid grid-rows-[auto_1fr]">
                 <SectionLabel>{title}</SectionLabel>
                 <CreateCard entry={entry} onClick={() => create(entry.kind)} />
               </div>
