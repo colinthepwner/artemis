@@ -42,6 +42,8 @@ export interface EmitContext {
   fieldOf: (registryName: string) => string
 
   stackExpr: (ref: string, count: number, writer: JavaWriter) => string
+
+  blockExpr: (ref: string, writer: JavaWriter) => string
 }
 
 type Emitter = (el: ArtemisElement, ctx: EmitContext) => EmitContribution
@@ -73,7 +75,8 @@ export class CodeGenerator {
       pkg,
       entryClass,
       fieldOf: toConstantCase,
-      stackExpr: (ref, count, writer) => this.stackExpr(ref, count, writer)
+      stackExpr: (ref, count, writer) => this.stackExpr(ref, count, writer),
+      blockExpr: (ref, writer) => this.blockExpr(ref, writer)
     }
   }
 
@@ -87,6 +90,23 @@ export class CodeGenerator {
       ' * Hand-edits are safe: Artemis only overwrites on re-export.',
       ' */'
     ].join('\n')
+  }
+
+  private blockExpr(ref: string, writer: JavaWriter): string {
+    const t = ref.trim()
+    if (!t) return 'null /* TODO: pick a block */'
+    if (t.startsWith('block:')) {
+      writer.use('Blocks')
+      return `Blocks.${t.slice(6).toUpperCase()}`
+    }
+    const owner = this.project.elements.find((e) => e.name === t)
+    if (owner) {
+      writer.useRaw(`import ${this.ctx.pkg}.init.ModBlocks;`)
+      return `ModBlocks.${this.ctx.fieldOf(t)}`
+    }
+
+    writer.use('Blocks')
+    return `Blocks.${t.toUpperCase()}`
   }
 
   private stackExpr(ref: string, count: number, writer: JavaWriter): string {

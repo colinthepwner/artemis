@@ -1,4 +1,4 @@
-import { mix, shade, type Grid } from './presets'
+import { adjustColor, mix, shade, type Grid } from './presets'
 
 export interface PixelFx {
   light: {
@@ -19,6 +19,20 @@ export interface LitLayer {
   visible: boolean
 
   opacity: number
+
+  hue?: number
+
+  saturation?: number
+
+  brightness?: number
+}
+
+export function adjustedGrid(l: LitLayer): Grid {
+  const h = l.hue ?? 0
+  const s = l.saturation ?? 0
+  const b = l.brightness ?? 0
+  if (!h && !s && !b) return l.grid
+  return l.grid.map((c) => (c ? adjustColor(c, h, s, b) : c))
 }
 
 export interface Composite {
@@ -93,7 +107,7 @@ function build(layers: LitLayer[], fx: PixelFx | null): Built {
   const alpha = new Array<number>(256).fill(0)
 
   const owner = new Array<number>(256).fill(-1)
-  const baked = layers.map((l) => [...l.grid])
+  const baked = layers.map((l) => [...adjustedGrid(l)])
 
   const lit = !!fx?.light.enabled && fx.light.strength > 0
   const s = lit ? fx!.light.strength / 100 : 0
@@ -103,9 +117,11 @@ function build(layers: LitLayer[], fx: PixelFx | null): Built {
   layers.forEach((l, li) => {
     if (!l.visible || l.opacity <= 0) return
 
+    const tinted = adjustedGrid(l)
+
     if (lit && (ox !== 0 || oy !== 0)) {
       const own = new Set<number>()
-      for (let i = 0; i < 256; i++) if (l.grid[i]) own.add(i)
+      for (let i = 0; i < 256; i++) if (tinted[i]) own.add(i)
       const hit = new Set<number>()
       for (const i of own) {
         const x = (i % 16) + ox
@@ -121,7 +137,7 @@ function build(layers: LitLayer[], fx: PixelFx | null): Built {
       }
     }
 
-    const src = lit ? applyDirectionalShading(l.grid, fx!.light.angle, fx!.light.strength) : l.grid
+    const src = lit ? applyDirectionalShading(tinted, fx!.light.angle, fx!.light.strength) : tinted
     if (lit) baked[li] = [...src]
 
     const a = l.opacity / 100

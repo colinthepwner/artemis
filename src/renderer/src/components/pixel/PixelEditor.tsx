@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  Droplet,
   Eraser,
   Eye,
   EyeOff,
@@ -38,6 +39,7 @@ import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import {
   PIXEL_PALETTE,
+  blendColors,
   rgbaToDataUrl,
   dataUrlToGrid,
   shade,
@@ -57,6 +59,7 @@ type Tool =
   | 'lighten'
   | 'darken'
   | 'noise'
+  | 'smooth'
 
 const CELL = 22
 const PAD = 28
@@ -65,7 +68,7 @@ const MAX_LAYERS = 6
 
 const SHAPE_TOOLS: Tool[] = ['line', 'rect']
 
-const ADJUST_TOOLS: Tool[] = ['lighten', 'darken', 'noise']
+const ADJUST_TOOLS: Tool[] = ['lighten', 'darken', 'noise', 'smooth']
 
 const NOISE_RANGE = 0.9
 
@@ -124,6 +127,16 @@ function shiftGrid(g: Grid, dx: number, dy: number): Grid {
   return out
 }
 
+function neighbours(g: Grid, i: number): string[] {
+  const [x, y] = xy(i)
+  const out: string[] = []
+  if (x > 0 && g[i - 1]) out.push(g[i - 1])
+  if (x < 15 && g[i + 1]) out.push(g[i + 1])
+  if (y > 0 && g[i - 16]) out.push(g[i - 16])
+  if (y < 15 && g[i + 16]) out.push(g[i + 16])
+  return out
+}
+
 const flipHGrid = (g: Grid): Grid => g.map((_, i) => g[mirrorOf(i)])
 const flipVGrid = (g: Grid): Grid =>
   g.map((_, i) => {
@@ -142,6 +155,10 @@ interface Layer {
   visible: boolean
 
   opacity: number
+
+  hue: number
+  saturation: number
+  brightness: number
   grid: Grid
 }
 
@@ -150,6 +167,9 @@ const makeLayer = (name: string, grid: Grid = EMPTY): Layer => ({
   name,
   visible: true,
   opacity: 100,
+  hue: 0,
+  saturation: 0,
+  brightness: 0,
   grid
 })
 
@@ -268,7 +288,8 @@ function PixelEditor(): JSX.Element {
       i: 'eyedropper',
       u: 'lighten',
       d: 'darken',
-      n: 'noise'
+      n: 'noise',
+      s: 'smooth'
     }
     const onKey = (e: KeyboardEvent): void => {
       const el = e.target as HTMLElement | null
@@ -323,11 +344,7 @@ function PixelEditor(): JSX.Element {
         strokeTouched.current.add(i)
         factors.set(
           i,
-          tool === 'noise'
-            ? noiseFactor(noise)
-            : tool === 'lighten'
-              ? 1.16
-              : 0.86
+          tool === 'noise' ? noiseFactor(noise) : tool === 'lighten' ? 1.16 : 0.86
         )
       }
       setActiveGrid((g) => {
@@ -335,7 +352,11 @@ function PixelEditor(): JSX.Element {
         for (const [i, f] of factors) {
           const cur = g[i]
           if (!cur) continue
-          const v = shade(cur, f)
+
+          const v =
+            tool === 'smooth'
+              ? blendColors([cur, ...neighbours(g, i)], 0.65)
+              : shade(cur, f)
           if (v === cur) continue
           next ??= [...g]
           next[i] = v
@@ -745,6 +766,7 @@ function PixelEditor(): JSX.Element {
                 <ToolButton icon={SunMedium} active={tool === 'lighten'} onClick={() => setTool('lighten')} label="Lighten (U)" />
                 <ToolButton icon={Moon} active={tool === 'darken'} onClick={() => setTool('darken')} label="Darken (D)" />
                 <ToolButton icon={Sparkles} active={tool === 'noise'} onClick={() => setTool('noise')} label="Noise brush (N)" />
+                <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbours" />
                 <Divider />
                 <ToolButton icon={Pipette} active={tool === 'eyedropper'} onClick={() => setTool('eyedropper')} label="Pick color (I), or Alt-click" />
                 <ToolButton icon={FlipHorizontal2} active={mirror} onClick={() => setMirror((m) => !m)} label="Mirror painting (X)" />
@@ -935,18 +957,46 @@ function PixelEditor(): JSX.Element {
                     onDelete={() => deleteLayer(l.id)}
                   />
                 ))}
-                {}
-                <div className="flex items-center gap-2 px-1 pt-1">
-                  <span className="shrink-0 text-2xs text-mist-600">Opacity</span>
-                  <input
-                    type="range"
+                {
+
+}
+                <div className="mt-1 space-y-1 border-t border-white/[0.05] px-1 pt-1.5">
+                  <LayerSlider
+                    label="Opacity"
+                    value={active.opacity}
                     min={0}
                     max={100}
-                    value={active.opacity}
-                    onChange={(e) => patchLayer(active.id, { opacity: Number(e.target.value) })}
-                    className="fx-slider flex-1"
+                    onChange={(v) => patchLayer(active.id, { opacity: v })}
                   />
-                  <span className="w-7 text-right font-mono text-2xs text-mist-500">{active.opacity}</span>
+                  <LayerSlider
+                    label="Hue"
+                    value={active.hue}
+                    min={-180}
+                    max={180}
+                    onChange={(v) => patchLayer(active.id, { hue: v })}
+                  />
+                  <LayerSlider
+                    label="Sat"
+                    value={active.saturation}
+                    min={-100}
+                    max={100}
+                    onChange={(v) => patchLayer(active.id, { saturation: v })}
+                  />
+                  <LayerSlider
+                    label="Light"
+                    value={active.brightness}
+                    min={-100}
+                    max={100}
+                    onChange={(v) => patchLayer(active.id, { brightness: v })}
+                  />
+                  {(active.hue !== 0 || active.saturation !== 0 || active.brightness !== 0) && (
+                    <button
+                      onClick={() => patchLayer(active.id, { hue: 0, saturation: 0, brightness: 0 })}
+                      className="w-full rounded px-1 py-0.5 text-left text-2xs text-mist-600 transition-colors hover:text-gold-300"
+                    >
+                      Reset color shift
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1119,6 +1169,29 @@ function ToolButton(props: {
     >
       <Icon size={15} />
     </button>
+  )
+}
+
+function LayerSlider(props: {
+  label: string
+  value: number
+  min: number
+  max: number
+  onChange: (v: number) => void
+}): JSX.Element {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-9 shrink-0 text-2xs text-mist-600">{props.label}</span>
+      <input
+        type="range"
+        min={props.min}
+        max={props.max}
+        value={props.value}
+        onChange={(e) => props.onChange(Number(e.target.value))}
+        className="fx-slider min-w-0 flex-1"
+      />
+      <span className="w-8 shrink-0 text-right font-mono text-2xs text-mist-500">{props.value}</span>
+    </div>
   )
 }
 

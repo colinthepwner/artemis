@@ -1,7 +1,7 @@
 import type { ArtemisElement } from '../../project'
 import { toPascalCase } from '../../project'
 import { BIOME_DEFAULTS, type BiomeProps } from '../props'
-import { render } from '../template'
+import { render, JavaWriter } from '../template'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
 import { titleCase } from './block'
 
@@ -10,15 +10,7 @@ export function emitBiome(el: ArtemisElement, ctx: EmitContext): EmitContributio
   const b = ctx.mapping.biome
   const FIELD = ctx.fieldOf(el.name)
 
-  const blockExpr = (ref: string): string => {
-    const t = ref.trim()
-    if (!t) return 'null /* TODO: pick a block */'
-    if (t.startsWith('block:')) return `Blocks.${t.slice(6).toUpperCase()}`
-    const owner = ctx.project.elements.find((e) => e.name === t)
-    if (owner) return `ModBlocks.${ctx.fieldOf(t)}`
-
-    return `Blocks.${t.toUpperCase()}`
-  }
+  const scratch = new JavaWriter('scratch', ctx.mapping.imports)
 
   const chain: string[] = []
   chain.push(render(b.methods['climate'], { temperature: p.temperature, humidity: p.humidity }))
@@ -28,8 +20,8 @@ export function emitBiome(el: ArtemisElement, ctx: EmitContext): EmitContributio
       foliageColor: p.foliageColor.replace(/^#/, '')
     })
   )
-  chain.push(render(b.methods['topBlock'], { value: blockExpr(p.topBlock) }))
-  chain.push(render(b.methods['fillerBlock'], { value: blockExpr(p.fillerBlock) }))
+  chain.push(render(b.methods['topBlock'], { value: ctx.blockExpr(p.topBlock, scratch) }))
+  chain.push(render(b.methods['fillerBlock'], { value: ctx.blockExpr(p.fillerBlock, scratch) }))
   if (p.treeDensity > 0) chain.push(render(b.methods['treeDensity'], { value: p.treeDensity }))
   for (const spawn of p.spawns) {
     const mob = ctx.project.elements.find((e) => e.name === spawn.entity && e.kind === 'mob')

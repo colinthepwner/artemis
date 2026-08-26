@@ -102,10 +102,17 @@ export interface TreeProps {
   minHeight: number
   maxHeight: number
 
-  leavesColor: string
+  logBlock: string
+  leavesBlock: string
 }
 
-export const TREE_DEFAULTS: TreeProps = { displayName: '', minHeight: 4, maxHeight: 7, leavesColor: '4a8f28' }
+export const TREE_DEFAULTS: TreeProps = {
+  displayName: '',
+  minHeight: 4,
+  maxHeight: 7,
+  logBlock: 'block:LOG_OAK',
+  leavesBlock: 'block:LEAVES_OAK'
+}
 
 export interface RecipeProps {
   displayName: string

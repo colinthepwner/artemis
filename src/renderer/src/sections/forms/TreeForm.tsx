@@ -1,6 +1,7 @@
 import type { ElementFormProps } from './registry'
-import { FormShell, TextureStrip, usePropEditor, type WizardStep } from './FormShell'
+import { FormShell, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
 import { Field, NumberInput } from '@/components/ui/controls'
+import { ItemRefField } from '@/components/pixel/ItemRefPicker'
 import { TREE_DEFAULTS, type TreeProps } from '@shared/generator/props'
 
 export function TreeForm({ element, onClose }: ElementFormProps): JSX.Element | null {
@@ -16,54 +17,71 @@ function Inner({
   onClose: () => void
 }): JSX.Element {
   const [p, patch] = usePropEditor<TreeProps>(element, TREE_DEFAULTS)
-  const hex = p.leavesColor.replace(/[^0-9a-fA-F]/g, '').padEnd(6, '0').slice(0, 6)
 
   const steps: WizardStep[] = [
     {
-      id: 'paint',
-      title: 'Textures',
-      desc: `Creates the "${element.name}_log" and "${element.name}_leaves" blocks plus a world feature, all made for you.`,
-      content: <TextureStrip element={element} />
+      id: 'blocks',
+      title: 'Blocks',
+      desc: 'A tree plants blocks that already exist. Pick what it is built from.',
+      done: Boolean(p.logBlock.trim() && p.leavesBlock.trim()),
+      content: (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Trunk" hint="Any block, yours or vanilla.">
+              <ItemRefField
+                filter="block"
+                value={p.logBlock}
+                onChange={(v) => patch('logBlock', v)}
+                placeholder="Pick a block"
+              />
+            </Field>
+            <Field label="Leaves">
+              <ItemRefField
+                filter="block"
+                value={p.leavesBlock}
+                onChange={(v) => patch('leavesBlock', v)}
+                placeholder="Pick a block"
+              />
+            </Field>
+          </div>
+          <p className="text-2xs leading-relaxed text-mist-600">
+            Want a custom trunk or canopy? Make them as blocks first, paint them there, then point
+            this tree at them. That way the same wood can serve several trees.
+          </p>
+        </>
+      )
     },
     {
       id: 'shape',
       title: 'Shape',
-      desc: 'How tall it grows and the tint of its leaves.',
+      desc: 'How tall it grows.',
       content: (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Min Height">
-              <NumberInput value={p.minHeight} onChange={(v) => patch('minHeight', v)} min={2} max={30} />
-            </Field>
-            <Field label="Max Height">
-              <NumberInput value={p.maxHeight} onChange={(v) => patch('maxHeight', v)} min={2} max={40} />
-            </Field>
-          </div>
-          <Field label="Leaves Tint">
-            <div className="flex items-center gap-2">
-              {}
-              <label
-                className="relative h-7 w-7 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
-                style={{ background: `#${hex}` }}
-              >
-                <input
-                  type="color"
-                  className="absolute inset-0 h-full w-full opacity-0"
-                  value={`#${hex}`}
-                  onChange={(e) => patch('leavesColor', e.target.value.slice(1))}
-                />
-              </label>
-              <input
-                className="input-base font-mono"
-                value={p.leavesColor}
-                onChange={(e) => patch('leavesColor', e.target.value.replace(/^#/, ''))}
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Min Height">
+            <NumberInput value={p.minHeight} onChange={(v) => patch('minHeight', v)} min={2} max={30} />
           </Field>
-        </>
+          <Field label="Max Height">
+            <NumberInput value={p.maxHeight} onChange={(v) => patch('maxHeight', v)} min={2} max={40} />
+          </Field>
+        </div>
       )
     }
   ]
 
-  return <FormShell element={element} onClose={onClose} steps={steps} />
+  const checks: ReviewCheck[] = [
+    {
+      label: 'Trunk and leaves picked',
+      ok: Boolean(p.logBlock.trim() && p.leavesBlock.trim()),
+      detail: 'The tree needs a block for its trunk and one for its leaves.',
+      stepId: 'blocks'
+    },
+    {
+      label: 'Heights make sense',
+      ok: p.maxHeight >= p.minHeight,
+      detail: 'Max height is below min height.',
+      stepId: 'shape'
+    }
+  ]
+
+  return <FormShell element={element} onClose={onClose} steps={steps} checks={checks} />
 }

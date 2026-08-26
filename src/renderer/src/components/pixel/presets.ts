@@ -16,6 +16,72 @@ export function mix(a: string, b: string, t: number): string {
   return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, '0')}`
 }
 
+function hexToHsl(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16)
+  const r = ((n >> 16) & 255) / 255
+  const g = ((n >> 8) & 255) / 255
+  const b = (n & 255) / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h: number
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+  else if (max === g) h = ((b - r) / d + 2) / 6
+  else h = ((r - g) / d + 4) / 6
+  return [h, s, l]
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const hue = (c: number): number => {
+    const t = ((c % 1) + 1) % 1
+    if (t < 1 / 6) return p2 + (q2 - p2) * 6 * t
+    if (t < 1 / 2) return q2
+    if (t < 2 / 3) return p2 + (q2 - p2) * (2 / 3 - t) * 6
+    return p2
+  }
+  if (s === 0) {
+    const v = Math.round(l * 255)
+    return `#${((v << 16) | (v << 8) | v).toString(16).padStart(6, '0')}`
+  }
+  const q2 = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p2 = 2 * l - q2
+  const r = Math.round(hue(h + 1 / 3) * 255)
+  const g = Math.round(hue(h) * 255)
+  const b = Math.round(hue(h - 1 / 3) * 255)
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
+
+export function adjustColor(hex: string, hueDeg: number, satPct: number, briPct: number): string {
+  if (!hueDeg && !satPct && !briPct) return hex
+  const [h, s, l] = hexToHsl(hex)
+  return hslToHex(h + hueDeg / 360, clamp01(s + satPct / 100), clamp01(l + briPct / 100))
+}
+
+export function blendColors(colors: string[], weight = 1): string {
+  if (!colors.length) return colors[0] ?? ''
+  let r = 0
+  let g = 0
+  let b = 0
+  for (const c of colors) {
+    const n = parseInt(c.slice(1), 16)
+    r += (n >> 16) & 255
+    g += (n >> 8) & 255
+    b += n & 255
+  }
+  const k = colors.length
+  const mixTo = (v: number, base: number): number => Math.round(base + (v / k - base) * weight)
+  const first = parseInt(colors[0].slice(1), 16)
+  const rr = mixTo(r, (first >> 16) & 255)
+  const gg = mixTo(g, (first >> 8) & 255)
+  const bb = mixTo(b, first & 255)
+  return `#${((rr << 16) | (gg << 8) | bb).toString(16).padStart(6, '0')}`
+}
+
 export function shade(hex: string, f: number): string {
   const n = parseInt(hex.replace('#', ''), 16)
   const ch = (v: number): number =>

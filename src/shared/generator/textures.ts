@@ -41,12 +41,7 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
         block(el.name, humanize(el.name))
       }
       break
-    case 'tree':
-      block(`${el.name}_log_top`, 'Log Top')
-      block(`${el.name}_log_bottom`, 'Log Bottom')
-      block(`${el.name}_log_side`, 'Log Side')
-      block(`${el.name}_leaves`, 'Leaves')
-      break
+
     case 'mob':
       slots.push({
         key: `entity/${el.name}`,
