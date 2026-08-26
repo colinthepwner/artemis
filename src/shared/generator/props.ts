@@ -104,6 +104,8 @@ export interface TreeProps {
 
   logBlock: string
   leavesBlock: string
+
+  treesPerChunk: number
 }
 
 export const TREE_DEFAULTS: TreeProps = {
@@ -111,7 +113,8 @@ export const TREE_DEFAULTS: TreeProps = {
   minHeight: 4,
   maxHeight: 7,
   logBlock: 'block:LOG_OAK',
-  leavesBlock: 'block:LEAVES_OAK'
+  leavesBlock: 'block:LEAVES_OAK',
+  treesPerChunk: 1
 }
 
 export interface RecipeProps {

@@ -26,6 +26,7 @@ export interface EmitContribution {
   biomeAttach?: string[]
   entityRegs?: string[]
   oreGenCalls?: string[]
+  treeGenCalls?: string[]
 
   files?: { relPath: string; writer: JavaWriter }[]
 }
@@ -253,7 +254,9 @@ export class CodeGenerator {
     }
 
     const oreGenCalls = collect('oreGenCalls')
-    if (oreGenCalls.length) {
+    const treeGenCalls = collect('treeGenCalls')
+    const worldGenCalls = [...oreGenCalls, ...treeGenCalls]
+    if (worldGenCalls.length) {
       const className = `${toPascalCase(this.project.meta.modId)}OreWorldGen`
       const w = new JavaWriter(`${this.ctx.pkg}.worldgen`, this.mapping.imports)
       w.useRaw(`import ${this.ctx.pkg}.init.ModBlocks;`)
@@ -269,12 +272,12 @@ export class CodeGenerator {
       w.block(
         render(this.mapping.oreGen.mixinClass, {
           className,
-          veins: oreGenCalls.join('\n\n')
+          body: worldGenCalls.join('\n\n')
         })
       )
       files.push({
         path: `${javaRoot}/worldgen/${className}.java`,
-        content: w.toString(this.header('Ore world generation')),
+        content: w.toString(this.header('World generation')),
         language: 'java'
       })
       files.push({
@@ -301,7 +304,7 @@ export class CodeGenerator {
         hasRecipes: recipeCalls.length > 0,
         hasBiomes: biomeDecls.length > 0,
         hasEntities: entityRegs.length > 0,
-        hasOreGen: oreGenCalls.length > 0
+        hasOreGen: worldGenCalls.length > 0
       }))
     }
 

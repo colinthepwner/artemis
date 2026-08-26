@@ -21,7 +21,7 @@ export interface BtaMapping {
     snippets: { label: string; detail: string; body: string }[]
   }
 
-  oreGen: { mixinClass: string; vein: string; mixinsJson: string }
+  oreGen: { mixinClass: string; vein: string; tree: string; mixinsJson: string }
   biome: { decl: string; methods: Record<string, string>; attach: string }
   tree: { featureClass: string }
   mob: { classTemplate: string; hostileBody: string; dropLine: string }

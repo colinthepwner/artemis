@@ -65,6 +65,30 @@ function Inner({
           </Field>
         </div>
       )
+    },
+    {
+      id: 'world',
+      title: 'World Gen',
+      desc: 'How often it is planted while the world generates.',
+      content: (
+        <>
+          <Field
+            label="Trees per Chunk"
+            hint="Attempts per chunk, so a fraction of these actually take. 0 keeps it out of world generation entirely."
+          >
+            <NumberInput
+              value={p.treesPerChunk}
+              onChange={(v) => patch('treesPerChunk', v)}
+              min={0}
+              max={20}
+            />
+          </Field>
+          <p className="text-2xs leading-relaxed text-mist-600">
+            Trees are planted on the surface of every overworld chunk. There is no biome filter yet,
+            so keep the count low unless you want this tree everywhere.
+          </p>
+        </>
+      )
     }
   ]
 

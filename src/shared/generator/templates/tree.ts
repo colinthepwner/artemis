@@ -20,5 +20,13 @@ export function emitTree(el: ArtemisElement, ctx: EmitContext): EmitContribution
     })
   )
 
-  return { files: [{ relPath: `worldgen/${className}.java`, writer: w }] }
+  const plant =
+    p.treesPerChunk > 0
+      ? [render(ctx.mapping.oreGen.tree, { perChunk: p.treesPerChunk, featureClass: className })]
+      : []
+
+  return {
+    files: [{ relPath: `worldgen/${className}.java`, writer: w }],
+    treeGenCalls: plant
+  }
 }
