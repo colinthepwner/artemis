@@ -5,7 +5,7 @@ import { get } from 'https'
 import { join } from 'path'
 import { app } from 'electron'
 
-export const DEFAULT_GRADLE_VERSION = '8.10.2'
+export const DEFAULT_GRADLE_VERSION = '9.3.1'
 
 export interface GradleLauncher {
   cmd: string

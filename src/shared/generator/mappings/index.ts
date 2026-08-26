@@ -25,13 +25,28 @@ export interface BtaMapping {
     javaVersion: number
 
     gradleVersion: string
-    loomVendor: string
     loomPlugin: string
     loomVersion: string
+    fabricLoaderGroup: string
     fabricLoaderVersion: string
-    btaMaven: string
-    babricMaven: string
-    halplibe: { githubRepo: string; mavenGroup: string; artifact: string; fallbackVersion: string }
+    btaChannel: string
+
+    manifestUrl: string
+    foojayResolverVersion: string
+    slf4jVersion: string
+    lwjglVersion: string
+
+    clientJarHash: string
+    pluginRepositories: string[]
+    repositories: string[]
+    halplibe: {
+      githubRepo: string
+      mavenGroup: string
+      artifact: string
+      fallbackVersion: string
+
+      mavenSuffix: string
+    }
   }
   obfuscation: {
     proguardVersion: string

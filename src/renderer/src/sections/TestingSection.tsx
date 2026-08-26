@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Play, Square, FolderOpen, Trash2, Loader2, CircleDot } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Play, Square, FolderOpen, Trash2, Loader2, CircleDot, Copy, Check } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import { useTestStore } from '@/store/testStore'
 import { cn } from '@/lib/cn'
@@ -88,6 +88,7 @@ export function TestingSection(): JSX.Element {
         >
           <FolderOpen size={15} />
         </button>
+        <CopyLogButton lines={lines} />
         <button
           onClick={clear}
           disabled={running || lines.length === 0}
@@ -133,6 +134,32 @@ export function TestingSection(): JSX.Element {
         )}
       </div>
     </div>
+  )
+}
+
+export function CopyLogButton({ lines }: { lines: string[] }): JSX.Element {
+  const [copied, setCopied] = useState(false)
+
+  const copy = (): void => {
+    void navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1400)
+    })
+  }
+
+  return (
+    <button
+      onClick={copy}
+      disabled={lines.length === 0}
+      title="Copy the whole log"
+      className={cn(
+        'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-2xs transition-colors disabled:opacity-40',
+        copied ? 'text-moss-400' : 'text-mist-500 hover:bg-ink-750 hover:text-mist-200'
+      )}
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
   )
 }
 

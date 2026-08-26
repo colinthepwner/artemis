@@ -202,24 +202,39 @@
     "schemaVersion": 1,
     "environment": "*",
     "entrypoints": { "main": [], "beforeGameStart": [], "recipesReady": [] },
-    "depends": { "fabricloader": ">=0.13.3", "halplibe": ">=5.0.0", "minecraft": "8.0.1" }
+    "depends": { "fabricloader": ">=0.18.4-bta.11", "halplibe": ">=6.1.4", "minecraft": "*", "java": ">=17" }
   },
 
   "gradle": {
-    "$comment": "Workspace scaffold facts used by the Phase-5 export engine. halplibe release is resolved live at export; fallbackVersion is the offline pin. gradleVersion must sit in babric-loom 1.7.x's supported window (8.6-8.10).",
+    "$comment": "Workspace scaffold, matched against Turnip-Labs/bta-example-mod on its 8.0 branch. BTA 8.x builds on UPSTREAM fabric-loom, not the old babric-loom fork, and pulls the game through customMinecraftMetadata rather than a maven coordinate. halplibe's release tag is resolved live at export and the maven version appends mavenSuffix.",
     "javaVersion": 17,
-    "gradleVersion": "8.10.2",
-    "loomVendor": "babric",
-    "loomPlugin": "babric-loom",
-    "loomVersion": "1.7.3",
-    "fabricLoaderVersion": "0.15.6-babric.1",
-    "btaMaven": "https://maven.thesignalumproject.net/releases",
-    "babricMaven": "https://maven.glass-launcher.net/babric",
+    "gradleVersion": "9.3.1",
+    "loomPlugin": "net.fabricmc.fabric-loom",
+    "loomVersion": "1.15-SNAPSHOT",
+    "fabricLoaderGroup": "net.fabricmc",
+    "fabricLoaderVersion": "0.18.4-bta.11",
+    "btaChannel": "release",
+    "manifestUrl": "https://downloads.betterthanadventure.net/bta-client/release/v8.0.1/manifest.json",
+    "foojayResolverVersion": "1.0.0",
+    "slf4jVersion": "2.0.17",
+    "lwjglVersion": "3.3.3",
+    "clientJarHash": "43db9b498cb67058d2e12d394e6507722e71bb45",
+    "pluginRepositories": [
+      "https://maven.fabricmc.net",
+      "https://maven.thesignalumproject.net/infrastructure"
+    ],
+    "repositories": [
+      "https://maven.fabricmc.net/",
+      "https://maven.thesignalumproject.net/infrastructure",
+      "https://maven.thesignalumproject.net/releases",
+      "https://maven.thesignalumproject.net/nightly"
+    ],
     "halplibe": {
       "githubRepo": "Turnip-Labs/bta-halplibe",
       "mavenGroup": "turniplabs",
       "artifact": "halplibe",
-      "fallbackVersion": "5.1.0"
+      "fallbackVersion": "6.1.4",
+      "mavenSuffix": "+8.0"
     }
   },
 

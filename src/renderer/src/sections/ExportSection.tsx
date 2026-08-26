@@ -3,6 +3,7 @@ import { PackageOpen, FolderOpen, FileArchive, Loader2, Settings, ShieldCheck } 
 import { useProjectStore } from '@/store/projectStore'
 import { useAppStore } from '@/store/appStore'
 import { Switch } from '@/components/ui/controls'
+import { CopyLogButton } from '@/sections/TestingSection'
 import { cn } from '@/lib/cn'
 
 export function ExportSection(): JSX.Element {
@@ -118,9 +119,16 @@ export function ExportSection(): JSX.Element {
       )}
 
       {log.length > 0 && (
-        <pre className="selectable mt-4 overflow-x-auto rounded-lg bg-ink-950 p-4 font-mono text-2xs leading-relaxed text-mist-400 shadow-panel">
-          {log.join('\n')}
-        </pre>
+        <>
+          <div className="mt-4 flex items-center gap-2">
+            <span className="label-base mb-0">Build log</span>
+            <div className="flex-1" />
+            <CopyLogButton lines={log} />
+          </div>
+          <pre className="selectable mt-1.5 overflow-x-auto rounded-lg bg-ink-950 p-4 font-mono text-2xs leading-relaxed text-mist-400 shadow-panel">
+            {log.join('\n')}
+          </pre>
+        </>
       )}
       </div>
     </div>
