@@ -36,6 +36,8 @@ interface Expectations {
 
   treelessBiomes: string[]
 
+  claimedBiomes: { biome: string; logField: string }[]
+
   dimensions: { field: string; idField: string; biomes: string[]; vanillaBiomes: string[] }[]
   langKeys: string[]
 }
@@ -89,6 +91,30 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     )
     .map((el) => `${project.meta.modId}:${el.name}`)
 
+  const claimedTreeBiomes = project.elements
+    .filter(
+      (el) =>
+        el.kind === 'tree' &&
+        el.properties['design'] !== 'built' &&
+        ((el.properties['treesPerChunk'] as number | undefined) ?? 0) > 0 &&
+        typeof el.properties['logBlock'] === 'string' &&
+        !(el.properties['logBlock'] as string).includes(':')
+    )
+    .flatMap((tree) => {
+      const logField = toConstantCase(tree.properties['logBlock'] as string)
+      return (((tree.properties['biomes'] as string[] | undefined) ?? []) as string[])
+        .map((r) => r.trim())
+        .filter((r) =>
+          project.elements.some(
+            (el) =>
+              el.kind === 'biome' &&
+              el.name === r &&
+              el.properties['generateInOverworld'] !== false
+          )
+        )
+        .map((r) => ({ biome: `${project.meta.modId}:${r}`, logField }))
+    })
+
   const dimensions = project.elements
     .filter((el) => el.kind === 'dimension')
     .map((el) => {
@@ -117,6 +143,7 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     overworldBiomes,
     awayBiomes,
     treelessBiomes,
+    claimedBiomes: claimedTreeBiomes,
     dimensions,
     langKeys
   }
@@ -164,6 +191,11 @@ ${javaList(e.awayBiomes)}
 \t/** biomes of this mod's that must grow no tree at all, see Expectations */
 \tprivate static final String[] TREELESS_BIOMES = {
 ${javaList(e.treelessBiomes)}
+\t};
+\t/** biomes a tree of the mod's claims, and the ModBlocks constant it plants
+\t *  there, index for index. See Expectations.claimedBiomes */
+\tprivate static final String[][] CLAIMED_BIOMES = {
+${e.claimedBiomes.map((c) => `\t\t{ "${c.biome}", "${c.logField}" }`).join(',\n')}
 \t};
 \tprivate static final String[] NO_BIOMES = {};
 \t/** the mod id, which is the namespace every entry of this mod's must carry */
