@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The existing release tag to build and upload to
+        required: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: package:win
+            artifacts: release/*.exe
+          - os: macos-latest
+            script: package:mac
+            artifacts: release/*.dmg release/*.zip
+          - os: ubuntu-latest
+            script: package:linux
+            artifacts: release/*.AppImage release/*.deb
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          files=()
+          for pattern in ${{ matrix.artifacts }}; do
+            for file in $pattern; do
+              if [ -f "$file" ]; then files+=("$file"); fi
+            done
+          done
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "nothing was built for ${{ matrix.os }}" >&2
+            exit 1
+          fi
+          printf 'uploading %s\n' "${files[@]}"
+          gh release upload "$tag" "${files[@]}" --clobber

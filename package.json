@@ -121,6 +121,7 @@
       "artifactName": "Artemis-${version}-${arch}.${ext}"
     },
     "linux": {
+      "maintainer": "Colin <10764065+colinthepwner@users.noreply.github.com>",
       "target": [
         {
           "target": "AppImage",
