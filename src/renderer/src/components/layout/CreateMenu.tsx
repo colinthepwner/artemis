@@ -1,49 +1,35 @@
-import { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import {
-  Box,
-  Droplets,
-  Gem,
-  Sprout,
-  TreePine,
-  UtensilsCrossed,
-  Rabbit,
-  Mountain,
-  X,
-  type LucideIcon
-} from 'lucide-react'
+import { X } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
+import { useCloseOnEscape } from '@/components/ui/dismissDistant'
+import { KIND_COLORS, KIND_ICONS } from '@/lib/kindIcons'
+import { KIND_LABELS } from '@/sections/forms/registry'
 import type { ElementKind } from '@shared/project'
 
 interface Entry {
   kind: ElementKind
-  label: string
-  icon: LucideIcon
   desc: string
 }
 
 const TERRAIN: Entry[] = [
-  { kind: 'block', label: 'Block', icon: Box, desc: 'A solid block with custom material & drops' },
-  { kind: 'ore', label: 'Ore', icon: Gem, desc: 'Ore + material item, optional auto gear set' },
-  { kind: 'liquid', label: 'Liquid', icon: Droplets, desc: 'A flowing fluid, water- or lava-like' },
-  { kind: 'plant', label: 'Plant', icon: Sprout, desc: 'A cross-model flower or shrub' },
-  { kind: 'tree', label: 'Tree', icon: TreePine, desc: 'Log + leaves with a world feature' }
+  { kind: 'block', desc: 'A solid block: material, mining & drops' },
+  { kind: 'liquid', desc: 'A flowing fluid, water- or lava-like' },
+  { kind: 'plant', desc: 'A cross-model plant, can grow tall' },
+  { kind: 'tree', desc: 'Grown from a recipe, or built in 3D' }
+]
+
+const WORLD: Entry[] = [
+  { kind: 'ore', desc: 'Grows veins of a block you designed' },
+  { kind: 'structure', desc: 'A build stamped into the world, in variants' },
+  { kind: 'biome', desc: 'Climate, colours & weather' },
+  { kind: 'dimension', desc: 'A world of your biomes, behind a portal' }
 ]
 
 const SINGLES: { title: string; entry: Entry }[] = [
-  {
-    title: 'Crafting',
-    entry: { kind: 'recipe', label: 'Recipe', icon: UtensilsCrossed, desc: 'Shaped, shapeless or furnace' }
-  },
-  {
-    title: 'Entities',
-    entry: { kind: 'mob', label: 'Mob', icon: Rabbit, desc: 'A living entity with stats & drops' }
-  },
-  {
-    title: 'World',
-    entry: { kind: 'biome', label: 'Biome', icon: Mountain, desc: 'Climate, colors & spawns' }
-  }
+  { title: 'Items', entry: { kind: 'item', desc: 'A material or drop, optional gear set' } },
+  { title: 'Crafting', entry: { kind: 'recipe', desc: 'Shaped, shapeless or furnace' } },
+  { title: 'Entities', entry: { kind: 'mob', desc: 'A living entity with spawns & drops' } }
 ]
 
 export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
@@ -58,14 +44,7 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
     onClose()
   }
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-
-  }, [])
+  useCloseOnEscape(onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -90,23 +69,40 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
             </p>
           </div>
           <div className="flex-1" />
-          <kbd className="rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-mist-500 shadow-panel">
-            Esc
-          </kbd>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
-          >
-            <X size={15} />
-          </button>
+          {
+
+}
+          <div className="flex items-center gap-2">
+            {
+
+}
+            <kbd className="inline-flex h-[18px] items-center justify-center rounded bg-ink-800 px-1.5 font-mono text-[10px] leading-none text-mist-500 shadow-panel">
+              Esc
+            </kbd>
+            <button
+              onClick={onClose}
+              className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 pt-4">
           <SectionLabel>Blocks & Terrain</SectionLabel>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {TERRAIN.map((entry) => (
               <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry.kind)} />
             ))}
+          </div>
+
+          <div className="mt-5">
+            <SectionLabel>World</SectionLabel>
+            <div className="grid grid-cols-4 gap-2">
+              {WORLD.map((entry) => (
+                <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry.kind)} />
+              ))}
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
@@ -134,20 +130,23 @@ function SectionLabel({ children }: { children: React.ReactNode }): JSX.Element 
 }
 
 function CreateCard({ entry, onClick }: { entry: Entry; onClick: () => void }): JSX.Element {
-  const Icon = entry.icon
+  const Icon = KIND_ICONS[entry.kind]
+  const accent = KIND_COLORS[entry.kind]
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-full w-full flex-col items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-800/60 px-3 py-4 text-center transition-all duration-150 hover:z-10 hover:border-gold-500/40 hover:bg-ink-750 active:scale-[0.98]"
+      className="group relative flex h-full w-full flex-col items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-800/60 px-3 py-4 text-center transition duration-150 hover:z-10 hover:border-gold-500/40 hover:bg-ink-750 active:scale-[0.98]"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink-900/70 shadow-panel transition-colors group-hover:bg-gold-500/10">
-        <Icon
-          size={19}
-          strokeWidth={1.75}
-          className="text-gold-400/70 transition-colors group-hover:text-gold-400"
-        />
+      {
+}
+      <div
+
+        className="flex h-10 w-10 items-center justify-center rounded-lg shadow-panel"
+        style={{ background: `${accent}1a` }}
+      >
+        <Icon size={19} strokeWidth={1.75} style={{ color: accent }} />
       </div>
-      <div className="text-[13px] font-medium text-mist-100">{entry.label}</div>
+      <div className="text-[13px] font-medium text-mist-100">{KIND_LABELS[entry.kind].label}</div>
       <div className="text-2xs leading-snug text-mist-500">{entry.desc}</div>
     </button>
   )

@@ -1,4 +1,6 @@
 import { inflateRawSync } from 'zlib'
+import { mkdirSync, writeFileSync, chmodSync } from 'fs'
+import { dirname, join, resolve, sep } from 'path'
 
 export interface ZipEntry {
   name: string
@@ -6,6 +8,10 @@ export interface ZipEntry {
   offset: number
   compressedSize: number
   method: number
+
+  mode: number
+
+  isDirectory: boolean
 }
 
 const EOCD_SIG = 0x06054b50
@@ -28,6 +34,10 @@ export function readCentralDirectory(buf: Buffer): ZipEntry[] {
 
   for (let i = 0; i < count && p + 46 <= buf.length; i++) {
     if (buf.readUInt32LE(p) !== CEN_SIG) break
+
+    const madeByUnix = buf.readUInt8(p + 5) === 3
+    const external = buf.readUInt32LE(p + 38)
+    const mode = madeByUnix ? (external >>> 16) & 0o7777 : 0
     const method = buf.readUInt16LE(p + 10)
     const compressedSize = buf.readUInt32LE(p + 20)
     const nameLen = buf.readUInt16LE(p + 28)
@@ -35,10 +45,32 @@ export function readCentralDirectory(buf: Buffer): ZipEntry[] {
     const commentLen = buf.readUInt16LE(p + 32)
     const offset = buf.readUInt32LE(p + 42)
     const name = buf.toString('utf8', p + 46, p + 46 + nameLen)
-    entries.push({ name, offset, compressedSize, method })
+    entries.push({ name, offset, compressedSize, method, mode, isDirectory: name.endsWith('/') })
     p += 46 + nameLen + extraLen + commentLen
   }
   return entries
+}
+
+export function extractAll(buf: Buffer, dest: string): void {
+  const root = resolve(dest)
+  for (const entry of readCentralDirectory(buf)) {
+
+    const target = resolve(root, entry.name.replace(/\\/g, '/'))
+    if (target !== root && !target.startsWith(root + sep)) {
+      throw new Error(`archive entry escapes the destination: ${entry.name}`)
+    }
+    if (entry.isDirectory) {
+      mkdirSync(target, { recursive: true })
+      continue
+    }
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, readEntry(buf, entry))
+    if (entry.mode) chmodSync(target, entry.mode)
+  }
+}
+
+export function entryPath(dest: string, name: string): string {
+  return join(dest, ...name.split('/'))
 }
 
 export function readEntry(buf: Buffer, entry: ZipEntry): Buffer {

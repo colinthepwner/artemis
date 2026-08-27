@@ -1,21 +1,16 @@
+import { titleCase } from '../project'
 import type { ArtemisElement, ArtemisProject } from '../project'
-import { oreFamily } from './family'
+import { kitFamily } from './family'
 
 export interface TextureSlot {
 
   key: string
+
+  path?: string
   label: string
   elementId: string
 
   paintable: boolean
-}
-
-function humanize(suffix: string): string {
-  return suffix
-    .split('_')
-    .filter(Boolean)
-    .map((s) => s[0].toUpperCase() + s.slice(1))
-    .join(' ')
 }
 
 export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
@@ -30,7 +25,6 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
 
   switch (el.kind) {
     case 'block':
-    case 'ore':
     case 'liquid':
     case 'plant':
       if (p['textureMode'] === 'topBottomSides') {
@@ -38,13 +32,22 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
         block(`${el.name}_bottom`, 'Bottom')
         block(`${el.name}_side`, 'Side')
       } else {
-        block(el.name, humanize(el.name))
+        block(el.name, titleCase(el.name))
       }
+      break
+    case 'item':
+      item(el.name, titleCase(el.name))
+      break
+    case 'dimension':
+
+      block(`${el.name}_portal`, 'Portal')
       break
 
     case 'mob':
       slots.push({
         key: `entity/${el.name}`,
+
+        path: `entity/${el.name}/0`,
         label: 'Skin (64×32)',
         elementId: el.id,
         paintable: false
@@ -52,10 +55,9 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
       break
   }
 
-  if (el.kind === 'ore') {
-    const family = oreFamily(el)!
-    if (family.dropsItem) item(family.base, humanize(family.base))
-    for (const name of [...family.tools, ...family.armor]) item(name, humanize(name))
+  if (el.kind === 'item') {
+    const family = kitFamily(el)!
+    for (const name of [...family.tools, ...family.armor]) item(name, titleCase(name))
   }
 
   return slots

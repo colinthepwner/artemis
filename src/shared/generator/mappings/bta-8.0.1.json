@@ -5,47 +5,112 @@
   "displayName": "Better Than Adventure! 8.0.1",
   "imports": {
     "$comment": "Symbol -> FQN. Emitters reference symbols only; the JavaWriter resolves + dedupes imports from this table.",
-    "Block": "net.minecraft.core.block.Block",
-    "Blocks": "net.minecraft.core.block.Blocks",
-    "Items": "net.minecraft.core.item.Items",
-    "BlockLogic": "net.minecraft.core.block.BlockLogic",
-    "Material": "net.minecraft.core.block.material.Material",
-    "BlockSounds": "net.minecraft.core.sound.BlockSounds",
-    "BlockTags": "net.minecraft.core.block.tag.BlockTags",
-    "Item": "net.minecraft.core.item.Item",
-    "ItemStack": "net.minecraft.core.item.ItemStack",
-    "ToolMaterial": "net.minecraft.core.item.material.ToolMaterial",
+    "ArmorHelper": "turniplabs.halplibe.helper.ArmorHelper",
     "ArmorMaterial": "net.minecraft.core.item.material.ArmorMaterial",
     "Biome": "net.minecraft.core.world.biome.Biome",
-    "EntityLiving": "net.minecraft.core.entity.EntityLiving",
-    "World": "net.minecraft.core.world.World",
+    "BiomeProviderOverworld": "net.minecraft.core.world.biome.provider.BiomeProviderOverworld",
+    "BiomeRange": "net.minecraft.core.world.biome.data.BiomeRange",
+    "BiomeRangeMap": "net.minecraft.core.world.biome.data.BiomeRangeMap",
+    "Biomes": "net.minecraft.core.world.biome.Biomes",
+    "Block": "net.minecraft.core.block.Block",
     "BlockBuilder": "turniplabs.halplibe.helper.BlockBuilder",
-    "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
-    "EntityHelper": "turniplabs.halplibe.helper.EntityHelper",
-    "BiomeHelper": "turniplabs.halplibe.helper.BiomeHelper",
-    "RecipeBuilder": "turniplabs.halplibe.helper.RecipeBuilder",
-    "ArmorHelper": "turniplabs.halplibe.helper.ArmorHelper",
-    "ModInitializer": "net.fabricmc.api.ModInitializer",
-    "GameStartEntrypoint": "turniplabs.halplibe.util.GameStartEntrypoint",
-    "RecipeEntrypoint": "turniplabs.halplibe.util.RecipeEntrypoint",
-    "TomlConfigHandler": "turniplabs.halplibe.util.TomlConfigHandler",
-    "Toml": "turniplabs.halplibe.util.toml.Toml",
-    "Logger": "org.slf4j.Logger",
-    "LoggerFactory": "org.slf4j.LoggerFactory",
-    "WorldFeature": "net.minecraft.core.world.generate.feature.WorldFeature",
-    "Random": "java.util.Random",
-    "Materials": "net.minecraft.core.block.material.Materials",
-    "ItemArmor": "net.minecraft.core.item.ItemArmor",
-    "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
-    "ItemToolSword": "net.minecraft.core.item.tool.ItemToolSword",
-    "ItemToolPickaxe": "net.minecraft.core.item.tool.ItemToolPickaxe",
-    "ItemToolAxe": "net.minecraft.core.item.tool.ItemToolAxe",
-    "ItemToolShovel": "net.minecraft.core.item.tool.ItemToolShovel",
-    "ItemToolHoe": "net.minecraft.core.item.tool.ItemToolHoe",
+    "BlockColorDispatcher": "net.minecraft.client.render.block.color.BlockColorDispatcher",
+    "BlockLogic": "net.minecraft.core.block.BlockLogic",
+    "BlockLogicFire": "net.minecraft.core.block.BlockLogicFire",
+    "BlockLogicFlower": "net.minecraft.core.block.BlockLogicFlower",
+    "BlockLogicFluid": "net.minecraft.core.block.BlockLogicFluid",
+    "BlockLogicFluidFlowing": "net.minecraft.core.block.BlockLogicFluidFlowing",
+    "BlockLogicFluidStill": "net.minecraft.core.block.BlockLogicFluidStill",
+    "BlockModelCrossedSquares": "net.minecraft.client.render.block.model.BlockModelCrossedSquares",
+    "BlockModelDispatcher": "net.minecraft.client.render.block.model.BlockModelDispatcher",
+    "BlockModelFluid": "net.minecraft.client.render.block.model.BlockModelFluid",
+    "BlockModelStandard": "net.minecraft.client.render.block.model.BlockModelStandard",
+    "BlockSounds": "net.minecraft.core.sound.BlockSounds",
+    "BlockTags": "net.minecraft.core.block.tag.BlockTags",
+    "Blocks": "net.minecraft.core.block.Blocks",
     "Chunk": "net.minecraft.core.world.chunk.Chunk",
     "ChunkDecoratorOverworld": "net.minecraft.core.world.generate.chunk.perlin.overworld.ChunkDecoratorOverworld",
-    "WorldFeatureOre": "net.minecraft.core.world.generate.feature.WorldFeatureOre",
-    "TilePos": "net.minecraft.core.world.pos.TilePos"
+    "ClientEvents": "turniplabs.halplibe.event.defs.ClientEvents",
+    "CommonEvents": "turniplabs.halplibe.event.defs.CommonEvents",
+    "CreativeInventoryCategory": "turniplabs.halplibe.helper.creativeInventory.CreativeInventoryCategory",
+    "CreativeInventoryPlacement": "turniplabs.halplibe.helper.creativeInventory.CreativeInventoryPlacement",
+    "DamageType": "net.minecraft.core.util.helper.DamageType",
+    "EntityHelper": "turniplabs.halplibe.helper.EntityHelper",
+    "EntityRendererDispatcher": "net.minecraft.client.render.EntityRendererDispatcher",
+    "EnumDropCause": "net.minecraft.core.enums.EnumDropCause",
+    "FluidLava": "net.minecraft.core.block.FluidLava",
+    "FluidWater": "net.minecraft.core.block.FluidWater",
+    "HalpLibe": "turniplabs.halplibe.HalpLibe",
+    "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
+    "Item": "net.minecraft.core.item.Item",
+    "ItemArmor": "net.minecraft.core.item.ItemArmor",
+    "ItemBlock": "net.minecraft.core.item.block.ItemBlock",
+    "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
+    "ItemModelBlock": "net.minecraft.client.render.item.model.ItemModelBlock",
+    "ItemModelDispatcher": "net.minecraft.client.render.item.model.ItemModelDispatcher",
+    "ItemModelStandard": "net.minecraft.client.render.item.model.ItemModelStandard",
+    "ItemStack": "net.minecraft.core.item.ItemStack",
+    "ItemToolAxe": "net.minecraft.core.item.tool.ItemToolAxe",
+    "ItemToolHoe": "net.minecraft.core.item.tool.ItemToolHoe",
+    "ItemToolPickaxe": "net.minecraft.core.item.tool.ItemToolPickaxe",
+    "ItemToolShovel": "net.minecraft.core.item.tool.ItemToolShovel",
+    "ItemToolSword": "net.minecraft.core.item.tool.ItemToolSword",
+    "Items": "net.minecraft.core.item.Items",
+    "Key": "turniplabs.halplibe.util.dependency.Key",
+    "Logger": "org.slf4j.Logger",
+    "LoggerFactory": "org.slf4j.LoggerFactory",
+    "Material": "net.minecraft.core.block.material.Material",
+    "Materials": "net.minecraft.core.block.material.Materials",
+    "Mob": "net.minecraft.core.entity.Mob",
+    "MobAnimal": "net.minecraft.core.entity.animal.MobAnimal",
+    "MobMonster": "net.minecraft.core.entity.monster.MobMonster",
+    "MobRenderer": "net.minecraft.client.render.entity.MobRenderer",
+    "MobRendererBiped": "net.minecraft.client.render.entity.MobRendererBiped",
+    "MobRendererQuadruped": "net.minecraft.client.render.entity.MobRendererQuadruped",
+    "ModInitializer": "net.fabricmc.api.ModInitializer",
+    "NamespaceID": "net.minecraft.core.util.collection.NamespaceID",
+    "Random": "java.util.Random",
+    "RecipeBuilder": "turniplabs.halplibe.helper.RecipeBuilder",
+    "Side": "net.minecraft.core.util.helper.Side",
+    "SpawnListEntry": "net.minecraft.core.entity.SpawnListEntry",
+    "StaticEntityModel": "org.useless.dragonfly.models.entity.StaticEntityModel",
+    "SurfaceProperties": "net.minecraft.core.world.biome.SurfaceProperties",
+    "TileEntity": "net.minecraft.core.block.entity.TileEntity",
+    "TileEntityRenderDispatcher": "net.minecraft.client.render.TileEntityRenderDispatcher",
+    "TilePos": "net.minecraft.core.world.pos.TilePos",
+    "TilePosc": "net.minecraft.core.world.pos.TilePosc",
+    "Weathers": "net.minecraft.core.world.weather.Weathers",
+    "WeatherRain": "net.minecraft.core.world.weather.WeatherRain",
+    "WorldType": "net.minecraft.core.world.type.WorldType",
+    "WorldTypes": "net.minecraft.core.world.type.WorldTypes",
+    "WorldTypeOverworld": "net.minecraft.core.world.type.overworld.WorldTypeOverworld",
+    "WorldTypeGroups": "net.minecraft.core.world.type.WorldTypeGroups",
+    "Dimension": "net.minecraft.core.world.Dimension",
+    "BlockLogicPortal": "net.minecraft.core.block.BlockLogicPortal",
+    "BiomeProvider": "net.minecraft.core.world.biome.provider.BiomeProvider",
+    "BiomeProviderSingleBiome": "net.minecraft.core.world.biome.provider.BiomeProviderSingleBiome",
+    "FractalNoise2D": "net.minecraft.core.world.noise.FractalNoise2D",
+    "SimplexNoise": "net.minecraft.core.world.noise.SimplexNoise",
+    "MathHelper": "net.minecraft.core.util.helper.MathHelper",
+    "MinecraftServer": "net.minecraft.server.MinecraftServer",
+    "Registries": "net.minecraft.core.data.registry.Registries",
+    "WorldTypeFXOverworld": "net.minecraft.client.render.worldtype.WorldTypeFXOverworld",
+    "WorldTypeFXDispatcher": "net.minecraft.client.render.worldtype.WorldTypeFXDispatcher",
+    "BlockModelGenericPortal": "net.minecraft.client.render.block.model.generic.BlockModelGenericPortal",
+    "BlockColorCustom": "net.minecraft.client.render.block.color.BlockColorCustom",
+    "Colorizers": "net.minecraft.client.render.colorizer.Colorizers",
+    "WorldSource": "net.minecraft.core.world.WorldSource",
+    "BlockColorWater": "net.minecraft.client.render.block.color.BlockColorWater",
+    "TessellatorGeneral": "net.minecraft.client.render.tessellator.TessellatorGeneral",
+    "WorldRenderer": "net.minecraft.client.render.WorldRenderer",
+    "Minecraft": "net.minecraft.client.Minecraft",
+    "Toml": "turniplabs.halplibe.util.toml.Toml",
+    "TomlConfigHandler": "turniplabs.halplibe.util.TomlConfigHandler",
+    "ToolMaterial": "net.minecraft.core.item.material.ToolMaterial",
+    "WeightedRandomLootObject": "net.minecraft.core.WeightedRandomLootObject",
+    "World": "net.minecraft.core.world.World",
+    "WorldFeature": "net.minecraft.core.world.generate.feature.WorldFeature",
+    "WorldFeatureOre": "net.minecraft.core.world.generate.feature.WorldFeatureOre"
   },
   "idRanges": {
     "$comment": "BTA still runs on numeric registry IDs. Artemis allocates sequentially from these bases at generate time (deterministic: element creation order). Bases sit high above vanilla + common mods; the generated config exposes them so end users can shift the whole band on conflict.",
@@ -55,11 +120,9 @@
     "item": {
       "start": 18000
     },
-    "entity": {
-      "start": 120
-    },
-    "biome": {
-      "start": 60
+    "$dimensionComment": "Dimension ids MUST be contiguous with vanilla's 0 to 2, so 3 is the only safe base: WorldTypeGroups.Group's constructor iterates the dimension list by INDEX from 0 to size(), and a gap in the ids makes it requireNonNull a hole and crash the server at startServer. Measured, not theoretical: a start of 10 died exactly there. A collision with another dimension mod is what the generated config's starting_dimension_id is for, and that mod has the same contiguity constraint.",
+    "dimension": {
+      "start": 3
     }
   },
   "materials": {
@@ -114,57 +177,110 @@
     "preventMobSpawns": "BlockTags.PREVENT_MOB_SPAWNS",
     "notInCreativeMenu": "BlockTags.NOT_IN_CREATIVE_MENU"
   },
+  "harvestLevel": {
+    "$comment": "Required tool tier is NOT a block property in BTA 8.0.1: the pickaxe keeps a public static Object2IntMap keyed by block, filled in its own static block for vanilla (OBSIDIAN 3, the gold and diamond blocks and ores 2) and defaulting to 0 for anything absent. A mod adds to that map after registration, which is why this is a statement in afterGameStart rather than a builder call.",
+    "put": "ItemToolPickaxe.miningLevels.put(ModBlocks.{{FIELD}}, {{level}});",
+    "import": "net.minecraft.core.item.tool.ItemToolPickaxe"
+  },
   "blockBuilder": {
-    "$comment": "halplibe BlockBuilder chain, verified against halplibe 6.1.4. build() takes a BlockLogicSupplier, not a Material, and the builder has no texture methods at all: art is resolved from the registry key by TextureHelper, so the PNG just has to be at assets/<modid>/textures/block/<key>.png.",
-    "decl": "public static final Block<BlockLogic> {{FIELD}} = new BlockBuilder(MOD_ID)",
-    "build": "\t.build(\"{{displayName}}\", \"{{registryName}}\", nextBlockID(), block -> new BlockLogic(block, {{material}}));",
+    "$comment": "halplibe BlockBuilder, verified against halplibe 6.1.4. build(a, b, id, logic) composes the translation key as \"<modId>.<a>\" (Block then prefixes \"tile.\") and the namespace id as \"<modId>:block/<b>\", so BOTH arguments are the registry name and the display name belongs in the lang file. Passing a display name as `a` produced keys like \"tile.mymod.Ruby Ore\" that no lang line could ever match. The builder has no texture method: art is bound by the namespace id, but a block still needs a BlockModel registered or BlockModelDispatcher falls back to BlockModelEmpty and the block is invisible.",
+    "decl": "public static final Block<{{logicType}}> {{FIELD}} = new BlockBuilder(MOD_ID)",
+    "build": "\t.build(\"{{registryName}}\", \"{{registryName}}\", nextBlockID(), {{logic}});",
     "methods": {
       "hardness": ".setHardness({{value}}f)",
       "resistance": ".setResistance({{value}}f)",
       "luminance": ".setLuminance({{value}})",
       "sound": ".setBlockSound({{value}})",
       "tags": ".setTags({{value}})",
-      "infiniburn": ".setInfiniburn()"
-    }
+      "infiniburn": ".setInfiniburn()",
+      "ticking": ".setTicking(true)"
+    },
+    "logicPlain": "block -> new BlockLogic(block, {{material}})",
+    "logicFlower": "block -> new BlockLogicFlower(block)",
+    "logicCustom": "block -> new {{logicClass}}(block, {{material}})"
   },
   "tree": {
     "$comment": "Whole-file template for the tree WorldFeature. The world mutation API is the most version-volatile surface in BTA, so the entire place() body lives here. The trunk and canopy come in as resolved block expressions, since a tree plants existing blocks rather than owning any of its own.",
-    "featureClass": "public class {{className}} extends WorldFeature {\n\n\t@Override\n\tpublic boolean place(World world, Random random, int x, int y, int z) {\n\t\tint height = {{minHeight}} + random.nextInt({{heightRange}});\n\n\t\t// trunk\n\t\tfor (int dy = 0; dy < height; dy++) {\n\t\t\tworld.setBlockWithNotify(x, y + dy, z, {{logBlock}}.id());\n\t\t}\n\n\t\t// leaf canopy: 2-layer blob around the crown\n\t\tfor (int dy = height - 2; dy <= height + 1; dy++) {\n\t\t\tint radius = dy > height - 1 ? 1 : 2;\n\t\t\tfor (int dx = -radius; dx <= radius; dx++) {\n\t\t\t\tfor (int dz = -radius; dz <= radius; dz++) {\n\t\t\t\t\tif (Math.abs(dx) == radius && Math.abs(dz) == radius && random.nextBoolean()) continue;\n\t\t\t\t\tif (world.getBlockId(x + dx, y + dy, z + dz) == 0) {\n\t\t\t\t\t\tworld.setBlockWithNotify(x + dx, y + dy, z + dz, {{leavesBlock}}.id());\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\treturn true;\n\t}\n}"
+    "featureClass": "public class {{className}} extends WorldFeature {\n\n\t@Override\n\tpublic boolean place(World world, Random random, int x, int y, int z) {\n\t\t// The same gate every vanilla tree uses (javap'd from\n\t\t// WorldFeatureTree.place). The heightmap counts leaves, so placement\n\t\t// attempts land on canopy tops; without this a tree happily plants\n\t\t// on another tree. A canopy is not ground that GROWS_TREES.\n\t\tif (!Blocks.hasTag(world.getBlockId(x, y - 1, z), BlockTags.GROWS_TREES)) {\n\t\t\treturn false;\n\t\t}\n\n\t\tint height = {{minHeight}} + random.nextInt({{heightRange}});\n\n\t\t// trunk\n\t\tfor (int dy = 0; dy < height; dy++) {\n\t\t\tworld.setBlockWithNotify(x, y + dy, z, {{logBlock}}.id());\n\t\t}\n\n\t\t// leaf canopy: 2-layer blob around the crown\n\t\tfor (int dy = height - 2; dy <= height + 1; dy++) {\n\t\t\tint radius = dy > height - 1 ? 1 : 2;\n\t\t\tfor (int dx = -radius; dx <= radius; dx++) {\n\t\t\t\tfor (int dz = -radius; dz <= radius; dz++) {\n\t\t\t\t\tif (Math.abs(dx) == radius && Math.abs(dz) == radius && random.nextBoolean()) continue;\n\t\t\t\t\tif (world.getBlockId(x + dx, y + dy, z + dz) == 0) {\n\t\t\t\t\t\tworld.setBlockWithNotify(x + dx, y + dy, z + dz, {{leavesBlock}}.id());\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\treturn true;\n\t}\n}"
+  },
+  "structure": {
+    "$comment": "Feature class for hand-built variants (Workshop trees and structures). One private method per variant; place() picks one at random, which is the whole point of variants. placeLineIfAir is the built-tree rule: canopy blocks only fill air so a tree never carves the hill behind it, while its trunk column and every structure block stamp unconditionally. treeGuard fills the {{guard}} slot for BUILT TREES only: the vanilla GROWS_TREES ground test that stops trees planting on each other's canopies. Structures pass an empty guard -- a buried vault sits inside stone and a cairn may stand on sand, so no ground rule fits them all.",
+    "featureClass": "public class {{className}} extends WorldFeature {\n\n\t@Override\n\tpublic boolean place(World world, Random random, int x, int y, int z) {\n{{guard}}\t\tswitch (random.nextInt({{variantCount}})) {\n{{cases}}\n\t\t}\n\t\treturn true;\n\t}\n{{variantMethods}}\n}",
+    "caseLine": "\t\t\tcase {{i}}: place{{i}}(world, x, y, z); break;",
+    "variantMethod": "\n\t/** {{name}} */\n\tprivate void place{{i}}(World world, int x, int y, int z) {\n{{lines}}\n\t}",
+    "placeLine": "\t\tworld.setBlockWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id());",
+    "placeLineIfAir": "\t\tif (world.getBlockId({{X}}, {{Y}}, {{Z}}) == 0) world.setBlockWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id());",
+    "treeGuard": "\t\t// The same gate every vanilla tree uses (javap'd from\n\t\t// WorldFeatureTree.place). The heightmap counts leaves, so placement\n\t\t// attempts land on canopy tops; without this a tree happily plants\n\t\t// on another tree. A canopy is not ground that GROWS_TREES.\n\t\tif (!Blocks.hasTag(world.getBlockId(x, y - 1, z), BlockTags.GROWS_TREES)) {\n\t\t\treturn false;\n\t\t}\n\n"
   },
   "mob": {
-    "$comment": "Whole-file template for generated mob classes. {{extends}} comes from entity.mobClassExtends; hostile mobs get the melee-attack override block via {{hostileBody}}.",
-    "classTemplate": "public class {{className}} extends {{extends}} {\n\n\tpublic {{className}}(World world) {\n\t\tsuper(world);\n\t\tthis.setSize(0.6f, 1.8f);\n\t\tthis.setMaxHealth({{health}});\n\t\tthis.moveSpeed = {{moveSpeed}}f;\n\t\tthis.textureIdentifier = \"{{texture}}\";\n\t}\n{{hostileBody}}\n\t@Override\n\tpublic void dropFewItems(boolean hitByPlayer) {\n{{dropBody}}\n\t}\n}",
-    "hostileBody": "\n\t@Override\n\tprotected void attackEntity(net.minecraft.core.entity.Entity target, float distance) {\n\t\tif (distance < 2.0f && this.attackTime <= 0) {\n\t\t\tthis.attackTime = 20;\n\t\t\ttarget.hurt(this, {{attackDamage}}, net.minecraft.core.util.helper.DamageType.COMBAT);\n\t\t}\n\t}\n",
-    "dropLine": "\t\tthis.dropItem({{itemExpr}}, this.random.nextInt({{dropCountMax}}) + 1);"
+    "$comment": "net.minecraft.core.entity.EntityLiving does not exist in BTA 8.0.1. Mobs extend MobMonster (hostile, carries attackStrength and its own attack AI) or MobAnimal (passive), both under MobPathfinder so they walk. Health is an overridden getMaxHealth(), there is no setter. Textures are bound with setTextureIdentifier(namespace, value) because textureIdentifier is a NamespaceID, not a String. Drops go through the mobDrops list rather than a dropFewItems override.",
+    "$textureComment": "A mob skin is NOT an atlas texture and the value is NOT a path. Mob.setTextureIdentifier builds basePath itself as /assets/<namespace>/textures/entity/<value>/ and then reads <basePath>0.png, so the value is the BARE registry name: vanilla calls setTextureIdentifier(\"minecraft\", \"zombie\") and ships assets/minecraft/textures/entity/zombie/0.png. Passing \"entity/<name>\" doubles the segment and the mob renders untextured with nothing logged. The trailing 0 is the variant index; a variants.json beside it is optional, because ClientSkinVariantList.getSkinReference falls back to \"0\" when there is no variants file or when the Mob Variants option is off. There is also no 'entity' AtlasStitcher at all (the world atlas is block, item and particle, plus art, gui/sprites and sign), so an entity texture is loaded straight through TextureManager and never stitched.",
+    "classTemplate": "public class {{className}} extends {{extends}} {\n\n\tpublic {{className}}(World world) {\n\t\tsuper(world);\n\t\tthis.setSize({{width}}f, {{height}}f);\n\t\tthis.moveSpeed = {{moveSpeed}}f;\n\t\tthis.setTextureIdentifier(\"{{modId}}\", \"{{registryName}}\");\n{{ctorExtra}}\t}\n\n\t@Override\n\tpublic int getMaxHealth() {\n\t\treturn {{health}};\n\t}\n}",
+    "hostileExtends": "MobMonster",
+    "passiveExtends": "MobAnimal",
+    "attackLine": "\t\tthis.attackStrength = {{attackDamage}};",
+    "dropLine": "\t\tthis.mobDrops.add(new WeightedRandomLootObject({{stack}}, 0, {{dropCountMax}}));",
+    "$rendererComment": "Vanilla geometry is loaded from assets/minecraft/models/entity/models.json for every namespace, so a generated renderer reuses one of those shapes by identifier and pairs it with the mod own 64x32 skin. MobRendererQuadruped is concrete; MobRendererBiped is abstract and needs getActiveModel.",
+    "rendererQuadruped": "public class {{className}} extends MobRendererQuadruped<{{entityClass}}> {\n\n\tpublic {{className}}() {\n\t\tsuper({{shadowSize}}f);\n\t\tthis.setModel(\"main\", \"{{geometry}}\", 1.0);\n\t}\n}",
+    "rendererBiped": "public class {{className}} extends MobRendererBiped<{{entityClass}}> {\n\n\tpublic {{className}}() {\n\t\tsuper({{shadowSize}}f);\n\t\tthis.setModel(\"main\", \"{{geometry}}\", 1.0);\n\t}\n\n\t@Override\n\tprotected StaticEntityModel getActiveModel({{entityClass}} mob) {\n\t\treturn this.getModel(\"main\");\n\t}\n}",
+    "shapes": {
+      "humanoid": {
+        "renderer": "rendererBiped",
+        "geometry": "geometry.zombie",
+        "shadowSize": 0.5,
+        "width": 0.6,
+        "height": 1.8
+      },
+      "quadruped": {
+        "renderer": "rendererQuadruped",
+        "geometry": "geometry.cow",
+        "shadowSize": 0.7,
+        "width": 0.9,
+        "height": 1.3
+      }
+    }
   },
   "itemBuilder": {
-    "$comment": "halplibe ItemBuilder, verified against 6.1.4. build() takes the finished Item, and there is no setIcon: item art is stitched from assets/<modid>/textures/item/<key>.png by key.",
+    "$comment": "halplibe ItemBuilder, verified against 6.1.4 and against a running game. Item(key, namespaceId, id): the namespace id MUST contain exactly one ':' or NamespaceID throws HardIllegalArgumentException and the mod dies in ModItems.<clinit>. The constructor then stores the key as \"item.\" + key, and ItemBuilder.build rewrites that to \"item.<modId>.<everything after the first dot>\". So the first argument is the BARE registry name: passing \"item.ruby\" lands on item.<modid>.item.ruby and no lang line ever matches it.",
     "decl": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)",
-    "build": "\t.build(new Item(\"{{displayName}}\", \"{{registryName}}\", nextItemID()));",
+    "build": "\t{{creative}}\n\t.build(new Item(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID()));",
     "methods": {
       "stackSize": ".setStackSize({{value}})",
       "maxDamage": ".setMaxDamage({{value}})"
     }
   },
   "toolMaterial": {
-    "$comment": "One ToolMaterial feeds the whole tool run. Verified: ToolMaterial has a no-arg constructor plus setDurability/setEfficiency(float,float)/setMiningLevel/setDamage, and each tool is a plain net.minecraft.core.item.tool.ItemToolX(name, key, id, material). There is no ToolHelper.",
+    "$comment": "One ToolMaterial feeds the whole tool run. Verified: ToolMaterial has a no-arg constructor plus setDurability/setEfficiency(float,float)/setMiningLevel/setDamage, and each tool is a plain net.minecraft.core.item.tool.ItemToolX(name, key, id, material). There is no ToolHelper. `standalone` is the same builder for a piece that was promoted out of a kit and now owns its registry name, so nothing is appended to it.",
     "decl": "public static final ToolMaterial {{FIELD}}_TOOL_MATERIAL = new ToolMaterial()\n\t.setDurability({{durability}})\n\t.setEfficiency({{efficiency}}f, {{efficiencyOnProper}}f)\n\t.setMiningLevel({{miningLevel}})\n\t.setDamage({{damage}});",
     "tools": {
-      "sword": "public static final Item {{FIELD}}_SWORD = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolSword(\"{{displayName}} Sword\", \"{{registryName}}_sword\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
-      "pickaxe": "public static final Item {{FIELD}}_PICKAXE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolPickaxe(\"{{displayName}} Pickaxe\", \"{{registryName}}_pickaxe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
-      "axe": "public static final Item {{FIELD}}_AXE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolAxe(\"{{displayName}} Axe\", \"{{registryName}}_axe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
-      "shovel": "public static final Item {{FIELD}}_SHOVEL = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolShovel(\"{{displayName}} Shovel\", \"{{registryName}}_shovel\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
-      "hoe": "public static final Item {{FIELD}}_HOE = new ItemBuilder(MOD_ID)\n\t.build(new ItemToolHoe(\"{{displayName}} Hoe\", \"{{registryName}}_hoe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));"
+      "sword": "public static final Item {{FIELD}}_SWORD = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolSword(\"{{registryName}}_sword\", \"{{modId}}:item/{{registryName}}_sword\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "pickaxe": "public static final Item {{FIELD}}_PICKAXE = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolPickaxe(\"{{registryName}}_pickaxe\", \"{{modId}}:item/{{registryName}}_pickaxe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "axe": "public static final Item {{FIELD}}_AXE = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolAxe(\"{{registryName}}_axe\", \"{{modId}}:item/{{registryName}}_axe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "shovel": "public static final Item {{FIELD}}_SHOVEL = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolShovel(\"{{registryName}}_shovel\", \"{{modId}}:item/{{registryName}}_shovel\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "hoe": "public static final Item {{FIELD}}_HOE = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolHoe(\"{{registryName}}_hoe\", \"{{modId}}:item/{{registryName}}_hoe\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));"
+    },
+    "standalone": {
+      "sword": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolSword(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "pickaxe": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolPickaxe(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "axe": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolAxe(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "shovel": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolShovel(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));",
+      "hoe": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemToolHoe(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_TOOL_MATERIAL));"
     }
   },
   "armorMaterial": {
-    "$comment": "ArmorHelper.createArmorMaterial(namespace, key, durability, f x6) where the floats are protection percentages per DamageType in declaration order: COMBAT, BLAST, FALL, FIRE, DROWN, GENERIC. Pieces are plain ItemArmor<HumanArmorShape> instances; createArmorItem does not exist.",
+    "$comment": "ArmorHelper.createArmorMaterial(namespace, key, durability, f x6) where the floats are protection percentages per DamageType in declaration order: COMBAT, BLAST, FALL, FIRE, DROWN, GENERIC. Pieces are plain ItemArmor<HumanArmorShape> instances; createArmorItem does not exist. `standalone` is the same builder for a piece promoted out of a kit, which owns its registry name rather than being named after a material.",
     "decl": "public static final ArmorMaterial {{FIELD}}_ARMOR_MATERIAL = ArmorHelper.createArmorMaterial(MOD_ID, \"{{registryName}}\", {{durability}}, {{combat}}f, {{blast}}f, {{fall}}f, {{fire}}f, {{drown}}f, {{generic}}f);",
     "pieces": {
-      "helmet": "public static final Item {{FIELD}}_HELMET = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Helmet\", \"{{registryName}}_helmet\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.HEAD));",
-      "chestplate": "public static final Item {{FIELD}}_CHESTPLATE = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Chestplate\", \"{{registryName}}_chestplate\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.CHEST));",
-      "leggings": "public static final Item {{FIELD}}_LEGGINGS = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Leggings\", \"{{registryName}}_leggings\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.LEGS));",
-      "boots": "public static final Item {{FIELD}}_BOOTS = new ItemBuilder(MOD_ID)\n\t.build(new ItemArmor<>(\"{{displayName}} Boots\", \"{{registryName}}_boots\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.BOOTS));"
+      "helmet": "public static final Item {{FIELD}}_HELMET = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}_helmet\", \"{{modId}}:item/{{registryName}}_helmet\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.HEAD));",
+      "chestplate": "public static final Item {{FIELD}}_CHESTPLATE = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}_chestplate\", \"{{modId}}:item/{{registryName}}_chestplate\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.CHEST));",
+      "leggings": "public static final Item {{FIELD}}_LEGGINGS = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}_leggings\", \"{{modId}}:item/{{registryName}}_leggings\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.LEGS));",
+      "boots": "public static final Item {{FIELD}}_BOOTS = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}_boots\", \"{{modId}}:item/{{registryName}}_boots\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.BOOTS));"
+    },
+    "standalone": {
+      "helmet": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.HEAD));",
+      "chestplate": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.CHEST));",
+      "leggings": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.LEGS));",
+      "boots": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)\n\t{{creative}}\n\t.build(new ItemArmor<>(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{FIELD}}_ARMOR_MATERIAL, HumanArmorShape.BOOTS));"
     }
   },
   "recipes": {
@@ -179,29 +295,69 @@
     "furnace": "RecipeBuilder.Furnace(MOD_ID).setInput({{input}}).create(\"{{recipeName}}\", {{output}});"
   },
   "biome": {
-    "$comment": "Registration mirrors how the BOP/Twilight-style BTA ports do it: declare Biome, register through BiomeHelper with climate + surface config, then attach to world-type ranges.",
-    "decl": "public static final Biome {{FIELD}} = BiomeHelper.createBiome(MOD_ID, \"{{registryName}}\", b -> b\n{{chain}});",
-    "methods": {
-      "climate": "\t.setClimate({{temperature}}f, {{humidity}}f)",
-      "colors": "\t.setGrassColor(0x{{grassColor}}).setFoliageColor(0x{{foliageColor}})",
-      "topBlock": "\t.setTopBlock({{value}})",
-      "fillerBlock": "\t.setFillerBlock({{value}})",
-      "spawns": "\t.addSpawn({{entityClass}}.class, {{weight}})",
-      "treeDensity": "\t.setTreeDensity({{value}})"
+    "$comment": "halplibe 6.1.4 has no BiomeHelper: the helper list is ArmorHelper, BlockBuilder, CreativeHelper, EntityHelper, EnvironmentHelper, IdSupplierHelper, ItemBuilder, ModelHelper, NetworkHelper, ParticleHelper, RecipeBuilder, SpecialMobDropHelper, TextureHelper. Biomes go straight through Biomes.register(key, biome) exactly as vanilla does in Biomes.<clinit>. Spawn lists are protected fields, so a biome that spawns anything has to be a subclass. Registering a biome does NOT place it in the world: BiomeProviderOverworld keeps a private static BiomeRangeMap built in its own init(), so the placement window is added by mixin.",
+    "classTemplate": "public class {{className}} extends Biome {\n\n\tpublic {{className}}(String translationKey) {\n\t\tsuper(translationKey);\n\t}\n{{extra}}}",
+    "$skyComment": "getSkyColor(float temperature) is how vanilla derives the sky per biome, and overriding it with a constant is exactly what BiomeDrift does for its own peach sky (returns 16762247 and ignores the temperature). Plain RGB, no alpha.",
+    "skyOverride": "\t@Override\n\tpublic int getSkyColor(float temperature) {\n\t\t// fixed sky; vanilla derives one from temperature instead\n\t\treturn 0x{{color}};\n\t}",
+    "$treeComment": "Trees declare their biomes, not the reverse: the biome subclass derives getTreeFeature from the trees that claim it (one case per tree, random pick), and treeOverrideNone is the 'no trees at all' biome. The anonymous feature MUST override place(World,Random,int,int,int) -- that is WorldFeature's one abstract method; an earlier generate(...) spelling failed to compile.",
+    "treeOverrideMulti": "\t@Override\n\tpublic WorldFeature getTreeFeature(Random random) {\n\t\tswitch (random.nextInt({{count}})) {\n{{cases}}\n\t\t}\n\t\treturn new {{first}}();\n\t}",
+    "treeOverrideCase": "\t\t\tcase {{i}}: return new {{featureClass}}();",
+    "treeOverrideNone": "\t@Override\n\tpublic WorldFeature getTreeFeature(Random random) {\n\t\t// no trees here at all: a feature that declines to place anything\n\t\treturn new WorldFeature() {\n\t\t\t@Override\n\t\t\tpublic boolean place(World world, Random random, int x, int y, int z) {\n\t\t\t\treturn false;\n\t\t\t}\n\t\t};\n\t}",
+    "weathers": {
+      "rain": "Weathers.OVERWORLD_RAIN",
+      "snow": "Weathers.OVERWORLD_SNOW",
+      "storm": "Weathers.OVERWORLD_STORM",
+      "fog": "Weathers.OVERWORLD_FOG"
     },
-    "attach": "BiomeHelper.addBiomeToOverworld({{FIELD}}, {{temperature}}f, {{humidity}}f, {{variance}}f);"
+    "blockedWeathersChain": "\t.withBlockedWeathers({{weathers}})",
+    "$waterComment": "Water colour is NOT a Biome property in 8.0.1: BlockColorWater defers to Colorizers.water, a colormap keyed by the raw climate noise, and the underwater fog reads the same map in FogManager. The only honest per-biome water colour is a client mixin at the HEAD of BlockColorWater.getWorldColor that answers for the mod's own biomes and leaves everything else to the colormap. Client list of the mixin config, never the shared one: the class does not exist on a dedicated server. Colours are 0xAARRGGBB because the vanilla path returns alpha-carrying ints (-1 for untinted).",
+    "waterColorMixinClass": "@Mixin(value = BlockColorWater.class, remap = false)\npublic class {{className}} {\n\n\t@Inject(\n\t\tmethod = \"getWorldColor(Lnet/minecraft/core/world/WorldSource;Lnet/minecraft/core/world/pos/TilePosc;I)I\",\n\t\tat = @At(\"HEAD\"),\n\t\tcancellable = true\n\t)\n\tprivate void artemisWaterColor(WorldSource worldSource, TilePosc pos, int data, CallbackInfoReturnable<Integer> cir) {\n\t\tBiome biome = worldSource.getBlockBiome(pos);\n{{cases}}\t}\n}",
+    "waterColorCase": "\t\tif (biome == ModBiomes.{{FIELD}}) {\n\t\t\tcir.setReturnValue(0xFF{{color}});\n\t\t}\n",
+    "$rainComment": "Rain streaks are drawn by WorldRenderer.renderPrecipitation with their colour baked into the texture and only a grayscale brightness on the vertices, so tinting them per biome redirects the tessellator's setColor4f inside that one method. Gated on WeatherRain (WeatherStorm extends it, snow does not) so snowfall keeps its own colour.",
+    "rainTintMixinClass": "@Mixin(value = WorldRenderer.class, remap = false)\npublic class {{className}} {\n\n\t@Shadow\n\tpublic Minecraft mc;\n\n\t@Redirect(\n\t\tmethod = \"renderPrecipitation(F)V\",\n\t\tat = @At(value = \"INVOKE\", target = \"Lnet/minecraft/client/render/tessellator/TessellatorGeneral;setColor4f(FFFF)V\")\n\t)\n\tprivate void artemisTintRain(TessellatorGeneral tessellator, float r, float g, float b, float a) {\n\t\tif (this.mc.currentWorld != null && this.mc.activeCamera != null\n\t\t\t&& this.mc.currentWorld.getWeatherManager().getCurrentWeather() instanceof WeatherRain) {\n\t\t\tBiome biome = this.mc.currentWorld.getBlockBiome(this.mc.activeCamera.getTilePos());\n{{cases}}\t\t}\n\t\ttessellator.setColor4f(r, g, b, a);\n\t}\n}",
+    "rainTintCase": "\t\t\tif (biome == ModBiomes.{{FIELD}}) {\n\t\t\t\ttessellator.setColor4f(r * {{r}}f, g * {{g}}f, b * {{b}}f, a);\n\t\t\t\treturn;\n\t\t\t}\n",
+    "$grassComment": "Grass tint is the Colorizers.grass colormap sampled by climate and season through BlockColorCustom.getWorldColor; the grass block, tall grass and everything else grass-coloured share that one path, each holding the colorizer in a public final field. A fixed per-biome grass colour therefore answers at the HEAD of that method, gated on the colorizer being the grass one so water and leaves keep their own maps. Fixing the colour is also what disables seasons for the biome: the season was only ever the colormap moving.",
+    "grassColorMixinClass": "@Mixin(value = BlockColorCustom.class, remap = false)\npublic class {{className}} {\n\n\t@Inject(\n\t\tmethod = \"getWorldColor(Lnet/minecraft/core/world/WorldSource;Lnet/minecraft/core/world/pos/TilePosc;I)I\",\n\t\tat = @At(\"HEAD\"),\n\t\tcancellable = true\n\t)\n\tprivate void artemisGrassColor(WorldSource worldSource, TilePosc pos, int data, CallbackInfoReturnable<Integer> cir) {\n\t\tif (((BlockColorCustom) (Object) this).colorizer != Colorizers.grass) {\n\t\t\treturn;\n\t\t}\n\t\tBiome biome = worldSource.getBlockBiome(pos);\n{{cases}}\t}\n}",
+    "grassColorCase": "\t\tif (biome == ModBiomes.{{FIELD}}) {\n\t\t\tcir.setReturnValue(0xFF{{color}});\n\t\t}\n",
+    "spawnCreature": "\t\tthis.spawnableCreatureList.add(new SpawnListEntry({{entityClass}}.class, {{weight}}));",
+    "spawnMonster": "\t\tthis.spawnableMonsterList.add(new SpawnListEntry({{entityClass}}.class, {{weight}}));",
+    "decl": "public static final Biome {{FIELD}} = Biomes.register(\"{{modId}}:{{registryName}}\", new {{className}}(\"{{modId}}.{{registryName}}\")\n\t.withDebugColor(0x{{mapColor}})\n\t.withPlacementDefaults({{temperature}}f, {{humidity}}f, {{variance}}f)\n{{extraChain}}\t.withSurfaceProperties(new SurfaceProperties.Builder()\n\t\t.withTopBlock({{topBlock}})\n\t\t.withFillerBlock({{fillerBlock}})\n\t\t.build()));",
+    "rangeMixinClass": "@Mixin(value = BiomeProviderOverworld.class, remap = false)\npublic class {{className}} {\n\n\t@Inject(\n\t\tmethod = \"lookupBiome(DDDD)Lnet/minecraft/core/world/biome/Biome;\",\n\t\tat = @At(\"RETURN\"),\n\t\tcancellable = true\n\t)\n\tpublic void artemisLookupBiome(double temperature, double humidity, double altitude, double variety, CallbackInfoReturnable<Biome> cir) {\n\t\tBiome vanilla = cir.getReturnValue();\n{{ranges}}\n\t}\n}",
+    "range": "\t\tif (vanilla == {{hostBiome}} && variety <= {{rarity}}) {\n\t\t\tcir.setReturnValue(ModBiomes.{{FIELD}});\n\t\t\treturn;\n\t\t}",
+    "$rangeBandComment": "Several biomes may name the same host. The chain in rangeMixinClass returns on its first match, so with one condition per biome only the FIRST claimant of a host ever generates; the rest are dead code that still registers, still fills a creative slot and still translates. Measured in a running world: four biomes each claiming half of OVERWORLD_FOREST gave one biome 21762 columns and the other three none at all. So the claimants of one host are laid out as consecutive bands of the variety axis instead, scaled down to fit when their rarities sum past 1. The first band keeps the plain range form above, so a host with a single claimant generates exactly the code it always did.",
+    "rangeBand": "\t\tif (vanilla == {{hostBiome}} && variety > {{minVariety}} && variety <= {{maxVariety}}) {\n\t\t\tcir.setReturnValue(ModBiomes.{{FIELD}});\n\t\t\treturn;\n\t\t}",
+    "rangeClimate": "\t\tif (temperature >= {{minTemp}} && temperature <= {{maxTemp}} && humidity >= {{minHum}} && humidity <= {{maxHum}} && variety <= {{rarity}}) {\n\t\t\tcir.setReturnValue(ModBiomes.{{FIELD}});\n\t\t\treturn;\n\t\t}",
+    "$rangeClimateBandComment": "The same first-match trap $rangeBandComment describes for hosts, in the shape it takes here. A climate condition is a window around the biome's own temperature and humidity, and two biomes at the same settings emit the SAME window twice, so the narrower one is a strict subset of the wider and can never fire. Measured in a running world: two climate biomes, the second owned 0 of 262144 sampled columns while still registering, still filling a creative slot and still translating. The sliders default to 0.7 and 0.6, so two climate biomes nobody dragged land on exactly this. So every climate biome takes its own band of the variety axis, which costs no coverage because a band of width r still matches r of the columns in the window. Grouping is ALL climate biomes rather than only the ones whose windows overlap, because overlap is not transitive and per-biome groups put overlapping windows back on the same band. The first band keeps the plain rangeClimate form above, so a mod with one climate biome generates exactly the code it always did.",
+    "rangeClimateBand": "\t\tif (temperature >= {{minTemp}} && temperature <= {{maxTemp}} && humidity >= {{minHum}} && humidity <= {{maxHum}} && variety > {{minVariety}} && variety <= {{maxVariety}}) {\n\t\t\tcir.setReturnValue(ModBiomes.{{FIELD}});\n\t\t\treturn;\n\t\t}",
+    "$climateRangeComment": "The climate a real overworld actually produces, measured over 5.6M columns of a generated world. It is nothing like the 0 to 1 spread the vanilla biome table reads as: temperature never went below 0.48. rangeClimate above claims a window around the biome's own temperature, so a window falling entirely outside this range matches no column anywhere and the biome silently generates nowhere. readiness.ts reads these numbers to say so before a build rather than after one. Re-measure on a BTA update.",
+    "climateRange": {
+      "minTemperature": 0.48,
+      "maxTemperature": 1,
+      "window": 0.15
+    },
+    "$placementComment": "Registering a biome only makes it exist; nothing places it. Three designs were tried against a generated world before this one, and the first two failed silently. (1) addRange at the TAIL of BiomeProviderOverworld.init() adds nothing: init() calls lock() as its last act and addRange returns early once locked. (2) Injected before the lock it does get added, but findBiome keeps the LAST match while iterating a HashMap keyed by Biome identity, so against vanilla's fully-tiled ranges a mod biome wins or loses arbitrarily, and can differ between a client and a server. (3) Claiming a climate window at the HEAD of lookupBiome is deterministic, but the window has to be right, and it cannot be: measured over 5.6M columns, temperature ran 0.48 to 1.0 and never went near the values the vanilla biome table reads as cold, so a window is a guess that silently yields nothing in some worlds. What is left is the only formulation with no way to come out empty: take the biome the vanilla lookup DID return, and substitute when it is the one this biome is meant to replace."
   },
   "entity": {
-    "decl": "EntityHelper.createEntity({{className}}.class, {{className}}::new, nextEntityID(), \"{{registryName}}\");",
-    "mobClassExtends": "EntityLiving"
+    "$comment": "EntityHelper.createEntity is an INSTANCE method taking (Class, NamespaceID, EntityFactory); it forwards to EntityDispatcher.addMapping, which allocates the numeric id itself, so no id is passed.",
+    "decl": "new EntityHelper().createEntity({{className}}.class, NamespaceID.getPermanent(MOD_ID, \"{{registryName}}\"), {{className}}::new);",
+    "$spawnComment": "Where a mob spawns is declared on the mob and lands here: Biome's spawn lists are protected fields on vanilla and mod biomes alike, so the one uniform way in is reflection on the list itself (the field is only read, the List is mutated). Runs after ModBiomes so custom biomes exist; vanilla biomes are statics that always do. An empty biome list on the mob means every registered biome, walked off Registries.BIOMES.",
+    "spawnHelper": "private static void spawn(Biome biome, Class<? extends Mob> entity, int weight, boolean hostile) {\n\tif (biome == null) {\n\t\treturn;\n\t}\n\ttry {\n\t\tjava.lang.reflect.Field field = Biome.class.getDeclaredField(hostile ? \"spawnableMonsterList\" : \"spawnableCreatureList\");\n\t\tfield.setAccessible(true);\n\t\t@SuppressWarnings(\"unchecked\")\n\t\tjava.util.List<SpawnListEntry> list = (java.util.List<SpawnListEntry>) field.get(biome);\n\t\tlist.add(new SpawnListEntry(entity, weight));\n\t} catch (ReflectiveOperationException | RuntimeException e) {\n\t\tLOGGER.error(\"Could not add a spawn entry to biome {}.\", biome.translationKey, e);\n\t}\n}",
+    "spawnCall": "spawn({{biome}}, {{entityClass}}.class, {{weight}}, {{hostile}});",
+    "spawnAllCall": "for (Biome biome : Registries.BIOMES) {\n\tspawn(biome, {{entityClass}}.class, {{weight}}, {{hostile}});\n}"
   },
   "entrypoint": {
-    "$comment": "Main mod class skeleton. {{BODY_*}} slots are filled by CodeGenerator with per-element registration/init calls.",
+    "$comment": "GameStartEntrypoint, RecipeEntrypoint and ModelEntrypoint are all deprecated for removal since halplibe 6.1.0. Artemis resolves halplibe live from its GitHub releases at export time, so a mod built on those interfaces would stop compiling the day they go. Everything hangs off ModInitializer and the event tables instead, which is also why there is only one entrypoint left in fabric.mod.json.",
     "interfaces": [
-      "ModInitializer",
-      "GameStartEntrypoint",
-      "RecipeEntrypoint"
-    ]
+      "ModInitializer"
+    ],
+    "listen": "CommonEvents.{{event}}.listen(Key.of(MOD_ID), {{listener}});",
+    "clientGuard": "if (HalpLibe.isClient) {{className}}.register();",
+    "events": {
+      "beforeGameStart": "BEFORE_GAME_START",
+      "afterGameStart": "AFTER_GAME_START",
+      "namespaces": "RECIPES_NAMESPACE_INIT",
+      "recipes": "RECIPES_READY"
+    }
   },
   "fabricModJson": {
     "schemaVersion": 1,
@@ -232,6 +388,7 @@
     "slf4jVersion": "2.0.17",
     "lwjglVersion": "3.3.3",
     "clientJarHash": "43db9b498cb67058d2e12d394e6507722e71bb45",
+    "clientJarVersion": "b1.7.3",
     "pluginRepositories": [
       "https://maven.fabricmc.net",
       "https://maven.thesignalumproject.net/infrastructure"
@@ -248,6 +405,14 @@
       "artifact": "halplibe",
       "fallbackVersion": "6.1.4",
       "mavenSuffix": "+8.0"
+    },
+    "devMods": {
+      "$comment": "Mods loaded into the TEST client only: never compiled against, never shipped. Resolved from their GitHub releases the same way halplibe is, because they are published as release assets rather than to a maven.",
+      "modMenu": {
+        "githubRepo": "Turnip-Labs/ModMenu",
+        "fallbackVersion": "5.0.2",
+        "assetPattern": "modmenu-bta-{version}.jar"
+      }
     }
   },
   "obfuscation": {
@@ -257,7 +422,8 @@
     "fabricApiPackage": "net.fabricmc.api",
     "reflectiveClassPatterns": [
       "**.entity.**",
-      "**.worldgen.**"
+      "**.worldgen.**",
+      "**.mixin.**"
     ],
     "minecraftPackages": [
       "net.minecraft.**",
@@ -265,11 +431,18 @@
     ]
   },
   "oreGen": {
-    "$comment": "World generation is a Mixin in BTA 8: ChunkDecorator.decorate(Chunk) is the only hook and halplibe offers nothing for it, so the mod injects at the TAIL of ChunkDecoratorOverworld.decorate and places its own features. remap=false because BTA ships unmapped. One mixin covers every feature the mod generates, ores and trees alike; {{body}} is assembled by CodeGenerator. The per-chunk Random is seeded from the chunk coordinates so terrain stays reproducible for a seed.",
+    "$comment": "World generation is a Mixin in BTA 8: ChunkDecorator.decorate(Chunk) is the only hook and halplibe offers nothing for it, so the mod injects at the TAIL of ChunkDecoratorOverworld.decorate and places its own features. remap=false because BTA ships unmapped. One mixin covers every feature the mod generates, ores and trees alike; {{body}} is assembled by CodeGenerator. The per-chunk Random is seeded from the chunk coordinates so terrain stays reproducible for a seed. {{biomeGuard}} is the optional per-feature biome filter; it is empty for features that generate everywhere.",
     "mixinClass": "@Mixin(value = ChunkDecoratorOverworld.class, remap = false)\npublic class {{className}} {\n\t@Shadow\n\t@Final\n\tprivate World world;\n\n\t@Inject(method = \"decorate(Lnet/minecraft/core/world/chunk/Chunk;)V\", at = @At(\"TAIL\"))\n\tpublic void artemisDecorate(Chunk chunk, CallbackInfo ci) {\n\t\tint chunkX = chunk.pos.x;\n\t\tint chunkZ = chunk.pos.z;\n\t\tint originX = chunkX * 16;\n\t\tint originZ = chunkZ * 16;\n\t\tRandom random = new Random((long) chunkX * 341873128712L + (long) chunkZ * 132897987541L);\n\n{{body}}\n\t}\n}",
-    "vein": "\t\tfor (int i = 0; i < {{veinsPerChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint y = {{minY}} + random.nextInt(Math.max(1, {{maxY}} - {{minY}}));\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tnew WorldFeatureOre(ModBlocks.{{FIELD}}.id(), {{veinSize}})\n\t\t\t\t.place(this.world, random, new TilePos(x, y, z));\n\t\t}",
-    "mixinsJson": "{\n\t\"required\": true,\n\t\"minVersion\": \"0.8\",\n\t\"package\": \"{{pkg}}.worldgen\",\n\t\"compatibilityLevel\": \"JAVA_17\",\n\t\"mixins\": [\n\t\t\"{{className}}\"\n\t],\n\t\"injectors\": {\n\t\t\"defaultRequire\": 1\n\t}\n}\n",
-    "tree": "\t\tfor (int i = 0; i < {{perChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\t// plant on whatever the surface turned out to be for this column\n\t\t\tint y = this.world.getHeightValue(x, z);\n\t\t\tnew {{featureClass}}().place(this.world, random, x, y, z);\n\t\t}"
+    "vein": "\t\tfor (int i = 0; i < {{veinsPerChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint y = {{minY}} + random.nextInt(Math.max(1, {{maxY}} - {{minY}}));\n\t\t\tint z = originZ + random.nextInt(16);\n{{biomeGuard}}\t\t\tnew WorldFeatureOre({{blockExpr}}.id(), {{veinSize}})\n\t\t\t\t.place(this.world, random, new TilePos(x, y, z));\n\t\t}",
+    "mixinsJson": "{\n\t\"required\": true,\n\t\"minVersion\": \"0.8\",\n\t\"package\": \"{{pkg}}.mixin\",\n\t\"compatibilityLevel\": \"JAVA_17\",\n\t\"mixins\": [\n{{mixins}}\n\t],\n\t\"client\": [\n{{clientMixins}}\n\t],\n\t\"server\": [\n{{serverMixins}}\n\t],\n\t\"injectors\": {\n\t\t\"defaultRequire\": 1\n\t}\n}\n",
+    "tree": "\t\tfor (int i = 0; i < {{perChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\t// plant on whatever the surface turned out to be for this column\n\t\t\tint y = this.world.getHeightValue(x, z);\n{{biomeGuard}}\t\t\tnew {{featureClass}}().place(this.world, random, x, y, z);\n\t\t}",
+    "$structureComment": "Structure placement, same decorator injection as trees. A single-iteration loop rather than a bare if, because the guards end in 'continue' and continue is only legal inside a loop. Surface anchors the build's y=0 on the heightmap, then refuses anything but real ground under the anchor: Blocks.solid[id] is isSolidRender() cached per block (verified by javap of Blocks.cacheBlock), false for air, water and leaves alike, so a cairn never floats on a canopy or the sea. Buried rolls a y inside the band and needs no ground. oneIn is the 1-in-N-chunks rarity; nextInt(1) is always 0, every chunk.",
+    "structureSurface": "\t\tfor (int i = 0; i < 1; i++) {\n\t\t\tif (random.nextInt({{oneIn}}) != 0) continue;\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tint y = this.world.getHeightValue(x, z);\n\t\t\t// only on real ground: the heightmap counts leaves and water, and a\n\t\t\t// structure anchored on either would float there\n\t\t\tif (!Blocks.solid[this.world.getBlockId(x, y - 1, z)]) continue;\n{{biomeGuard}}\t\t\tnew {{featureClass}}().place(this.world, random, x, y, z);\n\t\t}",
+    "structureBuried": "\t\tfor (int i = 0; i < 1; i++) {\n\t\t\tif (random.nextInt({{oneIn}}) != 0) continue;\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tint y = {{minY}} + random.nextInt({{yRange}});\n{{biomeGuard}}\t\t\tnew {{featureClass}}().place(this.world, random, x, y, z);\n\t\t}",
+    "$plantPatchComment": "Natural plant scatter, from the same decorator injection the ore veins use. canPlaceAt is the plant's own ground check (public on BlockLogicFlower), so a patch only ever lands where the modder's Grows On list allows, custom blocks included.",
+    "plantPatch": "\t\tfor (int i = 0; i < {{perChunk}}; i++) {\n\t\t\tint x = originX + random.nextInt(16);\n\t\t\tint z = originZ + random.nextInt(16);\n\t\t\tint y = this.world.getHeightValue(x, z);\n{{biomeGuard}}\t\t\tTilePos pos = new TilePos(x, y, z);\n\t\t\tif (this.world.isAirBlock(pos)\n\t\t\t\t&& ((BlockLogicFlower) ModBlocks.{{FIELD}}.getLogic()).canPlaceAt(this.world, pos)) {\n\t\t\t\tthis.world.setBlockWithNotify(x, y, z, ModBlocks.{{FIELD}}.id());\n\t\t\t}\n\t\t}",
+    "$mixinPackageComment": "Mixin owns every class in the package a config declares, and refuses to let anything load one of them directly: 'is in a defined mixin package ... and cannot be referenced directly'. The mixins therefore get a package to themselves, and the ordinary generated classes that live near them (tree features, biome subclasses) stay in worldgen where ModBiomes and the mixins can reach them.",
+    "mixinPackage": "mixin"
   },
   "api": {
     "$comment": "Symbols the code editor offers as completions. Every signature here was read off the real halplibe 6.1.4 jar and the BTA 8.0.1 client jar with javap, so this doubles as the reference for what actually exists. Members are written as they should be typed.",
@@ -297,11 +470,11 @@
           "setStatParent(() -> null)",
           "setCreativeInventoryPlacement(null)",
           "setTileEntity(() -> null)",
-          "build(\"Name\", \"key\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE))"
+          "build(\"name\", \"name\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE))"
         ]
       },
       "ItemBuilder": {
-        "doc": "halplibe item factory. build() takes the finished Item.",
+        "doc": "halplibe item factory. build() takes the finished Item and rewrites its key to item.<modid>.<name>.",
         "members": [
           "setKey(\"key\")",
           "setStackSize(64)",
@@ -310,7 +483,7 @@
           "setTags()",
           "addTags()",
           "setCreativeInventoryPlacement(null)",
-          "build(new Item(\"Name\", \"key\", nextItemID()))"
+          "build(new Item(\"name\", MOD_ID + \":item/name\", nextItemID()))"
         ]
       },
       "ArmorHelper": {
@@ -332,20 +505,11 @@
           "ModifyFurnace(MOD_ID)"
         ]
       },
-      "ModelHelper": {
-        "doc": "Attach models and colors to registered content.",
-        "members": [
-          "setBlockModel(block, () -> null)",
-          "setItemModel(item, () -> null)",
-          "setBlockColor(block, () -> null)",
-          "setEntityModel(clazz, renderer)"
-        ]
-      },
       "EntityHelper": {
-        "doc": "Entity registration.",
+        "doc": "Entity registration. createEntity is an instance method, and the numeric id is allocated for you.",
         "members": [
-          "createEntity(Clazz.class, id, factory)",
-          "addMapping(Clazz.class, id)"
+          "createEntity(Clazz.class, NamespaceID.getPermanent(MOD_ID, \"name\"), Clazz::new)",
+          "addMapping(TileEntityClazz.class, NamespaceID.getPermanent(MOD_ID, \"name\"))"
         ]
       },
       "ToolMaterial": {
@@ -368,6 +532,59 @@
           "getWorldType()",
           "getBlockBiome(x, y, z)"
         ]
+      },
+      "ClientEvents": {
+        "doc": "Client-side hooks. Models and renderers are registered from these, on a client only.",
+        "members": [
+          "BLOCK_MODEL_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {})",
+          "ITEM_MODEL_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {})",
+          "ENTITY_RENDERER_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {})",
+          "BLOCK_COLOR_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {})",
+          "BEFORE_CLIENT_START.listen(Key.of(MOD_ID), () -> {})",
+          "AFTER_CLIENT_START.listen(Key.of(MOD_ID), () -> {})"
+        ]
+      },
+      "CommonEvents": {
+        "doc": "Registration hooks. These replaced the GameStartEntrypoint interfaces.",
+        "members": [
+          "BEFORE_GAME_START.listen(Key.of(MOD_ID), () -> {})",
+          "AFTER_GAME_START.listen(Key.of(MOD_ID), () -> {})",
+          "AFTER_BLOCK_INIT.listen(Key.of(MOD_ID), () -> {})",
+          "AFTER_ITEM_INIT.listen(Key.of(MOD_ID), () -> {})",
+          "RECIPES_NAMESPACE_INIT.listen(Key.of(MOD_ID), () -> {})",
+          "RECIPES_READY.listen(Key.of(MOD_ID), () -> {})"
+        ]
+      },
+      "BlockModelStandard": {
+        "doc": "A block with no model registered is drawn as nothing at all.",
+        "members": [
+          "withTextures(MOD_ID + \":block/name\")",
+          "withTextures(\"top\", \"sides\")",
+          "withTextures(\"top\", \"bottom\", \"sides\")",
+          "setAllTextures(MOD_ID + \":block/name\")",
+          "setTex(MOD_ID + \":block/name\", Side.TOP)",
+          "onRenderLayer(1)",
+          "withCustomItemBounds(0, 0, 0, 1, 1, 1)"
+        ]
+      },
+      "HalpLibe": {
+        "doc": "registerMod puts the mod in Registries.NAMESPACES, which is what loads its textures and its lang.",
+        "members": [
+          "registerMod(MOD_ID)",
+          "registerMod(MOD_ID, true)",
+          "isClient"
+        ]
+      },
+      "BlockLogic": {
+        "doc": "Block behaviour. getBreakResult is the only hook for what a block drops.",
+        "members": [
+          "getBreakResult(world, cause, meta, tileEntity)",
+          "setBlockBounds(0, 0, 0, 1, 1, 1)",
+          "isSolidRender()",
+          "isCubeShaped()",
+          "onNeighborChanged(world, pos, block)",
+          "updateTick(world, pos, random, force)"
+        ]
       }
     },
     "staticFields": {
@@ -379,18 +596,131 @@
       {
         "label": "block",
         "detail": "a registered block",
-        "body": "public static final Block<BlockLogic> NAME = new BlockBuilder(MOD_ID)\n\t.setHardness(1.5f)\n\t.setBlockSound(BlockSounds.STONE)\n\t.build(\"Name\", \"name\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE));"
+        "body": "public static final Block<BlockLogic> NAME = new BlockBuilder(MOD_ID)\n\t.setHardness(1.5f)\n\t.setBlockSound(BlockSounds.STONE)\n\t.build(\"name\", \"name\", nextBlockID(), block -> new BlockLogic(block, Materials.STONE));"
       },
       {
         "label": "item",
         "detail": "a registered item",
-        "body": "public static final Item NAME = new ItemBuilder(MOD_ID)\n\t.build(new Item(\"Name\", \"name\", nextItemID()));"
+        "body": "public static final Item NAME = new ItemBuilder(MOD_ID)\n\t.build(new Item(\"name\", MOD_ID + \":item/name\", nextItemID()));"
       },
       {
-        "label": "recipeShaped",
-        "detail": "a shaped crafting recipe",
-        "body": "RecipeBuilder.Shaped(MOD_ID)\n\t.setShape(\"XX\", \"XX\")\n\t.addInput('X', Blocks.STONE)\n\t.create(\"name\", new ItemStack(Items.STICK));"
+        "label": "blockmodel",
+        "detail": "the model a block needs to be visible",
+        "body": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.NAME)\n\t.withTextures(MOD_ID + \":block/name\"));"
+      },
+      {
+        "label": "recipe",
+        "detail": "a shaped recipe",
+        "body": "RecipeBuilder.Shaped(MOD_ID)\n\t.setShape(\"AA \", \"AA \", \"   \")\n\t.addInput('A', new ItemStack(ModItems.NAME))\n\t.create(\"recipe_name\", new ItemStack(ModItems.NAME, 1));"
       }
     ]
+  },
+  "registration": {
+    "$comment": "HalpLibe.registerMod is not optional. Registries.NAMESPACES starts with 'minecraft' alone, and it is the ONLY thing a mod can add itself to: TextureRegistry.init() walks that registry to stitch each namespace's PNGs, and Language$Default.loadNamespace walks it to read assets/<ns>/lang/en_US/*.lang. Without this call a mod's blocks wear the missing texture and every name shows as its raw key. Verified by reading HalpLibe.registerMod, TextureRegistry.init and Language$Default in the 8.0.1 jar.",
+    "registerMod": "HalpLibe.registerMod(MOD_ID);",
+    "initNamespace": "RecipeBuilder.initNameSpace(MOD_ID);",
+    "langDir": "src/main/resources/assets/{{modId}}/lang/en_US",
+    "$langComment": "Language$Default reads /assets/<namespace>/lang/en_US/ off the classpath. The old lang/<modid>/en_US.lang path is never looked at in 8.0.1.",
+    "tileLangKey": "tile.{{modId}}.{{registryName}}",
+    "itemLangKey": "item.{{modId}}.{{registryName}}",
+    "biomeLangKey": "biome.{{modId}}.{{registryName}}"
+  },
+  "models": {
+    "$comment": "BlockModelDispatcher.getDefault() is BlockModelEmpty and ItemModelDispatcher.getDefault() is its empty model, so anything a mod registers without a model here is INVISIBLE in the world and in the inventory. Vanilla registers one per block and per item in BlockModelDispatcher.reload() and ItemModelDispatcher.reload(); a mod hooks the same reload through ClientEvents. The whole class is client only, which is why the entrypoint reaches it behind HalpLibe.isClient rather than implementing anything.",
+    "classTemplate": "public final class {{className}} {\n\n\t/** Called from the mod entrypoint, on a client only. */\n\tpublic static void register() {\n\t\tClientEvents.BLOCK_MODEL_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {\n{{blockModels}}\n\t\t});\n\n\t\tClientEvents.ITEM_MODEL_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {\n{{itemModels}}\n\t\t});\n\n\t\tClientEvents.ENTITY_RENDERER_RELOAD.listen(Key.of(MOD_ID), dispatcher -> {\n{{entityModels}}\n\t\t});\n{{extraRegister}}\t}\n}",
+    "$portalComment": "The portal's sixteen dye-color model variants are JSON assets the exporter writes; this call is what reads them. The trailing slash in the path is vanilla's own convention (minecraft:block/portal_nether/).",
+    "blockPortal": "dispatcher.addDispatch(new BlockModelGenericPortal<>(ModBlocks.{{FIELD}}, \"{{modId}}:block/{{registryName}}/\"));",
+    "$worldFxComment": "An unregistered world type silently falls back to WorldTypeFXEmpty, whose cloud deck sits at y=108, straight through a landscape. Registered once at client init rather than per reload: the FX dispatcher is a singleton, not a reload-scoped one.",
+    "worldFx": "\t\tWorldTypeFXDispatcher.getInstance().addDispatch(new WorldTypeFXOverworld(ModDimensions.{{TYPE_FIELD}}));",
+    "blockAll": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}\"));",
+    "blockTopBottomSides": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}_top\", \"{{modId}}:block/{{registryName}}_bottom\", \"{{modId}}:block/{{registryName}}_side\"));",
+    "blockCross": "dispatcher.addDispatch(new BlockModelCrossedSquares<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}\"));",
+    "blockFluid": "dispatcher.addDispatch(new BlockModelFluid<>(ModBlocks.{{FIELD}}, \"{{modId}}:block/{{registryName}}\", \"{{modId}}:block/{{registryName}}\"));",
+    "blockItem": "dispatcher.addDispatch(new ItemModelBlock((ItemBlock<?>) ModBlocks.{{FIELD}}.asItem()));",
+    "item": "dispatcher.addDispatch(new ItemModelStandard(ModItems.{{FIELD}}));",
+    "entity": "dispatcher.assignRenderer({{entityClass}}.class, new {{rendererClass}}());"
+  },
+  "drops": {
+    "$comment": "BlockBuilder has no drop method in halplibe 6.1.4 and BlockLogic.getBreakResult is the only hook, so a block that drops anything other than itself needs its own BlockLogic. Default behaviour, for reference: null on IMPROPER_TOOL, otherwise one of the block itself. Returning null means no drop at all.",
+    "logicClass": "public class {{className}} extends BlockLogic {\n\n\tpublic {{className}}(Block<?> block, Material material) {\n\t\tsuper(block, material);\n\t}\n\n\t@Override\n\tpublic ItemStack[] getBreakResult(World world, EnumDropCause cause, int meta, TileEntity tileEntity) {\n{{body}}\n\t}\n}",
+    "bodyNothing": "\t\treturn null;",
+    "bodyItem": "\t\tswitch (cause) {\n\t\t\tcase SILK_TOUCH:\n\t\t\tcase PICK_BLOCK:\n\t\t\t\t// picked up whole, so hand back the block rather than what it yields\n\t\t\t\treturn new ItemStack[] { new ItemStack(this.block) };\n\t\t\tcase IMPROPER_TOOL:\n\t\t\t\treturn null;\n\t\t\tdefault:\n\t\t\t\treturn new ItemStack[] { {{dropStack}} };\n\t\t}",
+    "$shearsComment": "The tall-grass rule, read off BlockLogicTallGrass in the 8.0.1 jar: shears harvest as SILK_TOUCH, so a shears-only plant answers SILK_TOUCH and PICK_BLOCK with the drop and everything else with nothing.",
+    "bodyShears": "\t\tswitch (cause) {\n\t\t\tcase SILK_TOUCH:\n\t\t\tcase PICK_BLOCK:\n\t\t\t\treturn new ItemStack[] { {{dropStack}} };\n\t\t\tdefault:\n\t\t\t\t// anything but shears cuts it to pieces\n\t\t\t\treturn null;\n\t\t}",
+    "method": "\t@Override\n\tpublic ItemStack[] getBreakResult(World world, EnumDropCause cause, int meta, TileEntity tileEntity) {\n{{body}}\n\t}"
+  },
+  "liquid": {
+    "$comment": "A fluid is a pair of blocks that point at each other, and neither field can be filled in at declaration time: halplibe marks block init complete before any mod runs, so BlockBuilder.build() calls Block.init() straight away and the supplier reads the partner field while it is still null. Block.init() only re-runs the supplier and replaces the logic, so the flowing half is re-initialised once both fields exist. Flowing is declared first and still second, which is the order vanilla uses in Blocks.",
+    "fluidWater": "new FluidWater()",
+    "fluidLava": "new FluidLava()",
+    "logicFlowing": "block -> new BlockLogicFluidFlowing(block, {{material}}, {{fluid}}, ModBlocks.{{STILL}})",
+    "logicStill": "block -> new BlockLogicFluidStill(block, {{material}}, {{fluid}}, ModBlocks.{{FLOWING}})",
+    "relink": "ModBlocks.{{FLOWING}}.init();"
+  },
+  "plant": {
+    "$comment": "BlockLogicFlower decides where a plant may stand with mayPlaceOn, which by default asks the ground block for the GROWS_FLOWERS tag. Tagging a vanilla block to change that would change it for every flower in the game, so a plant that wants different ground overrides the check for itself instead. {{test}} is a resolved chain of `ground == <block expr>` comparisons; {{extra}} carries the optional growth and drop overrides, already indented to member depth.",
+    "logicClass": "public class {{className}} extends BlockLogicFlower {\n\n\tpublic {{className}}(Block<?> block) {\n\t\tsuper(block);\n\t}\n\n\t@Override\n\tprotected boolean mayPlaceOn(Block<?> ground) {\n\t\treturn {{test}};\n\t}\n{{extra}}}",
+    "$growthComment": "The sugarcane pattern, read off BlockLogicSugarcane in the 8.0.1 jar: block data is a 4-bit tick counter and a wrap to zero grows one segment, so a plant grows on average once per 16 random ticks. Only the top segment sees air above, so only the top grows. super.updateTick first: the flower half removes the plant when its ground has gone, and growing from a block that was just removed would float a segment.",
+    "growth": "\t@Override\n\tpublic void updateTick(World world, TilePosc pos, Random rand, boolean isInitial) {\n\t\tsuper.updateTick(world, pos, rand, isInitial);\n\t\tif (world.getBlockType(pos) != this.block) {\n\t\t\treturn;\n\t\t}\n\t\tTilePos above = pos.up(new TilePos());\n\t\tif (!world.isAirBlock(above)) {\n\t\t\treturn;\n\t\t}\n\t\t// count the stack under this segment, growth stops at the cap\n\t\tint height = 1;\n\t\tTilePos below = new TilePos(pos);\n\t\tbelow.y--;\n\t\twhile (world.getBlockType(below) == this.block) {\n\t\t\theight++;\n\t\t\tbelow.y--;\n\t\t}\n\t\tif (height >= {{maxHeight}}) {\n\t\t\treturn;\n\t\t}\n\t\t// the sugarcane clock: block data counts ticks, a wrap grows a segment\n\t\tint age = world.getBlockData(pos) + 1 & 15;\n\t\tworld.setBlockData(pos, age);\n\t\tif (age == 0) {\n\t\t\tworld.setBlockTypeNotify(above, this.block);\n\t\t}\n\t}"
+  },
+  "dimension": {
+    "$comment": "Dimensions transcribe the shapes proven in Colin's BetterOPlenty port, which fought these battles in a running game. The load-bearing facts: (1) the Dimension OBJECT is built early so blocks can reference it, but registerDimension must wait until after the game's own Dimension.init() or the ids collide; (2) on a dedicated server even afterGameStart is too late because startServer builds a WorldServer, a PlayerManager and an entity tracker per REGISTERED dimension before the event fires, so a server mixin claims the id right after Dimension.init(); (3) Dimension.portalBlock is final and BlockLogicPortal's constructor takes the Dimension, an unresolvable cycle vanilla settles by class-init order, settled here by reflection, and it is load-bearing because PortalHandler dereferences it on every journey; (4) every world-type group snapshotted its dimension map before the mod's dimension existed and Group.get is a requireNonNull, so groups are seeded in the same breath as registration.",
+    "worldTypeClass": "public class {{className}} extends WorldTypeOverworld {\n\n\tpublic {{className}}(WorldType.Properties properties) {\n\t\tsuper(properties);\n\t}\n\n\t@Override\n\tpublic BiomeProvider createBiomeProvider(World world) {\n{{providerBody}}\n\t}\n\n\t@Override\n\tpublic Biome[] allBiomes() {\n\t\treturn new Biome[] { {{allBiomes}} };\n\t}\n}",
+    "providerSingle": "\t\t// the biome's own climate, so the colormap and weather read as it does\n\t\treturn new BiomeProviderSingleBiome(world, {{biome}}, {{biome}}.defaultTemperature, {{biome}}.defaultHumidity, {{biome}}.defaultVariety);",
+    "providerMulti": "\t\treturn new {{providerClass}}(world);",
+    "$providerComment": "The multi-biome provider is a hash draw over a warped cell, not a sliced noise field: slicing one field into N adjacent bands makes N nested contour rings where each biome only ever borders its two list neighbours. An independent per-cell draw lets every pair meet, and the warp is what stops the cells reading as a grid.",
+    "providerClass": "public class {{className}} extends BiomeProvider {\n\n\t/** cell size in blocks; deliberately broad, biomes are places not speckle */\n\tprivate static final int CELL = 96;\n\t/** how far the warp may push a sample off the grid, half a cell */\n\tprivate static final double WARP_AMPLITUDE = CELL / 2.0;\n\tprivate static final double WARP_SCALE = 1.0 / 320.0;\n\tprivate static final int COUNT = {{count}};\n\n\tprivate final FractalNoise2D<?> warpNoise;\n\tprivate final long seed;\n\n\tpublic {{className}}(World world) {\n\t\tsuper(world);\n\t\tthis.seed = world.getRandomSeed();\n\t\t// its own seed multiplier so the warp shares no structure with anything else\n\t\tthis.warpNoise = new FractalNoise2D<>(SimplexNoise.genOctaves(this.seed * 6449L, 3));\n\t}\n\n\t/** the roster in a fixed order; slotAt indexes into it */\n\tprivate Biome[] roster() {\n\t\treturn new Biome[] { {{roster}} };\n\t}\n\n\t/**\n\t * Which biome owns this column: a hash draw over a warped cell. A draw,\n\t * not a threshold, so nothing about slot 0 makes it likelier to border\n\t * slot 1 than the last one.\n\t */\n\tprivate int slotAt(int x, int z, double warpX, double warpZ) {\n\t\tint cellX = MathHelper.floor((x + warpX) / (double) CELL);\n\t\tint cellZ = MathHelper.floor((z + warpZ) / (double) CELL);\n\t\tlong h = this.seed;\n\t\th = h * 6364136223846793005L + (cellX * 0x9E3779B97F4A7C15L);\n\t\th = h * 6364136223846793005L + (cellZ * 0xC2B2AE3D27D4EB4FL);\n\t\th ^= (h >>> 33);\n\t\th *= 0xFF51AFD7ED558CCDL;\n\t\th ^= (h >>> 33);\n\t\treturn (int) Math.floorMod(h, (long) COUNT);\n\t}\n\n\t@Override\n\tpublic Biome[] getBiomes(Biome[] biomes, double[] temperatures, double[] humidities, double[] varieties, int x, int y, int z, int xSize, int ySize, int zSize) {\n\t\tif (biomes == null || biomes.length != xSize * ySize * zSize) {\n\t\t\tbiomes = new Biome[xSize * ySize * zSize];\n\t\t}\n\t\tdouble[] warpA = this.warpNoise.getRegion(null, x, z, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tdouble[] warpB = this.warpNoise.getRegion(null, x + 4093, z - 2711, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tBiome[] roster = roster();\n\t\tfor (int xx = 0; xx < xSize; xx++) {\n\t\t\tfor (int zz = 0; zz < zSize; zz++) {\n\t\t\t\tint i = xx * zSize + zz;\n\t\t\t\tint slot = slotAt(x + xx, z + zz, warpA[i] * WARP_AMPLITUDE, warpB[i] * WARP_AMPLITUDE);\n\t\t\t\tfor (int yy = 0; yy < ySize; yy++) {\n\t\t\t\t\tbiomes[(xx * zSize + zz) * ySize + yy] = roster[slot];\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\treturn biomes;\n\t}\n\n\t/** per-column climate from the owning biome, so the colormap follows it */\n\tprivate double[] fillFromBiomes(double[] out, int x, int z, int xSize, int zSize, boolean humidity) {\n\t\tif (out == null || out.length < xSize * zSize) {\n\t\t\tout = new double[xSize * zSize];\n\t\t}\n\t\tdouble[] warpA = this.warpNoise.getRegion(null, x, z, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tdouble[] warpB = this.warpNoise.getRegion(null, x + 4093, z - 2711, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tBiome[] roster = roster();\n\t\tfor (int xx = 0; xx < xSize; xx++) {\n\t\t\tfor (int zz = 0; zz < zSize; zz++) {\n\t\t\t\tint i = xx * zSize + zz;\n\t\t\t\tBiome biome = roster[slotAt(x + xx, z + zz, warpA[i] * WARP_AMPLITUDE, warpB[i] * WARP_AMPLITUDE)];\n\t\t\t\tout[i] = humidity ? biome.defaultHumidity : biome.defaultTemperature;\n\t\t\t}\n\t\t}\n\t\treturn out;\n\t}\n\n\t@Override\n\tpublic double[] getTemperatures(double[] temperatures, int x, int z, int xSize, int zSize) {\n\t\treturn fillFromBiomes(temperatures, x, z, xSize, zSize, false);\n\t}\n\n\t@Override\n\tpublic double[] getHumidities(double[] humidities, int x, int z, int xSize, int zSize) {\n\t\treturn fillFromBiomes(humidities, x, z, xSize, zSize, true);\n\t}\n\n\t@Override\n\tpublic double[] getVarieties(double[] varieties, int x, int z, int xSize, int zSize) {\n\t\tif (varieties == null || varieties.length < xSize * zSize) {\n\t\t\tvarieties = new double[xSize * zSize];\n\t\t}\n\t\tdouble[] warpA = this.warpNoise.getRegion(null, x, z, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tdouble[] warpB = this.warpNoise.getRegion(null, x + 4093, z - 2711, xSize, zSize, WARP_SCALE, WARP_SCALE);\n\t\tfor (int xx = 0; xx < xSize; xx++) {\n\t\t\tfor (int zz = 0; zz < zSize; zz++) {\n\t\t\t\tint i = xx * zSize + zz;\n\t\t\t\tvarieties[i] = slotAt(x + xx, z + zz, warpA[i] * WARP_AMPLITUDE, warpB[i] * WARP_AMPLITUDE) / (double) (COUNT - 1);\n\t\t\t}\n\t\t}\n\t\treturn varieties;\n\t}\n\n\t@Override\n\tpublic double[] getBiomenesses(double[] biomenesses, int x, int y, int z, int xSize, int ySize, int zSize) {\n\t\tif (biomenesses == null || biomenesses.length < xSize * ySize * zSize) {\n\t\t\tbiomenesses = new double[xSize * ySize * zSize];\n\t\t}\n\t\tjava.util.Arrays.fill(biomenesses, 1.0);\n\t\treturn biomenesses;\n\t}\n\n\t/**\n\t * Position-free lookup, for callers holding a climate but no coordinates.\n\t * Variety is the only axis carrying the slot, so it reads that back.\n\t */\n\t@Override\n\tpublic Biome lookupBiome(double temperature, double humidity, double altitude, double variety) {\n\t\tBiome[] roster = roster();\n\t\tint slot = (int) Math.round(Math.max(0.0, Math.min(1.0, variety)) * (COUNT - 1));\n\t\treturn roster[Math.max(0, Math.min(COUNT - 1, slot))];\n\t}\n}",
+    "typeDecl": "public static final WorldType {{TYPE_FIELD}} = WorldTypes.register(\"{{modId}}:{{registryName}}\",\n\tnew {{worldTypeClass}}(WorldTypeOverworld.defaultProperties(\"worldType.{{modId}}.{{registryName}}\")));",
+    "idDecl": "public static final int {{FIELD}}_ID = nextDimensionID();",
+    "dimDecl": "// portal deliberately null here: the field is final and the portal's own\n// logic needs this object first. attachPortals() closes the cycle.\npublic static final Dimension {{FIELD}} = new Dimension(\"{{modId}}.{{registryName}}\", Dimension.OVERWORLD, 1.0f, null, {{TYPE_FIELD}});",
+    "attachCall": "\t\tattach({{FIELD}}, ModBlocks.{{PORTAL_FIELD}});",
+    "registerCall": "\t\tregisterOne({{FIELD}}_ID, {{FIELD}}, {{TYPE_FIELD}});",
+    "classTemplate": "public final class ModDimensions {\n\n{{decls}}\n\n\t/** Forces static initialization. Called from the mod entrypoint. */\n\tpublic static void init() {}\n\n\t/**\n\t * Dimension.portalBlock is final and BlockLogicPortal's constructor takes\n\t * the Dimension, so the two cannot both be satisfied by construction.\n\t * Vanilla's own NETHER pair settles the same cycle by class-init order; a\n\t * mod cannot, so the field is set by reflection once both halves exist.\n\t * Load-bearing, not cosmetic: PortalHandler dereferences\n\t * newDim.portalBlock on every journey in either direction.\n\t */\n\tpublic static void attachPortals() {\n{{attaches}}\t}\n\n\tprivate static void attach(Dimension dimension, Block<?> portal) {\n\t\ttry {\n\t\t\tjava.lang.reflect.Field field = Dimension.class.getField(\"portalBlock\");\n\t\t\tfield.setAccessible(true);\n\t\t\tfield.set(dimension, portal);\n\t\t} catch (ReflectiveOperationException | RuntimeException e) {\n\t\t\tLOGGER.error(\"Could not attach a portal block; travel to that dimension will fail.\", e);\n\t\t}\n\t}\n\n\t/**\n\t * Claims the dimension ids, once the game's own Dimension.init() has\n\t * claimed 0 to 2. On a client this runs from afterGameStart; a dedicated\n\t * server builds every WorldServer before that event fires, so a mixin\n\t * also calls it from startServer right after Dimension.init(). It runs\n\t * twice on a server and must stay idempotent.\n\t */\n\tpublic static void register() {\n{{registers}}\t}\n\n\tprivate static void registerOne(int id, Dimension dimension, WorldType type) {\n\t\tDimension existing = Dimension.getDimensionList().get(id);\n\t\tif (existing == dimension) {\n\t\t\treturn;\n\t\t}\n\t\tif (existing != null) {\n\t\t\tLOGGER.error(\"Dimension id {} is already taken; change starting_dimension_id in the config.\", id);\n\t\t\treturn;\n\t\t}\n\t\tDimension.registerDimension(id, dimension);\n\t\t// Every world-type group snapshotted its dimension map before this\n\t\t// dimension existed, and Group.get is a requireNonNull: an unseeded\n\t\t// group kills a server in initWorld and a client at world creation.\n\t\tfor (WorldTypeGroups.Group group : WorldTypeGroups.GROUPS) {\n\t\t\tgroup.with(dimension, type);\n\t\t}\n\t}\n}",
+    "portalLogic": "block -> new BlockLogicPortal(block, ModDimensions.{{FIELD}}, {{frame}}, Blocks.FIRE)",
+    "$fireComment": "BTA lights exactly two portals and both are hardcoded: BlockLogicFire.onPlacedByWorld tries Blocks.PORTAL_NETHER when the block under the fire is OBSIDIAN, and BlockLogicBedrock tries PORTAL_DRIFT when the block under the bedrock is GLOWSTONE. Nothing in the game ever asks a portal block what its own frame is, so a modded portal has no ignition path at all and its dimension is decoration nobody can reach. Measured in a running game before it was believed: a frame of the chosen block lit with fire left the ring holding air. This mixin is the way in. It runs at RETURN rather than HEAD so the game's own portals keep first claim on their frames: if vanilla already built something the fire is gone and the guard sends this straight back out. The frame is read off the portal's own logic rather than emitted again here, because the frame is already declared once, in the block.",
+    "fireMixinClass": "@Mixin(value = BlockLogicFire.class, remap = false)\npublic class {{className}} {\n\n\t/**\n\t * Fire lit inside a frame of one of this mod's portal frames opens that\n\t * mod's portal. See $fireComment in the mapping for why nothing in the\n\t * game does this on its own.\n\t */\n\t@Inject(method = \"onPlacedByWorld\", at = @At(\"RETURN\"))\n\tprivate void artemisLightPortals(World world, TilePosc pos, CallbackInfo ci) {\n\t\t// Vanilla ran first. If it built anything the fire is already gone,\n\t\t// and so is any claim this mod might have had on that frame.\n\t\tif (world.getBlockType(pos) != Blocks.FIRE) return;\n\t\tBlock<?> below = world.getBlockType(pos.down(new TilePos()));\n{{cases}}\t}\n\n\t/** The frame belongs to the portal block's own logic; asking it is what\n\t *  keeps the frame declared in one place. */\n\tprivate static boolean artemisTryPortal(World world, TilePosc pos, Block<?> below, Block<?> portal) {\n\t\tBlockLogicPortal logic = (BlockLogicPortal) portal.getLogic();\n\t\tif (below != logic.portalFrame) return false;\n\t\treturn logic.tryToCreatePortal(world, pos, null);\n\t}\n}",
+    "fireCase": "\t\tif (artemisTryPortal(world, pos, below, ModBlocks.{{PORTAL_FIELD}})) return;\n",
+    "$reservedFramesComment": "Vanilla block fields that already open one of the game's own portals when fire is lit in a ring of them, and which a mod's portal therefore cannot use: BlockLogicFire tries PORTAL_NETHER on OBSIDIAN before any mixin at RETURN gets a turn, so a portal framed in obsidian silently never opens. GLOWSTONE is NOT here: the drift portal is made by placing BEDROCK above it, which is a different call and does not collide with fire.",
+    "reservedFrames": [
+      "OBSIDIAN"
+    ],
+    "serverMixinClass": "@Mixin(value = MinecraftServer.class, remap = false)\npublic class {{className}} {\n\n\t/**\n\t * The only window a dedicated server offers: after the game's own\n\t * Dimension.init() (any earlier and the ids collide with it), and before\n\t * startServer builds a WorldServer, a PlayerManager and an entity tracker\n\t * per registered dimension. afterGameStart fires at the TAIL of this\n\t * method, after all three maps have closed: a dimension registered there\n\t * has no world behind it, and one portal step bricks the player who took\n\t * it.\n\t */\n\t@Inject(\n\t\tmethod = \"startServer\",\n\t\tat = @At(value = \"INVOKE\", target = \"Lnet/minecraft/core/world/Dimension;init()V\", shift = At.Shift.AFTER)\n\t)\n\tprivate void artemisRegisterDimensions(CallbackInfoReturnable<Boolean> cir) {\n\t\tModDimensions.register();\n\t}\n}",
+    "$portalModelComment": "BlockModelGenericPortal loads <path><colorID>.json for each of the sixteen dye colors, so the exporter writes sixteen tiny variants over vanilla's own template, every one pointing at the mod's single painted portal texture.",
+    "portalModelJson": "{\n\t\"parent\": \"minecraft:block/template_portal\",\n\t\"textures\": {\n\t\t\"all\": \"{{modId}}:block/{{textureName}}\"\n\t}\n}\n",
+    "portalColorIds": [
+      "black",
+      "silver",
+      "brown",
+      "white",
+      "lightblue",
+      "magenta",
+      "cyan",
+      "orange",
+      "blue",
+      "purple",
+      "yellow",
+      "green",
+      "pink",
+      "gray",
+      "red",
+      "lime"
+    ]
+  },
+  "creative": {
+    "$comment": "Without this a mod is unreachable in creative mode. BTA does NOT build its creative pages by walking the item registry: CreativeMenuContents.populate is a hand-written list of vanilla content, and the only way anything else joins it is halplibe CreativeMenuContentsMixin, which splices in whatever was handed to CreativeInventoryRegistry. BlockBuilder and ItemBuilder register that only when setCreativeInventoryPlacement was called, so a builder chain without it produces a block that exists, generates, and has a name, but that no player can ever get hold of. build() checks the NOT_IN_CREATIVE_MENU tag before registering, so the hide switch still wins over this.",
+    "call": ".setCreativeInventoryPlacement(new CreativeInventoryPlacement.Category(CreativeInventoryCategory.{{category}}))",
+    "categories": {
+      "block": "PLACEABLES",
+      "ore": "ORE",
+      "oreDrop": "ORE_PRODUCTS",
+      "plant": "NATURAL",
+      "liquid": "PLACEABLES",
+      "tool": "TOOLS",
+      "armor": "ARMOR",
+      "material": "ORE_PRODUCTS",
+      "drop": "DROPS",
+      "food": "FOOD",
+      "misc": "MISCELLANEOUS"
+    }
   }
 }

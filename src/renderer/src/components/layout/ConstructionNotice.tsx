@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HardHat, MessageSquare } from 'lucide-react'
+import { useAppStore } from '@/store/appStore'
 
 const SEEN_KEY = 'artemis.construction-notice.seen'
 
@@ -10,18 +11,27 @@ const TAPE =
 export function ConstructionNotice(): JSX.Element | null {
   const [open, setOpen] = useState(false)
 
+  const setStartupNoticeOpen = useAppStore((s) => s.setStartupNoticeOpen)
+
+  const bootPhase = useAppStore((s) => s.bootPhase)
+
   useEffect(() => {
 
     if (import.meta.env.DEV) {
       setOpen(true)
+      setStartupNoticeOpen(true)
       return
     }
+    let showing = false
     try {
-      if (!localStorage.getItem(SEEN_KEY)) setOpen(true)
+      showing = !localStorage.getItem(SEEN_KEY)
     } catch {
 
     }
-  }, [])
+    setOpen(showing)
+
+    setStartupNoticeOpen(showing)
+  }, [setStartupNoticeOpen])
 
   const dismiss = (): void => {
     try {
@@ -30,34 +40,42 @@ export function ConstructionNotice(): JSX.Element | null {
 
     }
     setOpen(false)
+    setStartupNoticeOpen(false)
   }
 
   useEffect(() => {
-    if (!open) return
+
+    if (!open || bootPhase !== 'ready') return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape' || e.key === 'Enter') dismiss()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
 
-  }, [open])
+  }, [open, bootPhase])
 
-  if (!open) return null
+  if (window.artemis.app.skipOnboarding) return null
+  if (!open || bootPhase !== 'ready') return null
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center">
+      {
+
+}
       <motion.div
         className="acrylic absolute inset-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.16 }}
+        initial={{ opacity: 0, backdropFilter: 'blur(0px) saturate(1)' }}
+        animate={{ opacity: 1, backdropFilter: 'blur(18px) saturate(1.3)' }}
+
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         onClick={dismiss}
       />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+
+        initial={{ opacity: 0, scale: 0.82 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-[460px] overflow-hidden rounded-xl bg-ink-850 shadow-raised"
       >
         <div className="h-2.5 w-full" style={{ backgroundImage: TAPE }} />

@@ -42,6 +42,35 @@ function encodePng(rgba, w, h) {
   }
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))])
 }
+
+function encodeIcns(bySize) {
+
+  const TYPES = [
+    ['ic07', 128],
+    ['ic08', 256],
+    ['ic09', 512],
+    ['ic10', 1024],
+    ['ic11', 32],
+    ['ic12', 64],
+    ['ic13', 256],
+    ['ic14', 512]
+  ]
+  const chunks = []
+  for (const [type, size] of TYPES) {
+    const png = bySize.get(size)
+    if (!png) continue
+    const header = Buffer.alloc(8)
+    header.write(type, 0, 4, 'ascii')
+    header.writeUInt32BE(png.length + 8, 4)
+    chunks.push(header, png)
+  }
+  const body = Buffer.concat(chunks)
+  const head = Buffer.alloc(8)
+  head.write('icns', 0, 4, 'ascii')
+  head.writeUInt32BE(body.length + 8, 4)
+  return Buffer.concat([head, body])
+}
+
 function encodeIco(images) {
   const header = Buffer.alloc(6)
   header.writeUInt16LE(1, 2)
@@ -212,11 +241,88 @@ function renderIcon(size) {
   return out
 }
 
-const sizes = [16, 24, 32, 48, 64, 128, 256]
-const images = sizes.map((size) => ({ size, png: encodePng(renderIcon(size), size, size) }))
+function renderDocIcon(size) {
+  const out = renderIcon(size)
+  const px = (x, y, r, g, b, a = 1) => {
+    if (x < 0 || y < 0 || x >= size || y >= size) return
+    const i = (y * size + x) * 4
+    out[i] = r * a + out[i] * (1 - a)
+    out[i + 1] = g * a + out[i + 1] * (1 - a)
+    out[i + 2] = b * a + out[i + 2] * (1 - a)
+    out[i + 3] = 255
+  }
+
+  const bs = Math.max(7, Math.round(size * 0.34))
+  const bx = size - bs - Math.round(size * 0.05)
+  const by = size - bs - Math.round(size * 0.05)
+  const rim = Math.max(1, Math.round(size * 0.028))
+  const radius = bs * 0.24
+  const inside = (x, y, pad) => {
+    const lx = bx + pad
+    const ly = by + pad
+    const hx = bx + bs - 1 - pad
+    const hy = by + bs - 1 - pad
+    if (x < lx || y < ly || x > hx || y > hy) return false
+    const r = Math.max(0, radius - pad)
+    const cx = Math.min(Math.max(x, lx + r), hx - r)
+    const cy = Math.min(Math.max(y, ly + r), hy - r)
+    return (x - cx) ** 2 + (y - cy) ** 2 <= r * r + 0.5
+  }
+
+  for (let y = by - rim; y < by + bs + rim; y++) {
+    for (let x = bx - rim; x < bx + bs + rim; x++) {
+
+      if (inside(x, y, -rim)) px(x, y, 11, 14, 18)
+    }
+  }
+  for (let y = by; y < by + bs; y++) {
+    for (let x = bx; x < bx + bs; x++) {
+      if (!inside(x, y, 0)) continue
+
+      const lidLine = Math.round(by + bs * 0.34)
+      const dark = y < lidLine
+      px(x, y, dark ? 214 : 230, dark ? 152 : 173, dark ? 66 : 85)
+    }
+  }
+
+  const tapeW = Math.max(1, Math.round(bs * 0.16))
+  const tapeX = Math.round(bx + bs / 2 - tapeW / 2)
+  for (let y = by; y < by + bs; y++) {
+    for (let x = tapeX; x < tapeX + tapeW; x++) {
+      if (inside(x, y, 0)) px(x, y, 11, 14, 18, 0.85)
+    }
+  }
+
+  const seamY = Math.round(by + bs * 0.34)
+  const seamH = Math.max(1, Math.round(bs * 0.1))
+  for (let y = seamY; y < seamY + seamH; y++) {
+    for (let x = bx; x < bx + bs; x++) {
+      if (inside(x, y, 0)) px(x, y, 11, 14, 18, 0.55)
+    }
+  }
+  return out
+}
+
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
+
+const BIG_SIZES = [512, 1024]
+
 mkdirSync(join(root, 'resources'), { recursive: true })
-writeFileSync(join(root, 'resources', 'icon.ico'), encodeIco(images))
-writeFileSync(join(root, 'resources', 'icon.png'), images[images.length - 1].png)
+
+const render = (renderer, icoName, pngName, icnsName) => {
+  const ico = ICO_SIZES.map((size) => ({ size, png: encodePng(renderer(size), size, size) }))
+  writeFileSync(join(root, 'resources', icoName), encodeIco(ico))
+
+  const bySize = new Map(ico.map((i) => [i.size, i.png]))
+  for (const size of BIG_SIZES) bySize.set(size, encodePng(renderer(size), size, size))
+
+  writeFileSync(join(root, 'resources', pngName), bySize.get(512))
+  writeFileSync(join(root, 'resources', icnsName), encodeIcns(bySize))
+}
+
+render(renderIcon, 'icon.ico', 'icon.png', 'icon.icns')
+render(renderDocIcon, 'file-icon.ico', 'file-icon.png', 'file-icon.icns')
 
 console.log(`Logo processed: bust cropped to ${bust.width}x${bust.height}`)
-console.log('Wrote src/renderer/src/assets/logo.png, resources/icon.png, resources/icon.ico')
+console.log('Wrote src/renderer/src/assets/logo.png')
+console.log('Wrote resources/icon.{ico,png,icns} and resources/file-icon.{ico,png,icns}')

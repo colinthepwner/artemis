@@ -13,6 +13,8 @@ dist/
 # generated at build time from the source logo
 resources/icon.ico
 resources/icon.png
+resources/file-icon.ico
+resources/file-icon.png
 
 *.log
 .DS_Store

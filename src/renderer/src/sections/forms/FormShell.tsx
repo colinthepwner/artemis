@@ -11,11 +11,15 @@ import {
 } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import type { ArtemisElement } from '@shared/project'
-import { toRegistryName } from '@shared/project'
+import { capitalizeWords, toRegistryName } from '@shared/project'
 import { textureSlotsForElement } from '@shared/generator/textures'
 import { elementRegistryEntries } from '@shared/generator/registry'
 import { titleCase } from '@shared/generator/templates/block'
 import { TexturePicker } from '@/components/pixel/TexturePicker'
+import { ScenePanel } from '@/components/preview/ScenePreview'
+import { Switch } from '@/components/ui/controls'
+import { useAppStore } from '@/store/appStore'
+import { GlideList } from '@/components/ui/glide'
 import { cn } from '@/lib/cn'
 
 export interface WizardStep {
@@ -158,33 +162,40 @@ export function FormShell(props: {
       <div className="flex min-h-0 flex-1">
         {}
         <nav className="w-44 shrink-0 overflow-y-auto border-r border-white/[0.04] px-3 py-4">
+          {
+}
+          <GlideList active={step.id}>
           {steps.map((s, i) => {
             const active = i === idx
+
+            const done = s.done ?? true
             return (
               <button
                 key={s.id}
+                data-glide-id={s.id}
                 onClick={() => setRawIdx(i)}
                 className={cn(
-                  'mb-1 flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
-                  active ? 'bg-ink-750 text-mist-50 shadow-panel' : 'text-mist-400 hover:bg-ink-800 hover:text-mist-200'
+                  'relative mb-1 flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
+                  active ? 'text-mist-50' : 'text-mist-400 hover:bg-ink-800 hover:text-mist-200'
                 )}
               >
                 <span
                   className={cn(
-                    'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full font-mono text-2xs font-semibold transition-colors',
-                    s.done
+                    'relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full font-mono text-2xs font-semibold transition-colors',
+                    done
                       ? 'bg-gold-500 text-ink-950'
                       : active
                         ? 'bg-ink-600 text-mist-100'
                         : 'bg-ink-800 text-mist-500'
                   )}
                 >
-                  {s.done ? <Check size={12} strokeWidth={3} /> : i + 1}
+                  {done ? <Check size={12} strokeWidth={3} /> : i + 1}
                 </span>
-                <span className="truncate">{s.title}</span>
+                <span className="relative z-10 truncate">{s.title}</span>
               </button>
             )
           })}
+          </GlideList>
         </nav>
 
         {}
@@ -202,7 +213,13 @@ export function FormShell(props: {
               {step.desc && <p className="mt-1 text-2xs leading-relaxed text-mist-500">{step.desc}</p>}
               <div className="card mt-4 space-y-4 p-4">
                 {step.id === 'check' ? (
-                  <ReviewSlide checks={reviewChecks} allOk={allOk} jumpTo={jumpTo} />
+                  <>
+                    <ReviewSlide checks={reviewChecks} allOk={allOk} jumpTo={jumpTo} />
+                    {
+
+}
+                    {allOk && <ScenePanel element={element} />}
+                  </>
                 ) : (
                   step.content
                 )}
@@ -212,41 +229,55 @@ export function FormShell(props: {
 
           {}
           {
+
 }
-          <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-white/[0.04] px-8 py-3">
+          <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.04] px-8 py-3">
             <button
               onClick={() => setRawIdx(Math.max(0, idx - 1))}
               disabled={idx === 0}
               className={cn(
-                'flex items-center gap-1.5 justify-self-start rounded-md bg-ink-750 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-mist-300 transition-colors hover:bg-ink-700',
-                idx === 0 && 'pointer-events-none opacity-35'
+                'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-ink-750 px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide text-mist-300 transition-colors hover:bg-ink-700',
+                idx === 0 && 'opacity-35 disabled:hover:bg-ink-750'
               )}
             >
               <ArrowLeft size={12} /> Back
             </button>
-            <span className="text-center font-mono text-2xs text-mist-600">
+            <span className="flex-1 text-center font-mono text-2xs text-mist-600">
               {idx + 1} / {steps.length}
             </span>
-            {idx < steps.length - 1 ? (
-              <button
-                onClick={() => setRawIdx(idx + 1)}
-                className="flex items-center gap-1.5 justify-self-end rounded-md bg-gold-500 px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.97]"
-              >
-                Next <ArrowRight size={12} />
-              </button>
-            ) : (
-              <button
-                onClick={props.onClose}
-                className={cn(
-                  'flex items-center gap-1.5 justify-self-end rounded-md px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide transition-all active:scale-[0.97]',
-                  allOk
-                    ? 'bg-gold-500 text-ink-950 hover:bg-gold-400'
-                    : 'bg-ink-750 text-mist-300 hover:bg-ink-700'
-                )}
-              >
-                {allOk ? 'Done' : 'Finish later'} <Check size={12} />
-              </button>
-            )}
+            {
+
+}
+            <div className="flex shrink-0 items-center gap-2">
+              {idx < steps.length - 1 && (
+                <button
+                  onClick={props.onClose}
+                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-ink-750 px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide text-mist-300 transition-all hover:bg-ink-700 active:scale-[0.97]"
+                >
+                  Finish later <Check size={12} />
+                </button>
+              )}
+              {idx < steps.length - 1 ? (
+                <button
+                  onClick={() => setRawIdx(idx + 1)}
+                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-gold-500 px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.97]"
+                >
+                  Next <ArrowRight size={12} />
+                </button>
+              ) : (
+                <button
+                  onClick={props.onClose}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-1.5 text-2xs font-semibold uppercase tracking-wide transition-all active:scale-[0.97]',
+                    allOk
+                      ? 'bg-gold-500 text-ink-950 hover:bg-gold-400'
+                      : 'bg-ink-750 text-mist-300 hover:bg-ink-700'
+                  )}
+                >
+                  {allOk ? 'Done' : 'Finish later'} <Check size={12} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -269,6 +300,8 @@ function duplicateMessage(name: string, dup: DupInfo): string {
 function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo> }): JSX.Element {
   const { element, taken } = props
   const updateElement = useProjectStore((s) => s.updateElement)
+  const autoCapitalize = useAppStore((s) => s.autoCapitalize)
+  const setAutoCapitalize = useAppStore((s) => s.setAutoCapitalize)
   const displayName = (element.properties['displayName'] as string) ?? ''
 
   const [linked, setLinked] = useState(
@@ -280,7 +313,8 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
 
   const draftDup = idDraft !== element.name ? taken.get(idDraft) : (taken.get(element.name) ?? null)
 
-  const setDisplay = (v: string): void => {
+  const setDisplay = (raw: string): void => {
+    const v = autoCapitalize ? capitalizeWords(raw) : raw
     const derived = toRegistryName(v)
     const canDerive = linked && derived.length > 0 && !taken.has(derived)
     updateElement(element.id, {
@@ -314,6 +348,14 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
           placeholder={titleCase(element.name)}
           onChange={(e) => setDisplay(e.target.value)}
         />
+        <div className="mt-2">
+          <Switch
+            checked={autoCapitalize}
+            onChange={setAutoCapitalize}
+            label="Capitalise each word"
+            hint="Type “wood block”, get “Wood Block”. Words you capitalise yourself are left alone."
+          />
+        </div>
       </div>
       <div>
         <label className="label-base">ID</label>
@@ -409,11 +451,14 @@ export function TextureStrip({ element }: { element: ArtemisElement }): JSX.Elem
 export function usePropEditor<P extends object>(
   element: ArtemisElement,
   defaults: P
-): [P, <K extends keyof P>(key: K, value: P[K]) => void] {
+): [P, <K extends keyof P>(key: K, value: P[K]) => void, (updates: Partial<P>) => void] {
   const updateElement = useProjectStore((s) => s.updateElement)
   const props = { ...defaults, ...(element.properties as Partial<P>) } as P
   const patch = <K extends keyof P>(key: K, value: P[K]): void => {
     updateElement(element.id, { properties: { ...element.properties, [key]: value } })
   }
-  return [props, patch]
+  const patchMany = (updates: Partial<P>): void => {
+    updateElement(element.id, { properties: { ...element.properties, ...updates } })
+  }
+  return [props, patch, patchMany]
 }

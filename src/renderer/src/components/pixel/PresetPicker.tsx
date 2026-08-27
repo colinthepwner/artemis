@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useDeferredValue, useMemo } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { projectRegistryEntries } from '@shared/generator/registry'
 import { artworkFor } from '@shared/generator/artwork'
@@ -19,6 +19,8 @@ export interface PresetPick {
 export function PresetPicker(props: {
 
   accent: string
+
+  kind?: 'block' | 'item'
   onAccent: (v: string) => void
   onPick: (pick: PresetPick) => void
   onClose: () => void
@@ -27,6 +29,8 @@ export function PresetPicker(props: {
   const textures = useProjectStore((s) => s.project?.textures)
   const art = useVanillaArt()
 
+  const dyeWith = useDeferredValue(props.accent)
+
   const presets = useMemo(
     () =>
       TEXTURE_PRESETS.map((p) => ({
@@ -34,11 +38,11 @@ export function PresetPicker(props: {
         entry: {
           id: p.id,
           label: p.label,
-          image: gridToDataUrl(p.generate(props.accent)),
+          image: gridToDataUrl(p.generate(dyeWith)),
           group: p.group
         } as PickerEntry
       })),
-    [props.accent]
+    [dyeWith]
   )
 
   const vanilla = useMemo(() => {
@@ -101,6 +105,14 @@ export function PresetPicker(props: {
     return rows
   }, [project, textures])
 
+  const relevantFirst = <T extends { entry: PickerEntry }>(rows: T[]): T[] => {
+    const wanted = props.kind === 'item' ? 'Items' : 'Blocks'
+    return [
+      ...rows.filter((r) => r.entry.group === wanted),
+      ...rows.filter((r) => r.entry.group !== wanted)
+    ]
+  }
+
   return (
     <PickerDialog
       title="Start from a texture"
@@ -110,13 +122,13 @@ export function PresetPicker(props: {
         {
           id: 'vanilla',
           label: 'Vanilla (BTA)',
-          entries: vanilla.map((v) => v.entry),
+          entries: relevantFirst(vanilla).map((v) => v.entry),
           empty: 'Vanilla artwork is still loading, or the game files could not be read.'
         },
         {
           id: 'mod',
           label: 'This Mod',
-          entries: mod.map((m) => m.entry),
+          entries: relevantFirst(mod).map((m) => m.entry),
           empty: 'This mod has no artwork yet. Paint something and it shows up here.'
         }
       ]}
@@ -125,7 +137,7 @@ export function PresetPicker(props: {
           <label
             className="relative h-6 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
             style={{ background: props.accent }}
-            title="Recolors the ore, gem, tool and armor presets"
+            title="Dyes every preset. Each one keeps its own light and shade."
           >
             <input
               type="color"

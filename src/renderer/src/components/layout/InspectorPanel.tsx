@@ -11,12 +11,6 @@ export function InspectorPanel(): JSX.Element {
 
   return (
     <aside className="panel flex h-full w-[400px] flex-col border-l border-white/[0.04]">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.04] px-4">
-        <Code2 size={14} className="text-gold-400" />
-        <span className="text-2xs font-medium uppercase tracking-wider text-mist-400">Code Preview</span>
-        {element && <span className="ml-auto truncate font-mono text-2xs text-mist-500">{element.name}</span>}
-      </div>
-
       {element ? (
         <CodePreview element={element} />
       ) : (

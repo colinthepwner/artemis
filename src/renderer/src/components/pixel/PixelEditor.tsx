@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import * as ContextMenu from '@radix-ui/react-context-menu'
 import {
   ArrowDown,
+  ArrowDownToLine,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -16,6 +18,7 @@ import {
   FlipHorizontal,
   FlipHorizontal2,
   FlipVertical,
+  Grid3x3,
   LayoutGrid,
   Layers,
   Moon,
@@ -37,19 +40,28 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { useFirstVisit } from '@/components/tutorial/useFirstVisit'
+import { useAttention } from '@/components/ui/attention'
+import { menuOwnsKeyboard } from '@/components/ui/dismissDistant'
+import { TITLEBAR_UNSCALE } from '@shared/ui'
+import { isSolidKind } from '@/components/ui/ContentThumb'
+import { textureSlotsFor } from '@shared/generator/textures'
 import { useProjectStore } from '@/store/projectStore'
 import {
   PIXEL_PALETTE,
   blendColors,
   rgbaToDataUrl,
+  gridToDataUrl,
   dataUrlToGrid,
   shade,
   type Grid
 } from './presets'
+import { resolveTextureName, type TextureLayer } from '@shared/project'
 import { PresetPicker, type PresetPick } from './PresetPicker'
 import { StencilDialog, type StencilApplyOptions } from './StencilDialog'
 import type { Stencil, StencilResult } from './stencils'
-import { bakeLighting, compositeLayers, DEFAULT_FX, type PixelFx } from './effects'
+import { bakeLighting, compositeLayers, mergePair, DEFAULT_FX, type PixelFx } from './effects'
+import { GlideList } from '@/components/ui/glide'
 import { cn } from '@/lib/cn'
 
 type Tool =
@@ -83,6 +95,28 @@ const xy = (i: number): [number, number] => [i % 16, Math.floor(i / 16)]
 const mirrorOf = (i: number): number => {
   const [x, y] = xy(i)
   return y * 16 + (15 - x)
+}
+
+const STANDING = Math.sqrt(1.5)
+const CUBE_ASPECT = (1 + STANDING) / 2
+
+function drawIsoBlock(ctx: CanvasRenderingContext2D, src: CanvasImageSource, size: number): void {
+  const w = size / CUBE_ASPECT
+  const f = w / 2
+  const th = w / 4
+  const ox = (size - w) / 2
+  const face = (m: [number, number, number, number, number, number], bright: number): void => {
+    ctx.save()
+    ctx.setTransform(...m)
+    ctx.imageSmoothingEnabled = false
+    ctx.filter = bright === 1 ? 'none' : `brightness(${bright})`
+    ctx.drawImage(src, 0, 0, f, f)
+    ctx.restore()
+  }
+  face([1, 0.5, 0, STANDING, ox, th], 0.8)
+  face([1, -0.5, 0, STANDING, ox + f, 2 * th], 0.6)
+
+  face([1, -0.5, 1, 0.5, ox, th], 1)
 }
 
 function lineCells(a: number, b: number): number[] {
@@ -186,15 +220,32 @@ export function PixelEditorOverlay(): JSX.Element | null {
 }
 
 function PixelEditor(): JSX.Element {
+
+  useFirstVisit('pixel')
   const { textureId, assignSlotAfter, kind, suggestedName } = useAppStore((s) => s.textureEditor)!
   const close = useAppStore((s) => s.closeTextureEditor)
   const addTexture = useProjectStore((s) => s.addTexture)
   const updateTexture = useProjectStore((s) => s.updateTexture)
   const assignTexture = useProjectStore((s) => s.assignTexture)
   const allTextures = useProjectStore((s) => s.project?.textures)
+  const project = useProjectStore((s) => s.project)
   const existing = useProjectStore((s) =>
     textureId ? s.project?.textures.find((t) => t.id === textureId) : undefined
   )
+
+  const previewAsCube = useMemo(() => {
+    const fallback = (existing?.kind ?? kind ?? 'block') === 'block'
+    if (!project) return fallback
+    const slotKey =
+      assignSlotAfter ??
+      (textureId
+        ? Object.entries(project.textureAssignments).find(([, id]) => id === textureId)?.[0]
+        : undefined)
+    if (!slotKey) return fallback
+    const slot = textureSlotsFor(project).find((sl) => sl.key === slotKey)
+    const owner = slot && project.elements.find((e) => e.id === slot.elementId)
+    return owner ? isSolidKind(owner.kind) : fallback
+  }, [project, assignSlotAfter, textureId, existing?.kind, kind])
 
   const [layers, setLayers] = useState<Layer[]>(() => [makeLayer('Background')])
   const [activeId, setActiveId] = useState(() => layers[0].id)
@@ -205,7 +256,30 @@ function PixelEditor(): JSX.Element {
   const [mirror, setMirror] = useState(false)
   const [fx, setFx] = useState<PixelFx>(DEFAULT_FX)
 
-  const [noise, setNoise] = useState(45)
+  const showChecker = useAppStore((s) => s.showCheckerGrid)
+  const setShowChecker = useAppStore((s) => s.setShowCheckerGrid)
+
+  const [noise, setNoise] = useState(0)
+  const NOISE_MAP = useMemo(() => Array.from({ length: 256 }, () => Math.random() - 0.5), [])
+
+  const [isHoveringNoise, setIsHoveringNoise] = useState(false)
+
+  const [isHoveringLight, setIsHoveringLight] = useState(false)
+
+  useEffect(() => {
+    if (noise === 0 || isHoveringNoise) return
+    const t = setTimeout(() => setNoise(0), 1000)
+    return () => clearTimeout(t)
+  }, [noise, isHoveringNoise])
+
+  useEffect(() => {
+    if (!fx.light.enabled || isHoveringLight) return
+    const t = setTimeout(
+      () => setFx((f) => ({ ...f, light: { ...f.light, enabled: false, strength: 0 } })),
+      1000
+    )
+    return () => clearTimeout(t)
+  }, [fx.light.enabled, fx.light.strength, isHoveringLight])
   const [hover, setHover] = useState<number | null>(null)
   const [shapePreview, setShapePreview] = useState<number[] | null>(null)
   const [presetOpen, setPresetOpen] = useState(false)
@@ -222,6 +296,24 @@ function PixelEditor(): JSX.Element {
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
   useEffect(() => {
+    if (existing?.layers?.length) {
+      const saved = existing.layers
+      void Promise.all(saved.map((l) => dataUrlToGrid(l.data))).then((grids) =>
+        setLayers(() => {
+          const restored = saved.map((l, i) => ({
+            ...makeLayer(l.name, grids[i]),
+            visible: l.visible,
+            opacity: l.opacity,
+            hue: l.hue,
+            saturation: l.saturation,
+            brightness: l.brightness
+          }))
+          setActiveId(restored[0].id)
+          return restored
+        })
+      )
+      return
+    }
     if (existing?.data) {
       void dataUrlToGrid(existing.data).then((g) =>
         setLayers((ls) => ls.map((l, i) => (i === 0 ? { ...l, grid: g } : l)))
@@ -296,6 +388,10 @@ function PixelEditor(): JSX.Element {
       s: 'smooth'
     }
     const onKey = (e: KeyboardEvent): void => {
+
+      if (presetOpen || stencilOpen) return
+
+      if (menuOwnsKeyboard()) return
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
       const key = e.key.toLowerCase()
@@ -325,7 +421,7 @@ function PixelEditor(): JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, close, transform, clearActive])
+  }, [undo, redo, close, transform, clearActive, presetOpen, stencilOpen])
 
   const withMirror = useCallback(
     (cells: number[]): number[] => {
@@ -348,7 +444,7 @@ function PixelEditor(): JSX.Element {
         strokeTouched.current.add(i)
         factors.set(
           i,
-          tool === 'noise' ? noiseFactor(noise) : tool === 'lighten' ? 1.16 : 0.86
+          tool === 'noise' ? noiseFactor(45) : tool === 'lighten' ? 1.16 : 0.86
         )
       }
       setActiveGrid((g) => {
@@ -484,6 +580,7 @@ function PixelEditor(): JSX.Element {
     lastCell.current = null
   }
 
+  const addLayerAttention = useAttention()
   const addLayer = (): void => {
     if (layers.length >= MAX_LAYERS) return
     pushUndo()
@@ -508,6 +605,28 @@ function PixelEditor(): JSX.Element {
     layersRef.current = next
     setLayers(next)
     setActiveId(copy.id)
+  }
+
+  const mergeLayerDown = (id: string): void => {
+    const i = layers.findIndex((l) => l.id === id)
+    if (i <= 0) return
+    pushUndo()
+    const lower = layers[i - 1]
+    const merged = mergePair(lower, layers[i])
+
+    const layer: Layer = {
+      ...lower,
+      grid: merged.grid,
+      opacity: merged.opacity,
+      visible: merged.visible,
+      hue: 0,
+      saturation: 0,
+      brightness: 0
+    }
+    const next = [...layers.slice(0, i - 1), layer, ...layers.slice(i + 1)]
+    layersRef.current = next
+    setLayers(next)
+    setActiveId(layer.id)
   }
 
   const deleteLayer = (id: string): void => {
@@ -562,10 +681,15 @@ function PixelEditor(): JSX.Element {
     setLayers(next)
   }
 
-  const composite = useMemo(() => compositeLayers(layers, fx), [layers, fx])
+  const previewLayers = useMemo(() => {
+    if (noise === 0) return layers
+    return layers.map(l => l.id === active.id ? { ...l, grid: l.grid.map((c, i) => c ? shade(c, 1 + NOISE_MAP[i] * NOISE_RANGE * (noise / 100)) : c) } : l)
+  }, [layers, active.id, noise, NOISE_MAP])
+
+  const composite = useMemo(() => compositeLayers(previewLayers, fx), [previewLayers, fx])
   const displayed = composite.grid
 
-  const flat = useMemo(() => compositeLayers(layers), [layers])
+  const flat = useMemo(() => compositeLayers(previewLayers), [previewLayers])
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const previewRefs = [useRef<HTMLCanvasElement>(null), useRef<HTMLCanvasElement>(null)]
@@ -593,14 +717,18 @@ function PixelEditor(): JSX.Element {
     }
 
     for (const ref of previewRefs) {
-      const pctx = ref.current?.getContext('2d')
-      if (!pctx || !canvasRef.current) continue
+      const el = ref.current
+      const pctx = el?.getContext('2d')
+      if (!pctx || !el || !canvasRef.current) continue
+      pctx.setTransform(1, 0, 0, 1, 0, 0)
+      pctx.filter = 'none'
       pctx.imageSmoothingEnabled = false
-      pctx.clearRect(0, 0, ref.current!.width, ref.current!.height)
-      pctx.drawImage(canvasRef.current, 0, 0, ref.current!.width, ref.current!.height)
+      pctx.clearRect(0, 0, el.width, el.height)
+      if (previewAsCube) drawIsoBlock(pctx, canvasRef.current, el.width)
+      else pctx.drawImage(canvasRef.current, 0, 0, el.width, el.height)
     }
 
-  }, [displayed, composite, shapePreview, color])
+  }, [displayed, composite, shapePreview, color, previewAsCube])
 
   const usedColors = useMemo(() => {
     const freq = new Map<string, number>()
@@ -621,6 +749,7 @@ function PixelEditor(): JSX.Element {
   const onLightDown = (e: React.PointerEvent): void => {
     e.stopPropagation()
     draggingLight.current = true
+    setIsHoveringLight(true)
     const move = (ev: PointerEvent): void => {
       if (!draggingLight.current) return
       const angle = angleFromEvent(ev)
@@ -628,6 +757,8 @@ function PixelEditor(): JSX.Element {
     }
     const up = (): void => {
       draggingLight.current = false
+
+      setIsHoveringLight(false)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }
@@ -645,9 +776,10 @@ function PixelEditor(): JSX.Element {
     setFx((f) => ({ ...f, light: { ...f.light, enabled: false } }))
   }
 
-  const fillNoise = (): void => {
+  const applyNoise = (): void => {
     pushUndo()
-    setActiveGrid((g) => g.map((c) => (c ? shade(c, noiseFactor(noise)) : c)))
+    setActiveGrid((g) => g.map((c, i) => (c ? shade(c, 1 + NOISE_MAP[i] * NOISE_RANGE * (noise / 100)) : c)))
+    setNoise(0)
   }
 
   const applyPick = (pick: PresetPick): void => {
@@ -687,7 +819,8 @@ function PixelEditor(): JSX.Element {
       )
     } else {
       const add = result.grid ?? EMPTY
-      if (opts.newLayer && layers.length < MAX_LAYERS) {
+
+      if (layers.length < MAX_LAYERS) {
         const layer = makeLayer(stencil.label, add.slice())
         next = [...layers.slice(0, activeIndex + 1), layer, ...layers.slice(activeIndex + 1)]
         stacked = true
@@ -704,20 +837,53 @@ function PixelEditor(): JSX.Element {
   }
 
   const finalName = name.trim()
-  const nameTaken = (allTextures ?? []).some(
-    (t) => t.id !== textureId && t.name.toLowerCase() === finalName.toLowerCase()
-  )
-  const saveBlocked = !finalName ? 'Name this texture first' : nameTaken ? 'That name is already used' : null
+  const savingKind = existing?.kind ?? kind ?? 'block'
+  const resolvedName = resolveTextureName(finalName, savingKind, allTextures ?? [], textureId)
+  const saveBlocked = !finalName
+    ? 'Name this texture first'
+    : resolvedName === null
+      ? 'That name is already used'
+      : null
+
+  const autoNamed = resolvedName !== null && resolvedName !== finalName ? resolvedName : null
+
+  const { attention, callAttention } = useAttention()
+
+  const nameAttention = useAttention()
+  const saveAttention = useAttention()
+  const nameRef = useRef<HTMLInputElement>(null)
+  const attemptSave = (): void => {
+    if (saveBlocked) {
+      nameAttention.callAttention()
+      saveAttention.callAttention()
+      nameRef.current?.focus()
+      nameRef.current?.select()
+      return
+    }
+    save()
+  }
 
   const save = (): void => {
     if (saveBlocked) return
 
     const data = rgbaToDataUrl(displayed, composite.alpha)
+
+    const savedLayers: TextureLayer[] = layers.map((l) => ({
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      hue: l.hue,
+      saturation: l.saturation,
+      brightness: l.brightness,
+      data: gridToDataUrl(l.grid)
+    }))
+
+    const saveName = resolvedName ?? finalName
     if (textureId) {
-      updateTexture(textureId, { name: finalName, data })
+      updateTexture(textureId, { name: saveName, data, layers: savedLayers })
       if (assignSlotAfter) assignTexture(assignSlotAfter, textureId)
     } else {
-      const id = addTexture(finalName, data, existing?.kind ?? kind ?? 'block')
+      const id = addTexture(saveName, data, savingKind, savedLayers)
       if (assignSlotAfter) assignTexture(assignSlotAfter, id)
     }
     close()
@@ -726,20 +892,16 @@ function PixelEditor(): JSX.Element {
   const [hx, hy] = hover !== null ? xy(hover) : [null, null]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {}
+
+    <div
+      className="fixed inset-x-0 bottom-0 z-40 flex flex-col bg-ink-850"
+      style={{ top: 40 * TITLEBAR_UNSCALE }}
+    >
       <motion.div
-        className="acrylic absolute inset-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
-        onClick={close}
-      />
-      <motion.div
-        className="relative flex max-h-[94vh] flex-col rounded-xl bg-ink-850 shadow-raised"
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        className={cn('relative flex h-full w-full flex-col', attention && 'jiggle')}
+        initial={{ opacity: 0, scale: 0.99 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
       >
         {
 
@@ -749,9 +911,11 @@ function PixelEditor(): JSX.Element {
             Texture Editor
           </span>
           <input
+            ref={nameRef}
             className={cn(
               'input-base w-64 py-1 text-center font-mono text-xs',
-              saveBlocked && 'shadow-glow-ember'
+              saveBlocked && 'shadow-glow-ember',
+              nameAttention.attention && 'jiggle'
             )}
             placeholder="texture name (required)"
             value={name}
@@ -772,9 +936,164 @@ function PixelEditor(): JSX.Element {
           </div>
         </div>
 
-        <div className="flex min-h-0 gap-5 overflow-y-auto p-5">
+        {
+}
+        <div className="flex min-h-0 flex-1 justify-center gap-5 overflow-y-auto p-5">
           {}
-          <div className="flex w-[420px] flex-col gap-3">
+          <div className="flex w-[260px] flex-col gap-3">
+            {}
+            <Panel>
+              <div className="mb-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label
+                    className="relative h-8 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
+                    style={{ background: color }}
+                    title="Current color, click for the full picker"
+                  >
+                    <input
+                      type="color"
+                      value={color}
+                      className="absolute inset-0 h-full w-full opacity-0"
+                      onChange={(e) => setColor(e.target.value)}
+                    />
+                  </label>
+                  <input
+                    className="input-base w-[84px] py-1 text-center font-mono text-2xs"
+                    value={color}
+                    onChange={(e) => {
+                      const v = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
+                      if (/^#[0-9a-fA-F]{6}$/.test(v)) setColor(v.toLowerCase())
+                    }}
+                    onFocus={(e) => e.target.select()}
+                  />
+                </div>
+                <button
+                  title="Pick color (I), or Alt-click"
+                  onClick={() => setTool('eyedropper')}
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
+                    tool === 'eyedropper'
+                      ? 'bg-gold-500/15 text-gold-300 shadow-glow-gold'
+                      : 'text-mist-500 hover:bg-ink-750 hover:text-mist-200'
+                  )}
+                >
+                  <Pipette size={15} />
+                </button>
+              </div>
+              <div className="grid grid-cols-8 gap-1.5">
+                {PIXEL_PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      'relative h-6 rounded-[4px] transition-transform hover:z-10 hover:scale-110',
+                      color === c && 'z-10 ring-1 ring-gold-400'
+                    )}
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
+            </Panel>
+
+            {}
+            <Panel>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <div className="flex items-center gap-1">
+                  <ToolButton icon={Pencil} active={tool === 'pencil'} onClick={() => setTool('pencil')} label="Pencil (B)" />
+                  <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E), or right-drag" />
+                  <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F)" />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <ToolButton icon={Slash} active={tool === 'line'} onClick={() => setTool('line')} label="Line (L), drag to draw" />
+                  <ToolButton icon={Square} active={tool === 'rect'} onClick={() => setTool('rect')} label="Rectangle (R), hold Shift for filled" />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <ToolButton icon={SunMedium} active={tool === 'lighten'} onClick={() => setTool('lighten')} label="Lighten (U)" />
+                  <ToolButton icon={Moon} active={tool === 'darken'} onClick={() => setTool('darken')} label="Darken (D)" />
+                  <ToolButton icon={Sparkles} active={tool === 'noise'} onClick={() => setTool('noise')} label="Noise brush (N)" />
+                  <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbours" />
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.04] pt-3">
+                <div className="flex items-center gap-1">
+                  <span className="mr-1 text-2xs text-mist-600">Layer</span>
+                  <ToolButton icon={FlipHorizontal} onClick={() => transform(flipHGrid)} label="Flip horizontal" />
+                  <ToolButton icon={FlipVertical} onClick={() => transform(flipVGrid)} label="Flip vertical" />
+                  <ToolButton icon={RotateCw} onClick={() => transform(rotateGrid)} label="Rotate 90 degrees" />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <ToolButton icon={ArrowLeft} onClick={() => transform((g) => shiftGrid(g, -1, 0))} label="Nudge left" />
+                  <ToolButton icon={ArrowUp} onClick={() => transform((g) => shiftGrid(g, 0, -1))} label="Nudge up" />
+                  <ToolButton icon={ArrowDown} onClick={() => transform((g) => shiftGrid(g, 0, 1))} label="Nudge down" />
+                  <ToolButton icon={ArrowRight} onClick={() => transform((g) => shiftGrid(g, 1, 0))} label="Nudge right" />
+                </div>
+              </div>
+            </Panel>
+
+            {}
+            <Panel>
+              <div
+                className="flex items-center gap-3"
+                onPointerEnter={() => setIsHoveringNoise(true)}
+                onPointerLeave={() => setIsHoveringNoise(false)}
+              >
+                <span className="flex w-16 shrink-0 items-center gap-1.5 text-2xs uppercase tracking-wider text-mist-500">
+                  <Sparkles size={11} /> Noise
+                </span>
+                {
+
+}
+                <div className="min-w-0 flex-1">
+                  <SliderRow value={noise} onChange={setNoise} />
+                </div>
+                <BakeButton disabled={noise === 0} onClick={applyNoise} />
+              </div>
+
+              <div
+                className="mt-2.5 flex items-center gap-3 border-t border-white/[0.04] pt-2.5"
+                onPointerEnter={() => setIsHoveringLight(true)}
+                onPointerLeave={() => setIsHoveringLight(false)}
+              >
+                <button
+                  onClick={() => setFx((f) => ({ ...f, light: { ...f.light, enabled: !f.light.enabled } }))}
+                  title="Directional lighting. Drag the glowing ball around the canvas."
+                  className={cn(
+                    'flex w-16 shrink-0 items-center gap-1.5 rounded-md py-1 text-2xs uppercase tracking-wider transition-colors',
+                    fx.light.enabled ? 'text-gold-300' : 'text-mist-500 hover:text-mist-300'
+                  )}
+                >
+                  <Sun size={11} /> Light
+                </button>
+                <div className="min-w-0 flex-1">
+                  <SliderRow
+                    value={fx.light.strength}
+                    onChange={(v) => setFx((f) => ({ ...f, light: { ...f.light, strength: v, enabled: true } }))}
+                  />
+                </div>
+                <BakeButton disabled={!fx.light.enabled} onClick={bakeLight} />
+              </div>
+            </Panel>
+          </div>
+
+          {}
+          <div className="flex w-[420px] shrink-0 flex-col gap-3">
+            <div className="relative top-8 z-10 mx-auto flex w-[408px] items-center justify-between px-7">
+              <div className="flex items-center gap-1 rounded-md bg-ink-950/60 px-1 py-0.5 shadow-panel">
+                <ToolButton icon={Undo2} onClick={undo} label="Undo (Ctrl+Z)" />
+                <ToolButton icon={Redo2} onClick={redo} label="Redo (Ctrl+Y or Ctrl+Shift+Z)" />
+              </div>
+              <div className="flex items-center rounded-md bg-ink-950/60 px-1 py-0.5 shadow-panel">
+                <ToolButton icon={FlipHorizontal2} active={mirror} onClick={() => setMirror((m) => !m)} label="Mirror painting (X)" />
+              </div>
+              <div className="flex items-center rounded-md bg-ink-950/60 px-1 py-0.5 shadow-panel">
+                <ToolButton icon={Trash2} onClick={clearActive} label="Clear layer (Del)" danger />
+              </div>
+            </div>
+
             {}
             <div
               ref={orbitRef}
@@ -785,17 +1104,23 @@ function PixelEditor(): JSX.Element {
                 <>
                   {}
                   <div className="pointer-events-none absolute inset-1 rounded-2xl border border-dashed border-gold-400/15" />
-                  <LightBall angle={fx.light.angle} onPointerDown={onLightDown} />
+                  <LightBall
+                    angle={fx.light.angle}
+                    onPointerDown={onLightDown}
+                    onHover={setIsHoveringLight}
+                  />
                 </>
               )}
               <div
-                className="absolute cursor-crosshair overflow-hidden rounded-md shadow-panel"
+                data-tour="pixel-canvas"
+                className="pixel-cursor absolute overflow-hidden rounded-md shadow-panel"
                 style={{
                   left: PAD,
                   top: PAD,
                   width: CELL * 16,
                   height: CELL * 16,
-                  backgroundImage: 'repeating-conic-gradient(#31363e 0% 25%, #262b32 0% 50%)',
+                  backgroundImage: showChecker ? 'repeating-conic-gradient(#31363e 0% 25%, #262b32 0% 50%)' : 'none',
+                  backgroundColor: showChecker ? undefined : '#262b32',
                   backgroundSize: `${CELL * 2}px ${CELL * 2}px`
                 }}
                 onPointerDown={onPointerDown}
@@ -832,144 +1157,41 @@ function PixelEditor(): JSX.Element {
                   />
                 )}
               </div>
+              <button
+                onClick={() => setShowChecker(!showChecker)}
+                className="absolute flex items-center justify-center rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+                style={{ bottom: PAD, right: PAD + CELL * 16 + 8 }}
+                title="Toggle checkerboard background"
+              >
+                <Grid3x3 size={15} className={showChecker ? 'text-mist-200' : 'opacity-50'} />
+              </button>
             </div>
 
-            {}
-            <Panel>
-              <div className="flex flex-wrap items-center gap-1">
-                <ToolButton icon={Pencil} active={tool === 'pencil'} onClick={() => setTool('pencil')} label="Pencil (B)" />
-                <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E), or right-drag" />
-                <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F)" />
-                <Divider />
-                <ToolButton icon={Slash} active={tool === 'line'} onClick={() => setTool('line')} label="Line (L), drag to draw" />
-                <ToolButton icon={Square} active={tool === 'rect'} onClick={() => setTool('rect')} label="Rectangle (R), hold Shift for filled" />
-                <Divider />
-                <ToolButton icon={SunMedium} active={tool === 'lighten'} onClick={() => setTool('lighten')} label="Lighten (U)" />
-                <ToolButton icon={Moon} active={tool === 'darken'} onClick={() => setTool('darken')} label="Darken (D)" />
-                <ToolButton icon={Sparkles} active={tool === 'noise'} onClick={() => setTool('noise')} label="Noise brush (N)" />
-                <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbours" />
-                <Divider />
-                <ToolButton icon={Pipette} active={tool === 'eyedropper'} onClick={() => setTool('eyedropper')} label="Pick color (I), or Alt-click" />
-                <ToolButton icon={FlipHorizontal2} active={mirror} onClick={() => setMirror((m) => !m)} label="Mirror painting (X)" />
-              </div>
+            {
 
-              <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-white/[0.04] pt-2">
-                <span className="mr-1 text-2xs text-mist-600">Layer</span>
-                <ToolButton icon={FlipHorizontal} onClick={() => transform(flipHGrid)} label="Flip horizontal" />
-                <ToolButton icon={FlipVertical} onClick={() => transform(flipVGrid)} label="Flip vertical" />
-                <ToolButton icon={RotateCw} onClick={() => transform(rotateGrid)} label="Rotate 90 degrees" />
-                <Divider />
-                <ToolButton icon={ArrowLeft} onClick={() => transform((g) => shiftGrid(g, -1, 0))} label="Nudge left" />
-                <ToolButton icon={ArrowUp} onClick={() => transform((g) => shiftGrid(g, 0, -1))} label="Nudge up" />
-                <ToolButton icon={ArrowDown} onClick={() => transform((g) => shiftGrid(g, 0, 1))} label="Nudge down" />
-                <ToolButton icon={ArrowRight} onClick={() => transform((g) => shiftGrid(g, 1, 0))} label="Nudge right" />
-
-                {
 }
-                <div className="ml-auto flex items-center gap-1 rounded-md bg-ink-950/60 px-1 py-0.5 shadow-panel">
-                  <ToolButton icon={Undo2} onClick={undo} label="Undo (Ctrl+Z)" />
-                  <ToolButton icon={Redo2} onClick={redo} label="Redo (Ctrl+Y or Ctrl+Shift+Z)" />
-                  <ToolButton icon={Trash2} onClick={clearActive} label="Clear layer (Del)" danger />
-                </div>
-              </div>
-            </Panel>
+            <div className="mx-auto -mt-8 flex w-[408px] flex-wrap items-center justify-center gap-1.5 px-7 pt-1">
+              <span className="mr-0.5 text-2xs text-mist-600">In use</span>
+              {usedColors.length === 0 && (
 
-            {}
-            <Panel>
-              <div className="mb-2.5 flex items-center gap-2">
-                <label
-                  className="relative h-8 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
-                  style={{ background: color }}
-                  title="Current color, click for the full picker"
-                >
-                  <input
-                    type="color"
-                    value={color}
-                    className="absolute inset-0 h-full w-full opacity-0"
-                    onChange={(e) => setColor(e.target.value)}
-                  />
-                </label>
-                <input
-                  className="input-base w-[84px] py-1 text-center font-mono text-2xs"
-                  value={color}
-                  onChange={(e) => {
-                    const v = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
-                    if (/^#[0-9a-fA-F]{6}$/.test(v)) setColor(v.toLowerCase())
-                  }}
-                  onFocus={(e) => e.target.select()}
+                <span
+                  className="h-5 w-5 rounded-[3px] bg-white/[0.04]"
+                  title="Colours you paint with show up here"
                 />
-                <div className="flex-1" />
-                {usedColors.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    <span className="mr-0.5 text-2xs text-mist-600">In use</span>
-                    {usedColors.slice(0, 10).map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setColor(c)}
-                        title={c}
-                        className={cn(
-                          'relative h-5 w-5 rounded-[3px] transition-transform hover:z-10 hover:scale-125',
-                          color === c && 'z-10 ring-1 ring-gold-400'
-                        )}
-                        style={{ background: c }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-12 gap-1.5">
-                {PIXEL_PALETTE.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={cn(
-                      'relative h-6 rounded-[4px] transition-transform hover:z-10 hover:scale-110',
-                      color === c && 'z-10 ring-1 ring-gold-400'
-                    )}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-            </Panel>
-
-            {}
-            <Panel>
-              <div className="flex items-center gap-3">
-                <span className="flex w-16 shrink-0 items-center gap-1.5 text-2xs uppercase tracking-wider text-mist-500">
-                  <Sparkles size={11} /> Noise
-                </span>
-                <div className="flex-1">
-                  <SliderRow value={noise} onChange={setNoise} />
-                </div>
+              )}
+              {usedColors.slice(0, 10).map((c) => (
                 <button
-                  onClick={fillNoise}
-                  title="Scatter noise across the whole layer at this strength"
-                  className="shrink-0 rounded-md bg-ink-750 px-2.5 py-1 text-2xs uppercase tracking-wide text-mist-300 transition-colors hover:bg-ink-700 hover:text-gold-300"
-                >
-                  Fill
-                </button>
-              </div>
-
-              <div className="mt-2.5 flex items-center gap-3 border-t border-white/[0.04] pt-2.5">
-                <button
-                  onClick={() => setFx((f) => ({ ...f, light: { ...f.light, enabled: !f.light.enabled } }))}
-                  title="Directional lighting. Drag the glowing ball around the canvas."
+                  key={c}
+                  onClick={() => setColor(c)}
+                  title={c}
                   className={cn(
-                    'flex w-16 shrink-0 items-center gap-1.5 rounded-md py-1 text-2xs uppercase tracking-wider transition-colors',
-                    fx.light.enabled ? 'text-gold-300' : 'text-mist-500 hover:text-mist-300'
+                    'relative h-5 w-5 rounded-[3px] transition-transform hover:z-10 hover:scale-125',
+                    color === c && 'z-10 ring-1 ring-gold-400'
                   )}
-                >
-                  <Sun size={11} /> Light
-                </button>
-                <div className="flex-1">
-                  <SliderRow
-                    value={fx.light.strength}
-                    onChange={(v) => setFx((f) => ({ ...f, light: { ...f.light, strength: v, enabled: true } }))}
-                  />
-                </div>
-                <BakeButton disabled={!fx.light.enabled} onClick={bakeLight} />
-              </div>
-            </Panel>
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
           </div>
 
           {}
@@ -980,7 +1202,8 @@ function PixelEditor(): JSX.Element {
                 <span
                   className="overflow-hidden rounded"
                   style={{
-                    backgroundImage: 'repeating-conic-gradient(#31363e 0% 25%, #262b32 0% 50%)',
+                    backgroundImage: showChecker ? 'repeating-conic-gradient(#31363e 0% 25%, #262b32 0% 50%)' : 'none',
+                    backgroundColor: showChecker ? undefined : '#262b32',
                     backgroundSize: '12px 12px'
                   }}
                 >
@@ -1012,24 +1235,32 @@ function PixelEditor(): JSX.Element {
             </button>
 
             {}
-            <div>
+            <div data-tour="pixel-layers" className="mt-auto">
               <div className="mb-1 flex items-center justify-between">
                 <span className="label-base mb-0 flex items-center gap-1.5">
                   <Layers size={11} /> Layers
                 </span>
                 <button
-                  onClick={addLayer}
-                  disabled={layers.length >= MAX_LAYERS}
+                  onClick={() => {
+                    if (layers.length >= MAX_LAYERS) addLayerAttention.callAttention()
+                    else addLayer()
+                  }}
+                  aria-disabled={layers.length >= MAX_LAYERS}
                   title={layers.length >= MAX_LAYERS ? `Max ${MAX_LAYERS} layers` : 'Add layer'}
                   className={cn(
-                    'rounded p-1 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200',
-                    layers.length >= MAX_LAYERS && 'pointer-events-none opacity-35'
+                    'rounded p-1 text-mist-500 transition-colors',
+                    layers.length >= MAX_LAYERS ? 'opacity-35' : 'hover:bg-ink-750 hover:text-mist-200',
+                    addLayerAttention.attention && 'jiggle'
                   )}
                 >
                   <Plus size={13} />
                 </button>
               </div>
               <div ref={layerListRef} className="space-y-0.5 rounded-lg bg-ink-900/50 p-1.5 shadow-panel">
+                {
+
+}
+                <GlideList active={activeId} instant={draggingId !== null}>
                 {[...layers].reverse().map((l) => (
                   <LayerRow
                     key={l.id}
@@ -1043,16 +1274,18 @@ function PixelEditor(): JSX.Element {
                     onPatch={(patch) => patchLayer(l.id, patch)}
                     onMove={(dir) => moveLayer(l.id, dir)}
                     onDuplicate={() => duplicateLayer(l.id)}
+                    onMergeDown={() => mergeLayerDown(l.id)}
                     onDelete={() => deleteLayer(l.id)}
                     onDragStart={() => beginLayerDrag(l.id)}
                     onDragTo={(y) => dragLayerTo(l.id, y)}
                     onDragEnd={() => setDraggingId(null)}
                   />
                 ))}
+                </GlideList>
                 {
 
 }
-                <div className="mt-1 space-y-1 border-t border-white/[0.05] px-1 pt-1.5">
+                <div className="mt-2.5 space-y-1 border-t border-white/[0.05] px-1 pb-1 pt-3">
                   <LayerSlider
                     label="Opacity"
                     value={active.opacity}
@@ -1098,6 +1331,7 @@ function PixelEditor(): JSX.Element {
 
         {presetOpen && (
           <PresetPicker
+            kind={existing?.kind ?? kind ?? 'block'}
             accent={accent}
             onAccent={setAccent}
             onPick={applyPick}
@@ -1123,10 +1357,16 @@ function PixelEditor(): JSX.Element {
           <span
             className={cn(
               'min-w-0 flex-1 truncate text-2xs',
-              saveBlocked ? 'text-ember-400' : 'text-mist-600'
+              saveBlocked ? 'text-ember-400' : autoNamed ? 'text-gold-400/90' : 'text-mist-600'
             )}
           >
-            {saveBlocked ?? 'Right-drag erases · Alt-click samples · X mirrors · N noise brush · arrows nudge'}
+            {
+
+}
+            {saveBlocked ??
+              (autoNamed
+                ? `A block already uses that name. Saving this as ${autoNamed}`
+                : 'Right-drag erases · Alt-click samples · X mirrors · N noise brush · arrows nudge')}
           </span>
           <button
             onClick={close}
@@ -1135,11 +1375,14 @@ function PixelEditor(): JSX.Element {
             Cancel
           </button>
           <button
-            onClick={save}
-            disabled={!!saveBlocked}
+            data-tour="pixel-save"
+            onClick={attemptSave}
+            title={saveBlocked ?? undefined}
+
             className={cn(
               'flex shrink-0 items-center gap-1.5 rounded-md bg-gold-500 px-4 py-1.5 text-[13px] font-medium text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.98]',
-              saveBlocked && 'pointer-events-none opacity-40'
+              saveBlocked && 'opacity-40',
+              saveAttention.attention && 'jiggle'
             )}
           >
             <Check size={14} /> Save Texture
@@ -1163,6 +1406,7 @@ function LayerRow(props: {
   onPatch: (patch: Partial<Omit<Layer, 'id' | 'grid'>>) => void
   onMove: (dir: 1 | -1) => void
   onDuplicate: () => void
+  onMergeDown: () => void
   onDelete: () => void
   onDragStart: () => void
   onDragTo: (clientY: number) => void
@@ -1194,110 +1438,117 @@ function LayerRow(props: {
   }
 
   return (
-    <div
-      data-layer-row
-      onPointerDown={(e) => {
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <div
+          data-layer-row
+          onPointerDown={(e) => {
 
-        if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
-        press.current = { x: e.clientX, y: e.clientY }
-        dragged.current = false
-        e.currentTarget.setPointerCapture(e.pointerId)
-      }}
-      onPointerMove={(e) => {
-        const p = press.current
-        if (!p) return
-        if (!dragged.current) {
-          if (Math.abs(e.clientX - p.x) < DRAG_SLOP && Math.abs(e.clientY - p.y) < DRAG_SLOP) return
-          dragged.current = true
-          props.onDragStart()
-        }
-        props.onDragTo(e.clientY)
-      }}
-      onPointerUp={endPress}
-      onPointerCancel={endPress}
-      title="Click to select, click again to rename, drag to reorder"
-      className={cn(
-        'group flex select-none items-center gap-1 rounded-md px-1 py-0.5 transition-colors',
-        props.dragging ? 'cursor-grabbing ring-1 ring-gold-500/40' : 'cursor-grab',
-        props.active ? 'bg-ink-750 shadow-panel' : 'hover:bg-ink-800'
-      )}
-    >
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          props.onPatch({ visible: !l.visible })
-        }}
-        title={l.visible ? 'Hide layer' : 'Show layer'}
-        className="rounded p-1 text-mist-500 transition-colors hover:text-mist-200"
-      >
-        {l.visible ? <Eye size={12} /> : <EyeOff size={12} className="text-mist-600" />}
-      </button>
-      {editing ? (
-        <input
-          autoFocus
-          className="w-0 min-w-0 flex-1 cursor-text select-text bg-transparent text-xs text-mist-100 outline-none"
-          value={l.name}
-          onChange={(e) => props.onPatch({ name: e.target.value })}
-          onBlur={() => setEditing(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur()
+            if (e.button !== 0 || (e.target as HTMLElement).closest('button, input')) return
+            press.current = { x: e.clientX, y: e.clientY }
+            dragged.current = false
+            e.currentTarget.setPointerCapture(e.pointerId)
           }}
-        />
-      ) : (
-        <span
+          onPointerMove={(e) => {
+            const p = press.current
+            if (!p) return
+            if (!dragged.current) {
+              if (Math.abs(e.clientX - p.x) < DRAG_SLOP && Math.abs(e.clientY - p.y) < DRAG_SLOP) return
+              dragged.current = true
+              props.onDragStart()
+            }
+            props.onDragTo(e.clientY)
+          }}
+          onPointerUp={endPress}
+          onPointerCancel={endPress}
+          title="Click to select, click again to rename, drag to reorder, right-click for options"
+          data-glide-id={l.id}
           className={cn(
-            'min-w-0 flex-1 truncate text-xs',
-            props.active ? 'text-mist-100' : l.visible ? 'text-mist-400' : 'text-mist-600'
+            'group relative flex select-none items-center gap-1 rounded-md px-1 py-0.5 transition-colors',
+            props.dragging ? 'cursor-grabbing ring-1 ring-gold-500/40' : 'cursor-grab',
+
+            props.active ? '' : 'hover:bg-ink-800'
           )}
         >
-          {l.name}
-        </span>
-      )}
-      <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-        {}
-        <RowBtn title="Raise" disabled={props.isTop} onClick={() => props.onMove(1)}>
-          <ChevronUp size={11} />
-        </RowBtn>
-        <RowBtn title="Lower" disabled={props.isBottom} onClick={() => props.onMove(-1)}>
-          <ChevronDown size={11} />
-        </RowBtn>
-        <RowBtn title="Duplicate" onClick={props.onDuplicate}>
-          <Copy size={10} />
-        </RowBtn>
-        <RowBtn title="Delete" disabled={!props.canDelete} onClick={props.onDelete} danger>
-          <Trash2 size={10} />
-        </RowBtn>
-      </div>
-    </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              props.onPatch({ visible: !l.visible })
+            }}
+            title={l.visible ? 'Hide layer' : 'Show layer'}
+            className="rounded p-1 text-mist-500 transition-colors hover:text-mist-200"
+          >
+            {l.visible ? <Eye size={12} /> : <EyeOff size={12} className="text-mist-600" />}
+          </button>
+          {editing ? (
+            <input
+              autoFocus
+              className="w-0 min-w-0 flex-1 cursor-text select-text bg-transparent text-xs text-mist-100 outline-none"
+              value={l.name}
+              onChange={(e) => props.onPatch({ name: e.target.value })}
+              onBlur={() => setEditing(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur()
+              }}
+            />
+          ) : (
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate text-xs',
+                props.active ? 'text-mist-100' : l.visible ? 'text-mist-400' : 'text-mist-600'
+              )}
+            >
+              {l.name}
+            </span>
+          )}
+        </div>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content
+          className="z-50 min-w-[140px] overflow-hidden rounded-md border border-white/[0.08] bg-ink-850 p-1 shadow-raised animate-in fade-in zoom-in-95"
+        >
+          <ContextMenuItem label="Raise" icon={ChevronUp} disabled={props.isTop} onSelect={() => props.onMove(1)} />
+          <ContextMenuItem label="Lower" icon={ChevronDown} disabled={props.isBottom} onSelect={() => props.onMove(-1)} />
+          <ContextMenu.Separator className="mx-1 my-1 h-px bg-white/[0.06]" />
+          <ContextMenuItem label="Duplicate" icon={Copy} onSelect={props.onDuplicate} />
+          <ContextMenuItem
+            label="Merge down"
+            icon={ArrowDownToLine}
+            disabled={props.isBottom}
+            onSelect={props.onMergeDown}
+          />
+          <ContextMenuItem label="Delete" icon={Trash2} disabled={!props.canDelete} onSelect={props.onDelete} danger />
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   )
 }
 
-function RowBtn(props: {
-  title: string
-  disabled?: boolean
-  danger?: boolean
-  onClick: () => void
-  children: React.ReactNode
-}): JSX.Element {
+function ContextMenuItem(props: { label: string, icon: LucideIcon, disabled?: boolean, danger?: boolean, onSelect: () => void }) {
+  const { attention, callAttention } = useAttention()
+  const Icon = props.icon
   return (
-    <button
-      title={props.title}
-      disabled={props.disabled}
-      onClick={(e) => {
-        e.stopPropagation()
-        props.onClick()
+    <ContextMenu.Item
+      aria-disabled={props.disabled}
+      onSelect={(e) => {
+        if (props.disabled) {
+          e.preventDefault()
+          callAttention()
+        } else {
+          props.onSelect()
+        }
       }}
       className={cn(
-        'rounded p-0.5 transition-colors',
-        props.disabled
-          ? 'pointer-events-none text-mist-700'
-          : props.danger
-            ? 'text-mist-600 hover:text-ember-400'
-            : 'text-mist-500 hover:text-mist-200'
+        'flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-xs outline-none transition-colors',
+        props.disabled ? 'text-mist-700' :
+        props.danger ? 'text-mist-400 focus:bg-ember-500/15 focus:text-ember-400' :
+        'text-mist-200 focus:bg-ink-750 focus:text-white',
+        attention && 'jiggle'
       )}
     >
-      {props.children}
-    </button>
+      <Icon size={12} className={props.danger && !props.disabled ? 'text-ember-400/80' : 'text-mist-500'} />
+      {props.label}
+    </ContextMenu.Item>
   )
 }
 
@@ -1367,29 +1618,35 @@ function SliderRow(props: { value: number; onChange: (v: number) => void }): JSX
         max={100}
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
-        className="fx-slider flex-1"
+        className="fx-slider min-w-0 flex-1"
       />
-      <span className="w-7 text-right font-mono text-2xs text-mist-500">{props.value}</span>
+      <span className="w-7 shrink-0 text-right font-mono text-2xs text-mist-500">{props.value}</span>
     </div>
   )
 }
 
 function BakeButton(props: { disabled: boolean; onClick: () => void }): JSX.Element {
+  const { attention, callAttention } = useAttention()
   return (
     <button
-      onClick={props.onClick}
-      disabled={props.disabled}
+      onClick={() => {
+        if (props.disabled) callAttention()
+        else props.onClick()
+      }}
+      aria-disabled={props.disabled}
       title={
         props.disabled
           ? 'Turn Light on first, then Apply bakes it into the layers'
           : 'Bake this effect into the layers (undoable)'
       }
       className={cn(
-        'rounded-md px-2 py-1 text-2xs uppercase tracking-wide transition-colors',
+
+        'shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-2xs uppercase tracking-wide transition-colors',
 
         props.disabled
           ? 'cursor-not-allowed bg-ink-800/60 text-mist-600 ring-1 ring-inset ring-white/[0.05]'
-          : 'bg-ink-750 text-mist-300 shadow-panel hover:bg-ink-700 hover:text-gold-300'
+          : 'bg-ink-750 text-mist-300 shadow-panel hover:bg-ink-700 hover:text-gold-300',
+        attention && 'jiggle'
       )}
     >
       Apply
@@ -1400,6 +1657,8 @@ function BakeButton(props: { disabled: boolean; onClick: () => void }): JSX.Elem
 function LightBall(props: {
   angle: number
   onPointerDown: (e: React.PointerEvent) => void
+
+  onHover: (over: boolean) => void
 }): JSX.Element {
   const R = (CELL * 16) / 2 + PAD / 2
   const cx = CELL * 8 + PAD
@@ -1408,6 +1667,8 @@ function LightBall(props: {
   return (
     <div
       onPointerDown={props.onPointerDown}
+      onPointerEnter={() => props.onHover(true)}
+      onPointerLeave={() => props.onHover(false)}
       className="absolute z-10 cursor-grab active:cursor-grabbing"
       style={{ left: x - 13, top: y - 13, width: 26, height: 26 }}
       title="Drag to move the light"

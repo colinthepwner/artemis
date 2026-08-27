@@ -109,13 +109,28 @@ export interface TexturePreset {
   generate: (accent: string) => Grid
 }
 
-const literal = (id: string, label: string, group: TexturePreset['group'], grid: Grid): TexturePreset => ({
-  id,
-  label,
-  group,
-  usesAccent: false,
-  generate: () => grid
-})
+function luminanceTint(base: Grid): (number | null)[] {
+  return base.map((c) => {
+    if (!c) return null
+    const n = parseInt(c.slice(1), 16)
+    return Math.round(0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255))
+  })
+}
+
+const dyed = (id: string, label: string, group: TexturePreset['group'], grid: Grid): TexturePreset => {
+  const tint = luminanceTint(grid)
+  return {
+    id,
+    label,
+    group,
+    usesAccent: true,
+    generate: (accent) => bake(grid, tint, accent)
+  }
+}
+
+function soften(tint: (number | null)[], amount: number): (number | null)[] {
+  return tint.map((t) => (t == null ? null : Math.round(128 + (t - 128) * amount)))
+}
 
 const tinted = (
   id: string,
@@ -132,18 +147,19 @@ const tinted = (
 })
 
 export const TEXTURE_PRESETS: TexturePreset[] = [
-  literal('stone', 'Stone', 'Terrain', data.STONE),
-  literal('cobble', 'Cobblestone', 'Terrain', data.COBBLE),
-  literal('dirt', 'Dirt', 'Terrain', data.DIRT),
-  literal('grass_top', 'Grass Top', 'Terrain', data.GRASS_TOP),
-  literal('grass_side', 'Grass Side', 'Terrain', data.GRASS_SIDE),
-  literal('sand', 'Sand', 'Terrain', data.SAND),
-  literal('gravel', 'Gravel', 'Terrain', data.GRAVEL),
-  literal('planks', 'Planks', 'Terrain', data.PLANKS),
-  literal('log_side', 'Log Side', 'Terrain', data.LOG_SIDE),
-  literal('log_top', 'Log Top', 'Terrain', data.LOG_TOP),
-  literal('leaves', 'Leaves', 'Terrain', data.LEAVES),
-  tinted('liquid', 'Liquid', 'Terrain', data.LIQUID_BASE, data.LIQUID_TINT),
+  dyed('stone', 'Stone', 'Terrain', data.STONE),
+  dyed('cobble', 'Cobblestone', 'Terrain', data.COBBLE),
+  dyed('dirt', 'Dirt', 'Terrain', data.DIRT),
+  dyed('grass_top', 'Grass Top', 'Terrain', data.GRASS_TOP),
+  dyed('grass_side', 'Grass Side', 'Terrain', data.GRASS_SIDE),
+  dyed('sand', 'Sand', 'Terrain', data.SAND),
+  dyed('gravel', 'Gravel', 'Terrain', data.GRAVEL),
+  dyed('planks', 'Planks', 'Terrain', data.PLANKS),
+  dyed('log_side', 'Log Side', 'Terrain', data.LOG_SIDE),
+  dyed('log_top', 'Log Top', 'Terrain', data.LOG_TOP),
+  dyed('leaves', 'Leaves', 'Terrain', data.LEAVES),
+
+  tinted('liquid', 'Liquid', 'Terrain', data.LIQUID_BASE, soften(data.LIQUID_TINT, 0.45)),
   tinted('ore', 'Ore', 'Material', data.ORE_BASE, data.ORE_TINT),
   tinted('gem', 'Gem', 'Material', data.GEM_BASE, data.GEM_TINT),
   tinted('ingot', 'Ingot', 'Material', data.INGOT_BASE, data.INGOT_TINT),
@@ -171,11 +187,19 @@ export function gridToDataUrl(grid: Grid): string {
   return rgbaToDataUrl(grid)
 }
 
+let scratch: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null
+function scratch16(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  if (!scratch) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 16
+    canvas.height = 16
+    scratch = { canvas, ctx: canvas.getContext('2d')! }
+  }
+  return scratch
+}
+
 export function rgbaToDataUrl(grid: Grid, alpha?: number[]): string {
-  const canvas = document.createElement('canvas')
-  canvas.width = 16
-  canvas.height = 16
-  const ctx = canvas.getContext('2d')!
+  const { canvas, ctx } = scratch16()
   const img = ctx.createImageData(16, 16)
   for (let i = 0; i < 256; i++) {
     const c = grid[i]

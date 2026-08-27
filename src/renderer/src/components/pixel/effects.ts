@@ -11,7 +11,7 @@ export interface PixelFx {
 }
 
 export const DEFAULT_FX: PixelFx = {
-  light: { enabled: false, angle: -Math.PI * 0.75, strength: 45 }
+  light: { enabled: false, angle: -Math.PI * 0.75, strength: 0 }
 }
 
 export interface LitLayer {
@@ -161,4 +161,35 @@ export function compositeLayers(layers: LitLayer[], fx?: PixelFx | null): Compos
 
 export function bakeLighting(layers: LitLayer[], fx: PixelFx): Grid[] {
   return build(layers, fx).baked
+}
+
+export interface MergedPair {
+  grid: Grid
+
+  opacity: number
+  visible: boolean
+}
+
+export function mergePair(lower: LitLayer, upper: LitLayer): MergedPair {
+  const seen = lower.visible || upper.visible
+
+  const pair = seen ? [lower, upper] : [{ ...lower, visible: true }, { ...upper, visible: true }]
+  const { grid, alpha } = compositeLayers(pair)
+
+  let uniform: number | null = null
+  let mixed = false
+  for (let i = 0; i < 256; i++) {
+    if (!grid[i] || alpha[i] <= 0) continue
+    if (uniform === null) uniform = alpha[i]
+    else if (Math.abs(alpha[i] - uniform) > 0.005) {
+      mixed = true
+      break
+    }
+  }
+
+  return {
+    grid,
+    opacity: mixed || uniform === null ? 100 : Math.round(uniform * 100),
+    visible: seen
+  }
 }

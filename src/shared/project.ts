@@ -1,12 +1,17 @@
+import { LATEST_BTA } from './generator/mappings'
+
 export const ELEMENT_KINDS = [
   'block',
+  'item',
   'liquid',
   'ore',
   'plant',
   'tree',
+  'structure',
   'recipe',
   'mob',
-  'biome'
+  'biome',
+  'dimension'
 ] as const
 
 export type ElementKind = (typeof ELEMENT_KINDS)[number]
@@ -17,6 +22,8 @@ export interface ArtemisElement<P = Record<string, unknown>> {
 
   name: string
   properties: P
+
+  detached?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +39,20 @@ export interface ProjectMeta {
   targetBta: string
 
   obfuscate: boolean
+
+  icon?: string
+}
+
+export interface TextureLayer {
+  name: string
+  visible: boolean
+
+  opacity: number
+  hue: number
+  saturation: number
+  brightness: number
+
+  data: string
 }
 
 export interface ProjectTexture {
@@ -39,6 +60,8 @@ export interface ProjectTexture {
   name: string
 
   data: string
+
+  layers?: TextureLayer[]
 
   kind?: 'block' | 'item'
   createdAt: string
@@ -57,7 +80,11 @@ export interface ArtemisProject {
   codeOverrides: Record<string, string>
 }
 
-export function createEmptyProject(name: string, modId: string): ArtemisProject {
+export function createEmptyProject(
+  name: string,
+  modId: string,
+  targetBta: string = LATEST_BTA
+): ArtemisProject {
   return {
     formatVersion: 1,
     meta: {
@@ -66,7 +93,7 @@ export function createEmptyProject(name: string, modId: string): ArtemisProject 
       version: '1.0.0',
       authors: [],
       description: '',
-      targetBta: '8.0.1',
+      targetBta,
       obfuscate: true
     },
     elements: [],
@@ -85,6 +112,40 @@ export function toRegistryName(display: string): string {
     .replace(/_{2,}/g, '_')
 }
 
+export function resolveTextureName(
+  desired: string,
+  kind: 'block' | 'item',
+  textures: ProjectTexture[],
+  selfId: string | null
+): string | null {
+  const wanted = desired.trim()
+  if (!wanted) return null
+
+  const others = textures.filter((t) => t.id !== selfId)
+  const taken = new Set(others.map((t) => t.name.toLowerCase()))
+  if (!taken.has(wanted.toLowerCase())) return wanted
+
+  const clash = others.find((t) => t.name.toLowerCase() === wanted.toLowerCase())
+  if (kind !== 'item' || (clash?.kind ?? 'block') !== 'block') return null
+
+  const base = `${wanted}_drop`
+  if (!taken.has(base.toLowerCase())) return base
+
+  for (let n = 2; n <= 99; n++) {
+    const candidate = `${base}_${n}`
+    if (!taken.has(candidate.toLowerCase())) return candidate
+  }
+  return null
+}
+
+export function titleCase(registryName: string): string {
+  return registryName
+    .split('_')
+    .filter(Boolean)
+    .map((s) => s[0].toUpperCase() + s.slice(1))
+    .join(' ')
+}
+
 export function toPascalCase(registryName: string): string {
   return registryName
     .split('_')
@@ -95,4 +156,10 @@ export function toPascalCase(registryName: string): string {
 
 export function toConstantCase(registryName: string): string {
   return registryName.toUpperCase()
+}
+
+export function capitalizeWords(value: string): string {
+  return value.replace(/\S+/g, (word) =>
+    word === word.toLowerCase() ? word.charAt(0).toUpperCase() + word.slice(1) : word
+  )
 }

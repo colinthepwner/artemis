@@ -1,4 +1,4 @@
-import { adjustColor, mix, shade, type Grid } from './presets'
+import { mix, shade, type Grid } from './presets'
 
 const SIZE = 16
 const CELLS = SIZE * SIZE
@@ -45,6 +45,8 @@ export interface Stencil {
   mode: 'layer' | 'cut'
   usesColor: boolean
 
+  usesSeed?: boolean
+
   suggestedColor?: string
   params: StencilParam[]
   run: (input: StencilInput) => StencilResult
@@ -81,14 +83,6 @@ function luma(hex: string): number {
   return 0.3 * ((n >> 16) & 255) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)
 }
 
-function lightness(hex: string): number {
-  const n = parseInt(hex.slice(1), 16)
-  const r = ((n >> 16) & 255) / 255
-  const g = ((n >> 8) & 255) / 255
-  const b = (n & 255) / 255
-  return ((Math.max(r, g, b) + Math.min(r, g, b)) / 2) * 100
-}
-
 const num = (p: Record<string, ParamValue>, k: string, fallback: number): number =>
   typeof p[k] === 'number' ? (p[k] as number) : fallback
 const bool = (p: Record<string, ParamValue>, k: string, fallback: boolean): boolean =>
@@ -99,14 +93,27 @@ const str = (p: Record<string, ParamValue>, k: string, fallback: string): string
 const lightVec = (angle: number): [number, number] => [Math.cos(angle), Math.sin(angle)]
 
 export function toneRamp(accent: string, contrast = 100): string[] {
-  const l = lightness(accent)
+  const n = parseInt(accent.slice(1), 16)
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
   const k = contrast / 100
-  const span = clamp((100 - l) * 0.85, 10, 45) * k
+  const peak = Math.max(...rgb)
 
-  const base = Math.min(l, 100 - span)
-  const steps = [0, 0.28, 0.62, 1]
-  const desat = [0, -2, -10, -34]
-  return steps.map((s, i) => adjustColor(accent, 0, desat[i] * k, base - l + span * s))
+  if (peak < 16) return [0, 7, 16, 27].map((d) => scaleChannels(rgb, 1, d * k))
+  const lo = Math.max(1, Math.min(...rgb))
+  if (lo * 1.22 >= 255) {
+
+    return [0.62, 0.75, 0.87, 1].map((f) => scaleChannels(rgb, 1 + (f - 1) * k))
+  }
+
+  const top = clamp((255 / lo) * 0.9, 1.35, 2.4)
+  return [0, 0.191, 0.478, 1].map((t) => scaleChannels(rgb, 1 + (top - 1) * t * k))
+}
+
+function scaleChannels(rgb: number[], f: number, lift = 0): string {
+  const raw = rgb.map((v) => v * f + lift)
+  const over = Math.max(0, Math.max(...raw) - 255)
+  const out = raw.map((v) => clamp(Math.round(v + over * 0.3), 0, 255))
+  return `#${((out[0] << 16) | (out[1] << 8) | out[2]).toString(16).padStart(6, '0')}`
 }
 
 function toneRanks(n: number): number[] {
@@ -158,6 +165,43 @@ function grow(r: Rand, start: number, size: number, wide = 0.62, taken?: Set<num
   return cells
 }
 
+function blockHalo(blocked: Set<number>, cells: number[]): void {
+  for (const c of cells) {
+    blocked.add(c)
+    for (const [ox, oy] of RIM) {
+      const x = gx(c) + ox
+      const y = gy(c) + oy
+      if (inside(x, y)) blocked.add(at(x, y))
+    }
+  }
+}
+
+function oreShape(r: Rand, size: number): [number, number][] {
+  const cells: [number, number][] = []
+
+  const base = clamp(Math.round(size * (0.55 + r() * 0.35)), Math.min(size, 2), 6)
+  for (let k = 0; k < base; k++) cells.push([k, 1])
+  let remaining = size - base
+
+  for (const row of r() < 0.5 ? [0, 2] : [2, 0]) {
+    if (remaining <= 0) break
+    const w = Math.max(1, Math.min(remaining, 1 + Math.floor(r() * Math.min(base, 3))))
+    const x = -1 + Math.floor(r() * (base - w + 3))
+    for (let k = 0; k < w; k++) cells.push([x + k, row])
+    remaining -= w
+  }
+  const minX = Math.min(...cells.map((c) => c[0]))
+  const minY = Math.min(...cells.map((c) => c[1]))
+  return cells.map(([cx, cy]) => [cx - minX, cy - minY])
+}
+
+function oreSize(r: Rand, max: number): number {
+  const t = r()
+  if (t < 0.18) return 1
+  if (t < 0.63) return Math.min(2, max)
+  return Math.min(max, 4 + Math.floor(((t - 0.63) / 0.37) * Math.max(1, max - 3)))
+}
+
 function disc(cx: number, cy: number, radius: number): number[] {
   const cells: number[] = []
   const rr = radius * radius
@@ -195,15 +239,16 @@ function rimShade(
       const i = at(x, y)
       if (out[i] || isBlob(i) || !below[i]) continue
       let score = 0
-      let touching = 0
+      let orthogonal = false
       for (const [ox, oy] of RIM) {
         const nx = x + ox
         const ny = y + oy
         if (!inside(nx, ny) || !isBlob(at(nx, ny))) continue
-        touching++
+        if (ox === 0 || oy === 0) orthogonal = true
         score += (ox * dx + oy * dy) / Math.hypot(ox, oy)
       }
-      if (!touching) continue
+
+      if (!orthogonal) continue
       out[i] = shade(below[i], score > 0 ? 1 + 0.16 * amount : 1 - 0.14 * amount)
     }
   }
@@ -214,13 +259,21 @@ const ORE: Stencil = {
   label: 'Ore blobs',
   group: 'Ore and rock',
   blurb:
-    'Scatters ore the way BTA does: flattened clusters of one to eight pixels, four tones running across each one, and the rock around them lifted or dropped depending on which side the light is on.',
+    'Scatters ore the way BTA does: short horizontal runs rather than round lumps, mostly pairs with a few larger flecks, four tones running across each one, and the rock around them lifted or dropped depending on which side the light is on.',
   mode: 'layer',
   usesColor: true,
   suggestedColor: '#5decf5',
   params: [
-    { key: 'blobs', label: 'Clusters', kind: 'slider', min: 3, max: 18, default: 10 },
-    { key: 'size', label: 'Cluster size', kind: 'slider', min: 1, max: 9, default: 5 },
+    { key: 'blobs', label: 'Clusters', kind: 'slider', min: 3, max: 18, default: 11 },
+    {
+      key: 'size',
+      label: 'Biggest cluster',
+      hint: 'Pairs dominate whatever this is set to, the way vanilla does it',
+      kind: 'slider',
+      min: 1,
+      max: 10,
+      default: 8
+    },
     {
       key: 'contrast',
       label: 'Tone spread',
@@ -243,23 +296,37 @@ const ORE: Stencil = {
     const [dx, dy] = lightVec(angle)
     const tones = toneRamp(color, num(params, 'contrast', 100))
     const out = blank()
-    const taken = new Set<number>()
-    const maxSize = num(params, 'size', 5)
-    const clusters: number[][] = []
+    const ore = new Set<number>()
+    const blocked = new Set<number>()
+    const maxSize = num(params, 'size', 8)
 
-    for (let n = 0; n < num(params, 'blobs', 10); n++) {
+    const sizes = Array.from({ length: num(params, 'blobs', 11) }, () =>
+      oreSize(r, maxSize)
+    ).sort((a, b) => b - a)
 
-      const start = at(int(r, 1, SIZE - 2), int(r, 1, SIZE - 2))
-      if (taken.has(start)) continue
+    for (const want of sizes) {
+      let placed: number[] | null = null
 
-      const size = 1 + Math.floor(Math.pow(r(), 1.6) * maxSize)
-      const cells = grow(r, start, size, 0.62, taken)
-      for (const c of cells) taken.add(c)
-      clusters.push(cells)
+      for (let t = 0; t < 20 && !placed; t++) {
+        const shape = oreShape(r, want)
+        const w = Math.max(...shape.map((c) => c[0])) + 1
+        const h = Math.max(...shape.map((c) => c[1])) + 1
+        if (w > SIZE - 2 || h > SIZE - 2) continue
+
+        const x0 = int(r, 1, SIZE - 1 - w)
+        const y0 = int(r, 1, SIZE - 1 - h)
+        const cells = shape.map(([cx, cy]) => at(x0 + cx, y0 + cy))
+
+        if (cells.some((i) => blocked.has(i))) continue
+        placed = cells
+      }
+      if (!placed) continue
+      shadeCluster(out, placed, tones, dx, dy)
+      for (const c of placed) ore.add(c)
+      blockHalo(blocked, placed)
     }
 
-    for (const cells of clusters) shadeCluster(out, cells, tones, dx, dy)
-    if (bool(params, 'rock', true)) rimShade(out, below, (i) => taken.has(i), dx, dy, 1)
+    if (bool(params, 'rock', true)) rimShade(out, below, (i) => ore.has(i), dx, dy, 1)
     return { grid: out }
   }
 }
@@ -310,14 +377,14 @@ const VEINS: Stencil = {
   params: [
     { key: 'veins', label: 'Veins', kind: 'slider', min: 1, max: 8, default: 3 },
     { key: 'length', label: 'Length', kind: 'slider', min: 4, max: 26, default: 13 },
-    { key: 'wander', label: 'Wander', kind: 'slider', min: 0, max: 100, default: 55 },
+    { key: 'wander', label: 'Wander', kind: 'slider', min: 0, max: 100, default: 32 },
     { key: 'branch', label: 'Branching', kind: 'switch', default: false }
   ],
   run: ({ color, seed, params }) => {
     const r = rng(seed)
     const tones = toneRamp(color, 70)
     const out = blank()
-    const wander = num(params, 'wander', 55) / 100
+    const wander = num(params, 'wander', 32) / 100
     const length = num(params, 'length', 13)
     const branch = bool(params, 'branch', false)
 
@@ -328,11 +395,18 @@ const VEINS: Stencil = {
       let x = fromX
       let y = fromY
       let dir = heading
+      let turned = false
       for (let s = 0; s < steps; s++) {
         if (!inside(x, y)) return
 
         out[at(x, y)] = r() < 0.22 ? tones[1] : tones[0]
-        if (r() < wander) dir += r() < 0.5 ? -1 : 1
+
+        if (r() < wander && !turned) {
+          dir += r() < 0.5 ? -1 : 1
+          turned = true
+        } else {
+          turned = false
+        }
         dir = (dir + 8) % 8
         x += stepX[dir]
         y += stepY[dir]
@@ -359,24 +433,33 @@ const PEBBLES: Stencil = {
   params: [
     { key: 'pebbles', label: 'Pebbles', kind: 'slider', min: 2, max: 14, default: 7 },
     { key: 'size', label: 'Size', kind: 'slider', min: 2, max: 7, default: 3 },
-    { key: 'relief', label: 'Relief', kind: 'slider', min: 0, max: 100, default: 65 }
+    { key: 'relief', label: 'Relief', kind: 'slider', min: 0, max: 100, default: 55 }
   ],
   run: ({ below, color, seed, angle, params }) => {
     const r = rng(seed)
     const [dx, dy] = lightVec(angle)
-    const tones = toneRamp(color, 85)
+
+    const tones = toneRamp(shade(color, 0.72), 75)
     const out = blank()
-    const taken = new Set<number>()
+    const stones = new Set<number>()
+    const blocked = new Set<number>()
     const size = num(params, 'size', 3)
 
     for (let n = 0; n < num(params, 'pebbles', 7); n++) {
       const radius = (size + r() * size * 0.6) / 2
-      const cells = disc(r() * SIZE, r() * SIZE, radius).filter((i) => !taken.has(i))
+      const cells = disc(r() * SIZE, r() * SIZE, radius).filter((i) => !blocked.has(i))
       if (cells.length < 2) continue
-      for (const c of cells) taken.add(c)
-      shadeCluster(out, cells, tones, dx, dy)
+
+      const tint = 0.86 + r() * 0.26
+      const lump = blank()
+      shadeCluster(lump, cells, tones, dx, dy)
+      for (const c of cells) {
+        out[c] = shade(lump[c], tint)
+        stones.add(c)
+      }
+      blockHalo(blocked, cells)
     }
-    rimShade(out, below, (i) => taken.has(i), dx, dy, num(params, 'relief', 65) / 100)
+    rimShade(out, below, (i) => stones.has(i), dx, dy, num(params, 'relief', 55) / 100)
     return { grid: out }
   }
 }
@@ -698,6 +781,7 @@ const BEVEL: Stencil = {
     'Rims the tile with a lit edge on the side facing the light and a dark one opposite, which is what makes a flat face read as a raised block. Carved flips it into a recess.',
   mode: 'layer',
   usesColor: false,
+  usesSeed: false,
   params: [
     { key: 'width', label: 'Width', kind: 'slider', min: 1, max: 3, default: 1 },
     { key: 'strength', label: 'Strength', kind: 'slider', min: 10, max: 100, default: 55 },

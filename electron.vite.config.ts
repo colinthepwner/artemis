@@ -10,6 +10,8 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
+
+    server: { hmr: { overlay: false } },
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src/renderer/src'),

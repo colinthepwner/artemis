@@ -5,6 +5,7 @@ import { projectRegistryEntries } from '@shared/generator/registry'
 import { artworkFor } from '@shared/generator/artwork'
 import { vanillaIcon } from './vanillaIcons'
 import { useVanillaArt } from './useVanillaArt'
+import { swatchFor } from './blockSwatches'
 import { PickerDialog, type PickerEntry } from '@/components/ui/PickerDialog'
 import { cn } from '@/lib/cn'
 
@@ -16,7 +17,7 @@ export function ItemRefField(props: {
   filter?: 'block' | 'item'
 }): JSX.Element {
   const [open, setOpen] = useState(false)
-  const label = useRefLabel(props.value)
+  const { label, image } = useRefDisplay(props.value)
 
   return (
     <>
@@ -25,12 +26,22 @@ export function ItemRefField(props: {
         onClick={() => setOpen(true)}
         title={props.value ? `${label} (${props.value})` : 'Click to pick'}
         className={cn(
-          'input-base flex items-center truncate text-left',
+          'input-base flex items-center gap-2 truncate text-left',
           !props.value && 'text-mist-600',
           props.className
         )}
       >
-        {label || props.placeholder || 'Pick'}
+        {}
+        {image && (
+          <img
+            src={image}
+            alt=""
+            draggable={false}
+            className="h-4 w-4 shrink-0 rounded-[2px] shadow-panel"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        )}
+        <span className="truncate">{label || props.placeholder || 'Pick'}</span>
       </button>
       {open && (
         <ItemRefPicker
@@ -46,21 +57,35 @@ export function ItemRefField(props: {
   )
 }
 
-function useRefLabel(ref: string): string {
+function useRefDisplay(ref: string): { label: string; image?: string } {
   const project = useProjectStore((s) => s.project)
+  const art = useVanillaArt()
   return useMemo(() => {
     const t = ref.trim()
-    if (!t) return ''
+    if (!t) return { label: '' }
     const vanilla = getVanillaRegistry(project?.meta.targetBta ?? '8.0.1')
     if (t.startsWith('block:')) {
-      return vanilla.blocks.find((e) => e.field === t.slice(6))?.name ?? t.slice(6)
+      const field = t.slice(6)
+      return {
+        label: vanilla.blocks.find((e) => e.field === field)?.name ?? field,
+        image: art.blocks[field]
+      }
     }
     if (t.startsWith('item:')) {
-      return vanilla.items.find((e) => e.field === t.slice(5))?.name ?? t.slice(5)
+      const field = t.slice(5)
+      return {
+        label: vanilla.items.find((e) => e.field === field)?.name ?? field,
+        image: art.items[field]
+      }
     }
     const custom = project ? projectRegistryEntries(project) : []
-    return custom.find((e) => e.registryName === t)?.displayName ?? t
-  }, [ref, project])
+    const entry = custom.find((e) => e.registryName === t)
+    if (entry) {
+      return { label: entry.displayName, image: project ? artworkFor(project, entry) : undefined }
+    }
+
+    return { label: t, image: swatchFor(t, art)?.texture }
+  }, [ref, project, art])
 }
 
 function ItemRefPicker(props: {

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Search, X, type LucideIcon } from 'lucide-react'
+import { useCloseOnEscape } from '@/components/ui/dismissDistant'
 import { cn } from '@/lib/cn'
 
 export interface PickerEntry {
@@ -37,14 +38,7 @@ export function PickerDialog(props: {
   const [tabId, setTabId] = useState(props.tabs[0]?.id ?? '')
   const [query, setQuery] = useState('')
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') props.onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-
-  }, [])
+  useCloseOnEscape(props.onClose)
 
   const q = query.trim().toLowerCase()
   const filtered = useMemo(() => {
@@ -100,14 +94,24 @@ export function PickerDialog(props: {
               key={t.id}
               onClick={() => setTabId(t.id)}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide transition-colors',
-                t.id === tab?.id
-                  ? 'bg-ink-750 text-gold-400 shadow-panel'
-                  : 'text-mist-500 hover:bg-ink-800 hover:text-mist-300'
+                'relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide transition-colors',
+                t.id === tab?.id ? 'z-10 text-gold-400' : 'text-mist-500 hover:text-mist-300'
               )}
             >
-              {t.label}
-              <span className={cn('font-mono', t.id === tab?.id ? 'text-gold-400/60' : 'text-mist-600')}>
+              {t.id === tab?.id && (
+                <motion.span
+                  layoutId="picker-tab"
+                  className="absolute inset-0 rounded-md bg-ink-750 shadow-panel"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              )}
+              <span className="relative z-10">{t.label}</span>
+              <span
+                className={cn(
+                  'relative z-10 font-mono',
+                  t.id === tab?.id ? 'text-gold-400/60' : 'text-mist-600'
+                )}
+              >
                 {t.entries.length}
               </span>
             </button>

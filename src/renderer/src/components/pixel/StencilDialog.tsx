@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Dices, Layers, Scissors, Stamp, X } from 'lucide-react'
+import { Dices, Scissors, Stamp, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Switch } from '@/components/ui/controls'
+import { useAttention } from '@/components/ui/attention'
+import { useCloseOnEscape } from '@/components/ui/dismissDistant'
 import { gridToDataUrl, type Grid } from './presets'
 import {
   defaultParams,
@@ -15,8 +17,6 @@ import {
 } from './stencils'
 
 export interface StencilApplyOptions {
-
-  newLayer: boolean
 
   allLayers: boolean
 }
@@ -33,9 +33,17 @@ export function StencilDialog(props: {
   onApply: (stencil: Stencil, result: StencilResult, opts: StencilApplyOptions) => void
   onClose: () => void
 }): JSX.Element {
-  const [stencilId, setStencilId] = useState(STENCILS[0].id)
+
+  const { attention, callAttention } = useAttention()
+  const [touched, setTouched] = useState(false)
+  const dismiss = (): void => (touched ? callAttention() : props.onClose())
+
+  const [stencilId, setStencilIdRaw] = useState(STENCILS[0].id)
+  const setStencilId = (id: string): void => {
+    setTouched(true)
+    setStencilIdRaw(id)
+  }
   const [seed, setSeed] = useState(() => newSeed())
-  const [newLayer, setNewLayer] = useState(true)
   const [allLayers, setAllLayers] = useState(true)
 
   const [params, setParams] = useState<Record<string, Record<string, ParamValue>>>(() =>
@@ -44,6 +52,8 @@ export function StencilDialog(props: {
   const [colors, setColors] = useState<Record<string, string>>(() =>
     Object.fromEntries(STENCILS.map((s) => [s.id, s.suggestedColor ?? '#7d7d7d']))
   )
+
+  useCloseOnEscape(props.onClose)
 
   const stencil = STENCILS.find((s) => s.id === stencilId) ?? STENCILS[0]
   const source = stencil.mode === 'cut' ? props.full : props.below
@@ -57,10 +67,11 @@ export function StencilDialog(props: {
     params: params[stencil.id]
   }
 
+  const previewColor = useDeferredValue(color)
   const preview = useMemo(
-    () => gridToDataUrl(previewStencil(stencil, input)),
+    () => gridToDataUrl(previewStencil(stencil, { ...input, color: previewColor })),
 
-    [stencil, source, color, seed, params[stencil.id], props.angle]
+    [stencil, source, previewColor, seed, params[stencil.id], props.angle]
   )
   const beforeUrl = useMemo(() => gridToDataUrl(source), [source])
 
@@ -88,15 +99,14 @@ export function StencilDialog(props: {
     return seen
   }, [])
 
-  const setParam = (key: string, value: ParamValue): void =>
+  const setParam = (key: string, value: ParamValue): void => {
+    setTouched(true)
     setParams((p) => ({ ...p, [stencil.id]: { ...p[stencil.id], [key]: value } }))
+  }
 
   const cutting = stencil.mode === 'cut'
-  const apply = (): void =>
-    props.onApply(stencil, stencil.run(input), {
-      newLayer: newLayer && props.canAddLayer,
-      allLayers
-    })
+  const seeded = stencil.usesSeed !== false
+  const apply = (): void => props.onApply(stencil, stencil.run(input), { allLayers })
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -105,10 +115,13 @@ export function StencilDialog(props: {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.12 }}
-        onClick={props.onClose}
+        onClick={dismiss}
       />
       <motion.div
-        className="relative flex h-[80vh] w-[790px] flex-col overflow-hidden rounded-xl bg-ink-850 shadow-raised"
+        className={cn(
+          'relative flex h-[80vh] w-[790px] flex-col overflow-hidden rounded-xl bg-ink-850 shadow-raised',
+          attention && 'jiggle'
+        )}
         initial={{ opacity: 0, scale: 0.97, y: 6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
@@ -234,47 +247,62 @@ export function StencilDialog(props: {
             </div>
 
             <div className="mt-4 space-y-3 rounded-lg bg-ink-900/50 p-3 shadow-panel">
-              <div className="flex items-center gap-2">
-                <span className="w-20 shrink-0 text-2xs uppercase tracking-wider text-mist-500">
-                  Seed
-                </span>
-                <input
-                  className="input-base w-24 py-1 text-center font-mono text-2xs"
-                  value={seed}
-                  onChange={(e) => {
-                    const v = Number(e.target.value.replace(/\D/g, ''))
-                    if (Number.isFinite(v)) setSeed(v)
-                  }}
-                  onFocus={(e) => e.target.select()}
-                />
-                <button
-                  onClick={() => setSeed(newSeed())}
-                  title="Roll a different arrangement"
-                  className="flex items-center gap-1.5 rounded-md bg-ink-750 px-2.5 py-1 text-2xs uppercase tracking-wide text-mist-300 transition-colors hover:bg-ink-700 hover:text-gold-300 focus-visible:ring-0"
-                >
-                  <Dices size={12} /> Reroll
-                </button>
-                <div className="flex-1" />
-                {stencil.usesColor && (
-                  <>
-                    <span className="text-2xs uppercase tracking-wider text-mist-500">Color</span>
-                    <label
-                      className="relative h-6 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
-                      style={{ background: color }}
-                      title="Base color the stencil builds its tones from"
-                    >
+              {
+}
+              {(seeded || stencil.usesColor) && (
+                <div className="flex items-center gap-2">
+                  {seeded && (
+                    <>
+                      <span className="w-20 shrink-0 text-2xs uppercase tracking-wider text-mist-500">
+                        Seed
+                      </span>
                       <input
-                        type="color"
-                        value={color}
-                        className="absolute inset-0 h-full w-full opacity-0"
-                        onChange={(e) =>
-                          setColors((c) => ({ ...c, [stencil.id]: e.target.value.toLowerCase() }))
-                        }
+                        className="input-base w-24 py-1 text-center font-mono text-2xs"
+                        value={seed}
+                        onChange={(e) => {
+                          const v = Number(e.target.value.replace(/\D/g, ''))
+                          if (Number.isFinite(v)) {
+                            setTouched(true)
+                            setSeed(v)
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
                       />
-                    </label>
-                  </>
-                )}
-              </div>
+                      <button
+                        onClick={() => {
+                          setTouched(true)
+                          setSeed(newSeed())
+                        }}
+                        title="Roll a different arrangement"
+                        className="flex items-center gap-1.5 rounded-md bg-ink-750 px-2.5 py-1 text-2xs uppercase tracking-wide text-mist-300 transition-colors hover:bg-ink-700 hover:text-gold-300 focus-visible:ring-0"
+                      >
+                        <Dices size={12} /> Reroll
+                      </button>
+                    </>
+                  )}
+                  <div className="flex-1" />
+                  {stencil.usesColor && (
+                    <>
+                      <span className="text-2xs uppercase tracking-wider text-mist-500">Color</span>
+                      <label
+                        className="relative h-6 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
+                        style={{ background: color }}
+                        title="Base color the stencil builds its tones from"
+                      >
+                        <input
+                          type="color"
+                          value={color}
+                          className="absolute inset-0 h-full w-full opacity-0"
+                          onChange={(e) =>
+                            (setTouched(true),
+                            setColors((c) => ({ ...c, [stencil.id]: e.target.value.toLowerCase() })))
+                          }
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
 
               {stencil.params.map((p) =>
                 p.kind === 'slider' ? (
@@ -314,8 +342,11 @@ export function StencilDialog(props: {
               )}
             </div>
 
-            <div className="mt-3 rounded-lg bg-ink-900/50 p-3 shadow-panel">
-              {cutting ? (
+            {
+
+}
+            {cutting && (
+              <div className="mt-3 rounded-lg bg-ink-900/50 p-3 shadow-panel">
                 <div className="flex items-center gap-2">
                   <span className="flex w-20 shrink-0 items-center gap-1.5 text-2xs text-mist-500">
                     <Scissors size={11} /> Cut from
@@ -329,23 +360,8 @@ export function StencilDialog(props: {
                     onChange={(v) => setAllLayers(v === 'all')}
                   />
                 </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="flex w-20 shrink-0 items-center gap-1.5 text-2xs text-mist-500">
-                    <Layers size={11} /> Land on
-                  </span>
-                  <Segmented
-                    options={[
-                      { value: 'new', label: 'A new layer' },
-                      { value: 'active', label: 'The active layer' }
-                    ]}
-                    value={newLayer && props.canAddLayer ? 'new' : 'active'}
-                    onChange={(v) => setNewLayer(v === 'new')}
-                    disabled={props.canAddLayer ? undefined : 'new'}
-                  />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -356,7 +372,7 @@ export function StencilDialog(props: {
             {cutting
               ? 'Erases pixels. Undo puts them back.'
               : props.canAddLayer
-                ? 'Added as pixels you can paint over, not as an effect.'
+                ? 'Arrives on its own layer, as pixels you can paint over.'
                 : 'Layer limit reached, so this merges into the active layer.'}
           </span>
           <button

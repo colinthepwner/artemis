@@ -29,12 +29,14 @@ module.exports = {
           glow: 'rgba(230, 173, 85, 0.16)'
         },
         moss: { 400: '#7fb069', 500: '#619b4d' },
-        ember: { 400: '#e06c55', 500: '#c9553f' },
+        ember: { 400: '#e06c55', 500: '#c9553f', 600: '#9c3a29' },
         sky: { 400: '#6aaee8' }
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'Segoe UI', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono Variable"', 'Consolas', 'monospace']
+        mono: ['"JetBrains Mono Variable"', 'Consolas', 'monospace'],
+
+        pixel: ['Silkscreen', '"Courier New"', 'monospace']
       },
       fontSize: {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }]

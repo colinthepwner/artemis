@@ -1,11 +1,14 @@
-import { useState } from 'react'
-import { ChevronRight } from 'lucide-react'
 import type { ElementFormProps } from './registry'
 import { FormShell, TextureStrip, usePropEditor, type WizardStep } from './FormShell'
-import { Field, TextInput, NumberInput, Switch } from '@/components/ui/controls'
+import { Field, NumberInput, Select, Switch } from '@/components/ui/controls'
 import { ItemRefField } from '@/components/pixel/ItemRefPicker'
+import { BiomesField } from './BiomesField'
 import { MOB_DEFAULTS, type MobProps } from '@shared/generator/props'
-import { cn } from '@/lib/cn'
+
+const SHAPE_OPTIONS = [
+  { value: 'humanoid', label: 'Humanoid  ·  zombie build' },
+  { value: 'quadruped', label: 'Four-legged  ·  cow build' }
+]
 
 export function MobForm({ element, onClose }: ElementFormProps): JSX.Element | null {
   if (!element) return null
@@ -23,10 +26,21 @@ function Inner({
 
   const steps: WizardStep[] = [
     {
-      id: 'skin',
-      title: 'Skin',
-      desc: '64×32 entity skins are painted in an external editor and dropped in after export.',
-      content: <SkinFields element={element} p={p} patch={patch} />
+      id: 'body',
+      title: 'Body',
+      desc: 'The build it is drawn on, and the 64×32 skin stretched over it.',
+      content: (
+        <>
+          <Field label="Body" hint="Decides the skin layout and the hitbox.">
+            <Select
+              value={p.shape}
+              onChange={(v) => patch('shape', v as MobProps['shape'])}
+              options={SHAPE_OPTIONS}
+            />
+          </Field>
+          <TextureStrip element={element} />
+        </>
+      )
     },
     {
       id: 'stats',
@@ -57,6 +71,39 @@ function Inner({
       )
     },
     {
+      id: 'spawning',
+      title: 'Spawning',
+      desc: 'Where it appears naturally, your biomes and vanilla ones alike.',
+      content: (
+        <>
+          <Switch
+            checked={p.spawnWeight > 0}
+            onChange={(v) => patch('spawnWeight', v ? 10 : 0)}
+            label="Spawns naturally"
+            hint="Off, it only exists where something else places it."
+          />
+          {p.spawnWeight > 0 && (
+            <>
+              <Field label="Spawn Weight" hint="Against the vanilla table: a pig is 10.">
+                <NumberInput
+                  value={p.spawnWeight}
+                  onChange={(v) => patch('spawnWeight', Math.max(1, Math.round(v)))}
+                  min={1}
+                  max={100}
+                />
+              </Field>
+              <Field label="Spawns In" hint="Leave on all biomes for a mob that lives everywhere.">
+                <BiomesField
+                  value={p.spawnBiomes ?? []}
+                  onChange={(v) => patch('spawnBiomes', v)}
+                />
+              </Field>
+            </>
+          )}
+        </>
+      )
+    },
+    {
       id: 'drops',
       title: 'Drops',
       desc: 'Loot when defeated. Leave empty for no drops.',
@@ -74,33 +121,4 @@ function Inner({
   ]
 
   return <FormShell element={element} onClose={onClose} steps={steps} />
-}
-
-function SkinFields(props: {
-  element: NonNullable<ElementFormProps['element']>
-  p: MobProps
-  patch: <K extends keyof MobProps>(key: K, value: MobProps[K]) => void
-}): JSX.Element {
-  const [showPath, setShowPath] = useState(false)
-  return (
-    <>
-      <TextureStrip element={props.element} />
-      {}
-      <button
-        onClick={() => setShowPath((v) => !v)}
-        className="flex items-center gap-1 text-2xs text-mist-500 transition-colors hover:text-mist-300"
-      >
-        <ChevronRight size={11} className={cn('transition-transform', showPath && 'rotate-90')} />
-        Custom skin path
-      </button>
-      {showPath && (
-        <Field
-          label="Texture Path"
-          hint={`Blank uses "modid:entity/${props.element.name}". Drop the PNG in assets after export.`}
-        >
-          <TextInput mono value={props.p.texturePath} onChange={(v) => props.patch('texturePath', v)} />
-        </Field>
-      )}
-    </>
-  )
 }

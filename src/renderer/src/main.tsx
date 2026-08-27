@@ -2,8 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/global.css'
-import { useAppStore } from './store/appStore'
+import { useAppStore, loadPreferences } from './store/appStore'
 import { useProjectStore } from './store/projectStore'
+import { AsyncCrashOverlay, CrashBoundary } from './components/layout/CrashScreen'
 
 ;(window as unknown as Record<string, unknown>).__artemisStores = {
   app: useAppStore,
@@ -14,13 +15,28 @@ if (!window.artemis) {
   let mem: { path: string; json: string } | null = null
   window.artemis = {
     window: {
-      minimize: () => {},
-      maximizeToggle: () => {},
       close: () => {},
-      isMaximized: async () => false,
-      onMaximizeChanged: () => () => {}
+      relaunch: () => {},
+      dragStart: () => {},
+      dragMove: () => {}
     },
-    app: { platform: 'win32' as NodeJS.Platform, version: 'dev' },
+
+    app: {
+      platform: 'win32' as NodeJS.Platform,
+      version: 'dev',
+      isDev: true,
+      skipOnboarding: true
+    },
+    setup: {
+      status: async () => ({ permissions: [], jdk: null, minJava: 17 }),
+      openSettings: () => {},
+      scanJdks: async () => [],
+      pickJdk: async () => ({ ok: false }),
+      chooseJdk: async () => null,
+      installJdk: async () => ({ ok: false, error: 'Setup requires the desktop app.' }),
+      onInstallProgress: () => () => {}
+    },
+    menu: { onCommand: () => () => {}, setState: () => {} },
     project: {
       save: async (json) => ((mem = { path: 'browser-memory.artemis', json }), mem.path),
       saveAs: async (json, name) => ((mem = { path: `${name}.artemis`, json }), mem.path),
@@ -29,7 +45,9 @@ if (!window.artemis) {
       dir: async () => 'Documents/ArtemisForBTA',
       recents: async () => [],
       addRecent: () => {},
-      removeRecent: () => {}
+      removeRecent: () => {},
+
+      onOpenRequested: () => () => {}
     },
     export: {
       workspace: async () => ({
@@ -40,20 +58,34 @@ if (!window.artemis) {
       openPath: () => {},
       revealJar: () => {}
     },
+    prefs: { load: async () => ({}), save: () => {} },
+    presence: { update: () => {} },
     test: {
       start: async () => ({ ok: false, error: 'Testing requires the desktop app.' }),
       stop: () => {},
+      kill: () => {},
       openWorkspace: () => {},
       onLog: () => () => {},
       onState: () => () => {}
     },
-    update: { onState: () => () => {} },
-    vanilla: { art: async () => ({ blocks: {}, items: {} }) }
+    update: {
+      onState: () => () => {},
+
+      install: () => {}
+    },
+
+    boot: { phase: async () => 'ready', onPhase: () => () => {} },
+    vanilla: { art: async () => ({ blocks: {}, items: {}, tops: {} }) }
   }
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)
+void loadPreferences().finally(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <CrashBoundary>
+        <App />
+        <AsyncCrashOverlay />
+      </CrashBoundary>
+    </React.StrictMode>
+  )
+})

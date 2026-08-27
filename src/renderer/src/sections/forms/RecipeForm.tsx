@@ -1,10 +1,17 @@
 import type { ElementFormProps } from './registry'
 import { FormShell, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
 import { Field, NumberInput, Select } from '@/components/ui/controls'
+import { useSwatchedOptions } from '@/components/pixel/blockSwatches'
 import { ItemRefField } from '@/components/pixel/ItemRefPicker'
 import { RECIPE_DEFAULTS, type RecipeProps } from '@shared/generator/props'
 import { Plus, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+
+const METHOD_OPTIONS = [
+  { value: 'shaped', label: 'Crafting grid (exact shape)' },
+  { value: 'shapeless', label: 'Crafting grid (any arrangement)' },
+  { value: 'furnace', label: 'Furnace (smelting)' }
+]
 
 export function RecipeForm({ element, onClose }: ElementFormProps): JSX.Element | null {
   if (!element) return null
@@ -19,6 +26,7 @@ function Inner({
   onClose: () => void
 }): JSX.Element {
   const [p, patch] = usePropEditor<RecipeProps>(element, RECIPE_DEFAULTS)
+  const methodOptions = useSwatchedOptions(METHOD_OPTIONS)
 
   const steps: WizardStep[] = [
     {
@@ -29,11 +37,7 @@ function Inner({
         <Select
           value={p.recipeType}
           onChange={(v) => patch('recipeType', v as RecipeProps['recipeType'])}
-          options={[
-            { value: 'shaped', label: 'Crafting grid (exact shape)' },
-            { value: 'shapeless', label: 'Crafting grid (any arrangement)' },
-            { value: 'furnace', label: 'Furnace (smelting)' }
-          ]}
+          options={methodOptions}
         />
       )
     }

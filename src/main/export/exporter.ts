@@ -1,14 +1,15 @@
 import { dialog, ipcMain, shell } from 'electron'
-import { mkdir, writeFile, readdir, rm, stat } from 'fs/promises'
-import { existsSync } from 'fs'
+import { mkdir, writeFile, readFile, readdir, rm, stat } from 'fs/promises'
+import { existsSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { IPC } from '../../shared/ipc'
 import type { ArtemisProject } from '../../shared/project'
 import { toPascalCase } from '../../shared/project'
 import { CodeGenerator } from '../../shared/generator/CodeGenerator'
-import { getMapping } from '../../shared/generator/mappings'
+import { getMapping, type BtaMapping } from '../../shared/generator/mappings'
 import { textureSlotsFor } from '../../shared/generator/textures'
-import { runGradle } from '../gradle'
+import { runGradle, warnIfNoJava } from '../gradle'
+import { chooseModIcon } from '../modIcon'
 
 interface ExportResult {
   ok: boolean
@@ -51,6 +52,8 @@ export function registerExportIpc(): void {
       log.push('Building mod jar…')
       log.push('First build downloads Minecraft + dependencies and can take several minutes…')
       log.push('─'.repeat(60))
+
+      warnIfNoJava((line) => log.push(line))
       const build = await runGradle(
         root,
         'build',
@@ -81,35 +84,103 @@ export function registerExportIpc(): void {
   })
 }
 
-async function write(root: string, rel: string, content: string): Promise<void> {
+const MANIFEST = '.artemis-generated'
+
+type Written = Set<string>
+
+async function write(root: string, rel: string, content: string, written?: Written): Promise<void> {
   const abs = join(root, rel)
   await mkdir(dirname(abs), { recursive: true })
   await writeFile(abs, content, 'utf-8')
+  written?.add(rel)
+}
+
+async function writeBytes(root: string, rel: string, bytes: Buffer, written: Written): Promise<void> {
+  const abs = join(root, rel)
+  await mkdir(dirname(abs), { recursive: true })
+  await writeFile(abs, bytes)
+  written.add(rel)
+}
+
+async function reconcileGenerated(root: string, written: Written, log: string[]): Promise<void> {
+  const manifestPath = join(root, MANIFEST)
+  let previous: string[] = []
+  if (existsSync(manifestPath)) {
+    previous = (await readFile(manifestPath, 'utf-8'))
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+  }
+
+  let removed = 0
+  for (const rel of previous) {
+    if (written.has(rel)) continue
+
+    if (rel.includes('..') || rel.startsWith('/') || rel.includes('\\')) continue
+    const abs = join(root, rel)
+    if (!existsSync(abs)) continue
+    try {
+      await rm(abs, { force: true })
+    } catch {
+
+      continue
+    }
+    removed++
+
+    let dir = dirname(abs)
+    while (dir.startsWith(root) && dir !== root) {
+      try {
+        if ((await readdir(dir)).length > 0) break
+        await rm(dir, { recursive: false, force: true })
+      } catch {
+        break
+      }
+      dir = dirname(dir)
+    }
+  }
+  if (removed > 0) log.push(`  - ${removed} file(s) from the previous export that this one no longer generates`)
+
+  await writeFile(manifestPath, [...written].sort().join('\n') + '\n', 'utf-8')
+}
+
+export interface ExportOptions {
+
+  devMods?: boolean
 }
 
 export async function exportWorkspace(
   project: ArtemisProject,
   root: string,
-  log: string[]
+  log: string[],
+  options: ExportOptions = {}
 ): Promise<void> {
   const mapping = getMapping(project.meta.targetBta)
   const meta = project.meta
 
   log.push(`Exporting "${meta.name}" → ${root}`)
 
+  const generated: Written = new Set()
+
   const generatedRoot = join(root, 'src/main/java', `com/${meta.modId}`)
   await rm(generatedRoot, { recursive: true, force: true })
 
-  const files = new CodeGenerator(project).generate()
+  const generator = new CodeGenerator(project)
+  const files = generator.generate()
   const overrides = project.codeOverrides ?? {}
   for (const f of files) {
 
     const edited = overrides[f.path]
-    await write(root, f.path, edited ?? f.content)
+    await write(root, f.path, edited ?? f.content, generated)
     log.push(`  + ${f.path}${edited === undefined ? '' : '  (hand-edited)'}`)
   }
 
-  const halplibeVersion = await resolveHalplibeVersion(mapping.gradle.halplibe, log)
+  const halplibeVersion = await resolveHalplibeVersion(
+    mapping.gradle.halplibe,
+    mapping.gradle.repositories,
+    log
+  )
+
+  if (options.devMods) await fetchDevMods(mapping.gradle.devMods, root, log)
 
   const g = mapping.gradle
   await write(
@@ -128,7 +199,8 @@ bta_version=${mapping.btaVersion}
 loader_version=${g.fabricLoaderVersion}
 # Latest halplibe at export time. Bump freely, Artemis re-resolves on re-export.
 halplibe_version=${halplibeVersion}
-`
+`,
+    generated
   )
 
   await write(
@@ -150,7 +222,8 @@ plugins {
 }
 
 rootProject.name = '${meta.modId}'
-`
+`,
+    generated
   )
 
   const obfuscate = meta.obfuscate !== false
@@ -213,6 +286,37 @@ repositories {
 ${g.repositories.map((url) => `\tmaven { url = '${url}' }`).join('\n')}
 }
 
+// BTA's own jar does not ship the paulscode/jorbis sound stack its SoundEngine
+// still calls into, so the vanilla b1.7.3 client jar has to be on the run
+// classpath. Dropping that jar in whole is a trap: it also carries its own
+// obfuscated net/minecraft/client/Minecraft, and localRuntime lands it AHEAD of
+// loom's minecraft-merged-deobf, so the loader resolves the wrong Minecraft and
+// halplibe's MinecraftMixin dies with "@Shadow method displayScreen ... was not
+// located in the target class". The upstream template sidesteps this by
+// declaring the jar straight onto runtimeClasspath, which Gradle 9 refuses
+// ("Dependencies can not be declared against the runtimeClasspath
+// configuration"), so instead repack it here with net/minecraft stripped out.
+// Only the audio libraries survive and nothing can shadow the game.
+configurations {
+	artemisVanillaClient
+}
+
+dependencies {
+	artemisVanillaClient 'objects:client:${g.clientJarHash}'
+}
+
+def artemisAudioLibs = tasks.register('artemisAudioLibs', Jar) {
+	description = 'Repacks the vanilla client jar with net/minecraft removed, leaving the sound libraries BTA needs at runtime.'
+	archiveFileName = 'bta-audio-libs.jar'
+	destinationDirectory = layout.buildDirectory.dir('artemis')
+	from({ zipTree(configurations.artemisVanillaClient.singleFile) }) {
+		exclude 'net/minecraft/**'
+		// Mojang signed the original jar. Re-signing is impossible, so the
+		// signature files have to go or the JVM rejects every class in it.
+		exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+	}
+}
+
 dependencies {
 	minecraft "::\${project.bta_version}"
 
@@ -225,7 +329,7 @@ dependencies {
 	// only needed to launch the game from runClient. localRuntime rather than
 	// runtimeClasspath: Gradle 9 refuses declarations against the latter, and
 	// these must not leak into the published jar's metadata anyway.
-	localRuntime 'objects:client:${g.clientJarHash}'
+	localRuntime files(artemisAudioLibs)
 	localRuntime platform('org.lwjgl:lwjgl-bom:${g.lwjglVersion}')
 	localRuntime "org.lwjgl:lwjgl::\$lwjglNatives"
 	localRuntime "org.lwjgl:lwjgl-glfw::\$lwjglNatives"
@@ -263,11 +367,12 @@ configurations.configureEach {
 	exclude group: 'net.sf.jopt-simple'
 	exclude group: 'net.minecraft', module: 'launchwrapper'
 }
-${obfuscate ? obfuscationTask() : ''}`
+${obfuscate ? obfuscationTask() : ''}`,
+    generated
   )
 
   if (obfuscate) {
-    await write(root, 'proguard-rules.pro', proguardRules(project, mapping))
+    await write(root, 'proguard-rules.pro', proguardRules(project, mapping), generated)
     log.push('  + build.gradle / settings.gradle / gradle.properties')
     log.push('  + proguard-rules.pro (obfuscation ON: name obfuscation plus stability keep-list)')
   } else {
@@ -278,25 +383,36 @@ ${obfuscate ? obfuscationTask() : ''}`
     .filter((f) => f.path.endsWith('.mixins.json'))
     .map((f) => f.path.split('/').pop() as string)
 
+  const icon = chooseModIcon(project)
+  const iconPath = `assets/${meta.modId}/icon.png`
+  if (icon) {
+    await writeBytes(root, `src/main/resources/${iconPath}`, icon.png, generated)
+    log.push(
+      icon.source === 'uploaded'
+        ? '  + icon.png (the one you uploaded)'
+        : `  + icon.png (from your "${icon.textureName}" texture, nothing uploaded)`
+    )
+  }
+
   const fmj = {
     ...mapping.fabricModJson,
     id: meta.modId,
     version: '${version}',
     name: meta.name,
-    description: meta.description || `${meta.name}, a Better Than Adventure! mod.`,
+    description: `${meta.description || `${meta.name}, a Better Than Adventure! mod.`}\n\nMade using Artemis`,
     authors: meta.authors.length ? meta.authors : ['Unknown'],
+    ...(icon ? { icon: iconPath } : {}),
     ...(mixinConfigs.length ? { mixins: mixinConfigs } : {}),
+
     entrypoints: {
-      main: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`],
-      beforeGameStart: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`],
-      recipesReady: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`]
+      main: [`com.${meta.modId}.${toPascalCase(meta.modId)}Mod`]
     },
     custom: {
 
       credits: [...meta.authors, 'Made using Artemis']
     }
   }
-  await write(root, 'src/main/resources/fabric.mod.json', JSON.stringify(fmj, null, 2) + '\n')
+  await write(root, 'src/main/resources/fabric.mod.json', JSON.stringify(fmj, null, 2) + '\n', generated)
 
   const credits = [
     `${meta.name} v${meta.version}`,
@@ -304,15 +420,16 @@ ${obfuscate ? obfuscationTask() : ''}`
     ...(meta.authors.length ? ['Authors:', ...meta.authors.map((a) => `  ${a}`), ''] : []),
     'Made using Artemis'
   ].join('\n')
-  await write(root, 'CREDITS.txt', credits + '\n')
+  await write(root, 'CREDITS.txt', credits + '\n', generated)
   log.push('  + fabric.mod.json / CREDITS.txt (Artemis credit appended)')
 
-  const assetDirs = ['block', 'item', 'entity']
+  const assetDirs = ['block', 'item', 'entity', 'particle', 'art', 'gui/sprites', 'gui/sign']
   for (const d of assetDirs) {
     await write(
       root,
       `src/main/resources/assets/${meta.modId}/textures/${d}/.keep`,
-      ''
+      '',
+      generated
     )
   }
 
@@ -326,9 +443,13 @@ ${obfuscate ? obfuscationTask() : ''}`
     if (tex) {
 
       const base64 = tex.data.replace(/^data:image\/png;base64,/, '')
-      const abs = join(root, `src/main/resources/assets/${meta.modId}/textures/${slot.key}.png`)
-      await mkdir(dirname(abs), { recursive: true })
-      await writeFile(abs, Buffer.from(base64, 'base64'))
+
+      await writeBytes(
+        root,
+        `src/main/resources/assets/${meta.modId}/textures/${slot.path ?? slot.key}.png`,
+        Buffer.from(base64, 'base64'),
+        generated
+      )
       written++
     } else {
       missing.push(slot)
@@ -346,12 +467,15 @@ ${obfuscate ? obfuscationTask() : ''}`
           '',
           ...missing.map(
             (s) =>
-              `  src/main/resources/assets/${meta.modId}/textures/${s.key}.png${s.paintable ? '' : '  (64x32 entity skin)'}`
+              `  src/main/resources/assets/${meta.modId}/textures/${s.path ?? s.key}.png${s.paintable ? '' : '  (64x32 entity skin)'}`
           ),
           ''
-        ].join('\n')
+        ].join('\n'),
+    generated
   )
   log.push(`  + ${written} painted texture(s) written, ${missing.length} still missing (see TEXTURES_TODO.txt)`)
+
+  await reconcileGenerated(root, generated, log)
 
   log.push('')
   log.push(`Done. Open the folder in your IDE and run: gradlew build`)
@@ -468,24 +592,125 @@ ${o.minecraftPackages.map((p) => `-dontwarn ${p}`).join('\n')}
 `
 }
 
+const DEV_MODS_DIR = 'run/mods'
+
+async function fetchDevMods(
+  devMods: BtaMapping['gradle']['devMods'],
+  root: string,
+  log: string[]
+): Promise<string[]> {
+  const spec = devMods?.modMenu
+  if (!spec) return []
+  const dir = join(root, ...DEV_MODS_DIR.split('/'))
+  await mkdir(dir, { recursive: true })
+
+  let version = spec.fallbackVersion
+  let url: string | null = null
+  try {
+    const res = await fetch(`https://api.github.com/repos/${spec.githubRepo}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'artemis-mod-maker' }
+    })
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`)
+    const data = (await res.json()) as {
+      tag_name?: string
+      assets?: { name: string; browser_download_url: string }[]
+    }
+    version = (data.tag_name ?? spec.fallbackVersion).replace(/^v/, '')
+    const wanted = spec.assetPattern.replace('{version}', version)
+
+    url = data.assets?.find((a) => a.name === wanted)?.browser_download_url ?? null
+    if (!url) throw new Error(`release ${version} has no ${wanted}`)
+  } catch (e) {
+    log.push(`  test mods: could not reach GitHub (${e instanceof Error ? e.message : e})`)
+  }
+
+  const fileName = spec.assetPattern.replace('{version}', version)
+  const dest = join(dir, fileName)
+  if (existsSync(dest)) {
+    log.push(`  test mods: ModMenu ${version} already downloaded`)
+    return [fileName]
+  }
+  if (!url) {
+    log.push('  test mods: skipping ModMenu, nothing cached and no download')
+    return []
+  }
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'artemis-mod-maker' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
+    log.push(`  test mods: ModMenu ${version} downloaded`)
+    return [fileName]
+  } catch (e) {
+    log.push(`  test mods: ModMenu download failed (${e instanceof Error ? e.message : e})`)
+    return []
+  }
+}
+
 async function resolveHalplibeVersion(
-  h: { githubRepo: string; fallbackVersion: string; mavenSuffix: string },
+  h: {
+    githubRepo: string
+    mavenGroup: string
+    artifact: string
+    fallbackVersion: string
+    mavenSuffix: string
+  },
+  repositories: string[],
   log: string[]
 ): Promise<string> {
+  const published = await fetchPublishedVersions(h, repositories, log)
+  if (published.length === 0) {
+
+    log.push(`  halplibe: no maven reachable, using pinned fallback ${h.fallbackVersion}`)
+    return `${h.fallbackVersion}${h.mavenSuffix}`
+  }
+
+  const tag = await fetchLatestTag(h.githubRepo)
+  if (tag) {
+
+    const matching = published.filter((v) => v.split('+')[0] === tag)
+    if (matching.length > 0) {
+      const picked = matching[matching.length - 1]
+      log.push(`  halplibe: latest release is ${tag}, published as ${picked}`)
+      return picked
+    }
+    log.push(`  halplibe: release ${tag} is not on maven yet, taking the newest that is`)
+  }
+
+  const picked = published[published.length - 1]
+  log.push(`  halplibe: using ${picked}, the newest published`)
+  return picked
+}
+
+async function fetchLatestTag(githubRepo: string): Promise<string> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${h.githubRepo}/releases/latest`, {
+    const res = await fetch(`https://api.github.com/repos/${githubRepo}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'artemis-mod-maker' }
     })
     if (!res.ok) throw new Error(`GitHub API ${res.status}`)
     const data = (await res.json()) as { tag_name?: string }
-    const tag = (data.tag_name ?? '').replace(/^v/, '')
-    if (!tag) throw new Error('release has no tag')
-    log.push(`  halplibe: latest release is ${tag}`)
-    return tag.includes('+') ? tag : `${tag}${h.mavenSuffix}`
-  } catch (e) {
-    log.push(
-      `  halplibe: could not reach GitHub (${e instanceof Error ? e.message : e}). Using pinned fallback ${h.fallbackVersion}`
-    )
-    return `${h.fallbackVersion}${h.mavenSuffix}`
+    return (data.tag_name ?? '').replace(/^v/, '')
+  } catch {
+    return ''
   }
+}
+
+async function fetchPublishedVersions(
+  h: { mavenGroup: string; artifact: string },
+  repositories: string[],
+  log: string[]
+): Promise<string[]> {
+  const path = `${h.mavenGroup.replace(/\./g, '/')}/${h.artifact}/maven-metadata.xml`
+  for (const repo of repositories) {
+    const url = `${repo.replace(/\/+$/, '')}/${path}`
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': 'artemis-mod-maker' } })
+      if (!res.ok) continue
+      const xml = await res.text()
+      const versions = [...xml.matchAll(/<version>([^<]+)<\/version>/g)].map((m) => m[1].trim())
+      if (versions.length > 0) return versions
+    } catch (e) {
+      log.push(`  halplibe: ${repo} did not answer (${e instanceof Error ? e.message : e})`)
+    }
+  }
+  return []
 }

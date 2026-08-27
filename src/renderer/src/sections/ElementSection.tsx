@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, PanelRight, Construction } from 'lucide-react'
+import { Plus, Trash2, PanelRight, Copy, Pencil } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
+import * as ContextMenu from '@radix-ui/react-context-menu'
+import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context'
 import type { ArtemisElement, ElementKind } from '@shared/project'
 import { FORM_REGISTRY, KIND_LABELS } from '@/sections/forms/registry'
-import { cn } from '@/lib/cn'
+import { ContentThumb } from '@/components/ui/ContentThumb'
 
 export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
   const editingId = useAppStore((s) => s.editingId)
@@ -19,6 +21,7 @@ export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
   )
   const removeElement = useProjectStore((s) => s.removeElement)
   const createElement = useProjectStore((s) => s.createElement)
+  const duplicateElement = useProjectStore((s) => s.duplicateElement)
 
   const { label, labelPlural } = KIND_LABELS[kind]
   const Form = FORM_REGISTRY[kind]
@@ -37,29 +40,31 @@ export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
           {elements.length}
         </span>
         <div className="flex-1" />
-        {Form && (
-          <button
+        <button
+            data-tour="section-new"
             onClick={createNew}
-            className="flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.97]"
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.97]"
           >
             <Plus size={13} strokeWidth={2.5} /> New {label}
+        </button>
+        {
+
+}
+        {editingId && (
+          <button
+            onClick={toggleInspector}
+            title="Toggle code preview"
+            className="shrink-0 rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+          >
+            <PanelRight size={15} />
           </button>
         )}
-        <button
-          onClick={toggleInspector}
-          title="Toggle code preview"
-          className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
-        >
-          <PanelRight size={15} />
-        </button>
       </div>
 
       {
 }
       <div className="relative min-h-0 flex-1">
-        {!Form ? (
-          <ComingSoon key="soon" labelPlural={labelPlural} />
-        ) : editingId ? (
+        {editingId ? (
           <motion.div
             key={editingId}
             className="absolute inset-0"
@@ -86,6 +91,10 @@ export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
                     key={el.id}
                     element={el}
                     onOpen={() => openEditor(el.id)}
+                    onDuplicate={() => {
+                      const copy = duplicateElement(el.id)
+                      if (copy) openEditor(copy)
+                    }}
                     onDelete={() => removeElement(el.id)}
                   />
                 ))}
@@ -101,31 +110,38 @@ export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
 function ElementCard(props: {
   element: ArtemisElement
   onOpen: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }): JSX.Element {
   const display = (props.element.properties['displayName'] as string) || props.element.name
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      onClick={props.onOpen}
-      className="card group relative cursor-default p-4 transition-all duration-150 hover:bg-ink-750 hover:shadow-raised"
-    >
-      <div className="text-[13px] font-medium text-mist-50">{display}</div>
-      <div className="mt-1 font-mono text-2xs text-mist-500">{props.element.name}</div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          props.onDelete()
-        }}
-        title="Delete"
-        className="absolute right-2.5 top-2.5 rounded p-1 text-mist-600 opacity-0 transition-all hover:bg-ember-500/15 hover:text-ember-400 group-hover:opacity-100"
-      >
-        <Trash2 size={13} />
-      </button>
-    </motion.div>
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          onClick={props.onOpen}
+          className="card group relative cursor-default p-4 transition duration-150 hover:bg-ink-750 hover:shadow-raised"
+        >
+          <div className="flex items-center gap-2.5">
+            <ContentThumb element={props.element} size={28} />
+            <div className="min-w-0">
+              <div className="truncate text-[13px] font-medium text-mist-50">{display}</div>
+              <div className="mt-1 truncate font-mono text-2xs text-mist-500">
+                {props.element.name}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </ContextMenu.Trigger>
+      <ContextMenuContent>
+        <ContextMenuItem label="Edit" icon={Pencil} onSelect={props.onOpen} />
+        <ContextMenuItem label="Duplicate" icon={Copy} onSelect={props.onDuplicate} />
+        <ContextMenuSeparator />
+        <ContextMenuItem label="Delete" icon={Trash2} danger onSelect={props.onDelete} />
+      </ContextMenuContent>
+    </ContextMenu.Root>
   )
 }
 
@@ -140,20 +156,5 @@ function EmptyState({ label, onCreate }: { label: string; onCreate: () => void }
         <Plus size={14} /> Create your first {label.toLowerCase()}
       </button>
     </div>
-  )
-}
-
-function ComingSoon({ labelPlural }: { labelPlural: string }): JSX.Element {
-  return (
-    <motion.div
-      key="soon"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex h-full flex-col items-center justify-center gap-3"
-    >
-      <Construction size={22} className={cn('text-mist-600')} strokeWidth={1.5} />
-      <p className="text-[13px] text-mist-500">The {labelPlural.toLowerCase()} editor lands in a later phase.</p>
-    </motion.div>
   )
 }

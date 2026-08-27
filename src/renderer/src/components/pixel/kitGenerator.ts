@@ -1,5 +1,4 @@
-import { oreFamily } from '@shared/generator/family'
-import { textureSlotsForElement } from '@shared/generator/textures'
+import { kitFamily } from '@shared/generator/family'
 import { useProjectStore } from '@/store/projectStore'
 import { TEXTURE_PRESETS, dataUrlToGrid, gridToDataUrl, type Grid } from './presets'
 
@@ -62,19 +61,11 @@ function extractAccent(grid: Grid): string | null {
 export async function suggestKitAccent(elementId: string): Promise<string | null> {
   const { project } = useProjectStore.getState()
   const element = project?.elements.find((e) => e.id === elementId)
-  const family = element ? oreFamily(element) : null
+  const family = element ? kitFamily(element) : null
   if (!project || !element || !family) return null
 
-  const texById = (id: string | undefined) =>
-    id ? project.textures.find((t) => t.id === id) : undefined
-
-  let source = texById(project.textureAssignments[`item/${family.base}`])
-  if (!source) {
-    const painted = textureSlotsForElement(element).find(
-      (s) => s.key.startsWith('block/') && project.textureAssignments[s.key]
-    )
-    source = texById(painted && project.textureAssignments[painted.key])
-  }
+  const sourceId = project.textureAssignments[`item/${family.base}`]
+  const source = sourceId ? project.textures.find((t) => t.id === sourceId) : undefined
   if (!source) return null
 
   try {
@@ -90,14 +81,14 @@ export async function generateKitTextures(
 ): Promise<KitGenResult> {
   const { project, addTexture, updateTexture, assignTexture } = useProjectStore.getState()
   const element = project?.elements.find((e) => e.id === elementId)
-  const family = element ? oreFamily(element) : null
+  const family = element ? kitFamily(element) : null
   if (!project || !element || !family) return EMPTY_RESULT
 
   const accent = options.accent ?? (await suggestKitAccent(elementId)) ?? DEFAULT_KIT_ACCENT
 
   const jobs: { name: string; preset: string; protect: boolean }[] = []
 
-  if (family.dropsItem) jobs.push({ name: family.base, preset: 'gem', protect: true })
+  jobs.push({ name: family.base, preset: 'gem', protect: true })
   for (const tool of family.tools) {
     jobs.push({ name: tool, preset: tool.slice(family.base.length + 1), protect: false })
   }

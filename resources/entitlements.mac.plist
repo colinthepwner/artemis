@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  What a signed Artemis is allowed to do on macOS.
+
+  Every one of these is here because something breaks without it, not because
+  it appeared in a template. The hardened runtime is deny by default, and the
+  symptom of a missing entitlement is a process that dies on launch with a
+  code signature error in Console and nothing at all in Artemis's own log.
+
+    allow-jit
+    allow-unsigned-executable-memory
+    disable-executable-page-protection
+      A JVM compiles bytecode to machine code and runs it, which is precisely
+      what the hardened runtime exists to prevent. Artemis spawns Gradle, which
+      IS a JVM, and Gradle spawns another for the game. Without these three the
+      first build dies before Gradle prints a line.
+
+    allow-dyld-environment-variables
+    disable-library-validation
+      Gradle and the game load native libraries that Apple did not sign: LWJGL's
+      own dylibs, and whatever the JDK ships. Library validation refuses to load
+      a library signed by a different team, which is all of them.
+
+    files.user-selected.read-write
+      The Open and Save dialogs. Without it a modder can pick a file and then
+      watch the save fail.
+
+    files.downloads.read-write
+      Where a browser puts a .artemis someone was sent, which is the most likely
+      place a project arrives from.
+
+    network.client
+      Fetching Gradle, the BTA manifest, halplibe's maven, and the update check.
+
+    inherit
+      Lives in the INHERIT file rather than this one for child processes, but is
+      declared here too because electron-builder points both settings at this
+      one plist; a helper that does not inherit gets none of the above.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-executable-page-protection</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.inherit</key>
+    <true/>
+  </dict>
+</plist>

@@ -1,0 +1,39 @@
+{
+  // The audit harnesses. They are never bundled into the app (electron-builder
+  // packs out/**, resources/** and package.json only) and run.mjs strips their
+  // types with esbuild rather than checking them, so without this they were
+  // the one body of code in the repo nothing typechecked.
+  //
+  // That is not academic: a harness is only worth what it asserts, and a
+  // harness that quietly stopped asserting is how a stale ore case sat in
+  // gen-smoke.ts exiting 0 while testing nothing. The first run of this config
+  // found a dead backreference in audit-export.ts that had disabled half of a
+  // check, which is exactly that failure again.
+  //
+  // Both libs are on: a harness imports main-process code (node) and renderer
+  // code (DOM) in the same file, which is the whole point of it.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/src/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  },
+  // Two declaration files, for the two things a harness inherits by importing
+  // renderer code: the preload declaration is what puts window.artemis on the
+  // window type, and vite-env is what makes an imported .png a string. Without
+  // the second, a harness that renders the dashboard fails to typecheck on the
+  // logo, which is a build detail and not a fact about the harness.
+  "include": ["scripts/**/*.ts", "src/preload/index.d.ts", "src/renderer/src/vite-env.d.ts"]
+}

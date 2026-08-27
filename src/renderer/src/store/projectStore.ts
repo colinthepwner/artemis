@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import {
   createEmptyProject,
+  titleCase,
   type ArtemisElement,
   type ArtemisProject,
   type ElementKind,
   type ProjectMeta,
-  type ProjectTexture
+  type ProjectTexture,
+  type TextureLayer
 } from '@shared/project'
-import { textureSlotsForElement } from '@shared/generator/textures'
-import { KIND_DEFAULTS } from '@shared/generator/props'
+import { textureSlotsFor, textureSlotsForElement } from '@shared/generator/textures'
+import { KIND_DEFAULTS, type ItemProps } from '@shared/generator/props'
+import { kitFamily } from '@shared/generator/family'
+import { migrateProject } from '@shared/migrate'
 
 function rememberRecent(project: ArtemisProject, path: string): void {
   window.artemis.project.addRecent({
@@ -21,7 +25,7 @@ function rememberRecent(project: ArtemisProject, path: string): void {
   })
 }
 
-function normalize(parsed: ArtemisProject): ArtemisProject {
+export function normalize(parsed: ArtemisProject): ArtemisProject {
   if (parsed.formatVersion !== 1) {
     throw new Error(`Unsupported project format v${parsed.formatVersion}`)
   }
@@ -29,6 +33,8 @@ function normalize(parsed: ArtemisProject): ArtemisProject {
   parsed.textureAssignments ??= {}
   parsed.codeOverrides ??= {}
   parsed.meta.obfuscate ??= true
+
+  migrateProject(parsed)
 
   const itemAssigned = new Set(
     Object.entries(parsed.textureAssignments)
@@ -47,7 +53,7 @@ interface ProjectState {
   filePath: string | null
   dirty: boolean
 
-  newProject: (name: string, modId: string) => void
+  newProject: (name: string, modId: string, targetBta?: string) => void
   openProject: () => Promise<void>
   openProjectByPath: (path: string) => Promise<void>
   saveProject: () => Promise<void>
@@ -57,18 +63,54 @@ interface ProjectState {
   addElement: (kind: ElementKind, name: string, properties: Record<string, unknown>) => string
 
   createElement: (kind: ElementKind) => string
+
+  duplicateElement: (id: string) => string | null
+
+  promoteGenerated: (ownerId: string, registryName: string) => string | null
   updateElement: (id: string, patch: { name?: string; properties?: Record<string, unknown> }) => void
   removeElement: (id: string) => void
   elementsOf: (kind: ElementKind) => ArtemisElement[]
 
   setCodeOverride: (path: string, content: string | null) => void
 
-  addTexture: (name: string, data: string, kind: 'block' | 'item') => string
-  updateTexture: (id: string, patch: { name?: string; data?: string }) => void
+  addTexture: (
+    name: string,
+    data: string,
+    kind: 'block' | 'item',
+    layers?: TextureLayer[]
+  ) => string
+  updateTexture: (
+    id: string,
+    patch: { name?: string; data?: string; layers?: TextureLayer[] }
+  ) => void
   removeTexture: (id: string) => void
 
   assignTexture: (slotKey: string, textureId: string | null) => void
   textureById: (id: string | undefined) => ProjectTexture | undefined
+}
+
+function withMatchedTextures(project: ArtemisProject): ArtemisProject {
+  const byName = new Map<string, ProjectTexture>()
+  for (const t of project.textures) byName.set(t.name.toLowerCase(), t)
+  if (byName.size === 0) return project
+
+  let assignments = project.textureAssignments
+  let changed = false
+  for (const slot of textureSlotsFor(project)) {
+    if (!slot.paintable || assignments[slot.key]) continue
+    const slash = slot.key.indexOf('/')
+    const family = slot.key.slice(0, slash)
+    const wanted = slot.key.slice(slash + 1)
+    const texture = byName.get(wanted.toLowerCase())
+    if (!texture) continue
+    if ((texture.kind ?? 'block') !== family) continue
+    if (!changed) {
+      assignments = { ...assignments }
+      changed = true
+    }
+    assignments[slot.key] = texture.id
+  }
+  return changed ? { ...project, textureAssignments: assignments } : project
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -76,8 +118,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   filePath: null,
   dirty: false,
 
-  newProject: (name, modId) =>
-    set({ project: createEmptyProject(name, modId), filePath: null, dirty: true }),
+  newProject: (name, modId, targetBta) =>
+    set({ project: createEmptyProject(name, modId, targetBta), filePath: null, dirty: true }),
 
   openProject: async () => {
     const res = await window.artemis.project.open()
@@ -123,10 +165,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((s) =>
       s.project
         ? {
-            project: {
+            project: withMatchedTextures({
               ...s.project,
               elements: [...s.project.elements, { id, kind, name, properties, createdAt: now, updatedAt: now }]
-            },
+            }),
             dirty: true
           }
         : s
@@ -161,11 +203,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
 
       return {
-        project: {
+
+        project: withMatchedTextures({
           ...s.project,
           elements: s.project.elements.map((el) => (el.id === id ? newEl : el)),
           textureAssignments: assignments
-        },
+        }),
         dirty: true
       }
     }),
@@ -212,6 +255,85 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return get().addElement(kind, name, structuredClone(KIND_DEFAULTS[kind]))
   },
 
+  promoteGenerated: (ownerId, registryName) => {
+    const project = get().project
+    if (!project) return null
+    const owner = project.elements.find((e) => e.id === ownerId)
+    if (!owner) return null
+
+    const existing = project.elements.find((e) => e.name === registryName)
+    if (existing) return existing.id
+
+    const family = kitFamily(owner)
+    const kitPiece = family
+      ? [...family.tools, ...family.armor].includes(registryName)
+      : false
+    const portal = owner.kind === 'dimension' && registryName === `${owner.name}_portal`
+    if (!kitPiece && !portal) return null
+
+    let newId: string | null = null
+    if (kitPiece) {
+
+      const suffix = registryName.slice(owner.name.length + 1)
+      const ownerProps = owner.properties as Partial<ItemProps>
+      newId = get().addElement('item', registryName, {
+        ...structuredClone(KIND_DEFAULTS['item']),
+        displayName: titleCase(registryName),
+
+        set: structuredClone(ownerProps.set ?? (KIND_DEFAULTS['item'] as { set: unknown }).set),
+        generateSet: false,
+        piece: suffix
+      })
+    } else {
+      newId = get().addElement('block', registryName, {
+        ...structuredClone(KIND_DEFAULTS['block']),
+        displayName: titleCase(registryName)
+      })
+    }
+
+    set((st) =>
+      st.project
+        ? {
+            project: {
+              ...st.project,
+              elements: st.project.elements.map((e) =>
+                e.id === ownerId
+                  ? { ...e, detached: [...(e.detached ?? []), registryName], updatedAt: new Date().toISOString() }
+                  : e
+              )
+            },
+            dirty: true
+          }
+        : st
+    )
+    return newId
+  },
+
+  duplicateElement: (id) => {
+    const src = get().project?.elements.find((e) => e.id === id)
+    if (!src) return null
+
+    const taken = new Set((get().project?.elements ?? []).map((e) => e.name))
+
+    const stem = src.name.replace(/_copy(_\d+)?$/, '')
+    let name = `${stem}_copy`
+    for (let i = 2; taken.has(name); i++) name = `${stem}_copy_${i}`
+
+    const properties = structuredClone(src.properties)
+
+    if (Array.isArray(properties['variants'])) {
+      properties['variants'] = (properties['variants'] as { id?: string }[]).map((v) => ({
+        ...v,
+        id: crypto.randomUUID()
+      }))
+    }
+    const display = properties['displayName']
+    if (typeof display === 'string' && display) {
+      properties['displayName'] = `${display.replace(/ copy( \d+)?$/i, '')} copy`
+    }
+    return get().addElement(src.kind, name, properties)
+  },
+
   elementsOf: (kind) => get().project?.elements.filter((el) => el.kind === kind) ?? [],
 
   setCodeOverride: (path, content) =>
@@ -223,7 +345,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return { project: { ...s.project, codeOverrides: overrides }, dirty: true }
     }),
 
-  addTexture: (name, data, kind) => {
+  addTexture: (name, data, kind, layers) => {
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     set((s) =>
@@ -231,7 +353,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         ? {
             project: {
               ...s.project,
-              textures: [...s.project.textures, { id, name, data, kind, createdAt: now, updatedAt: now }]
+              textures: [
+                ...s.project.textures,
+                { id, name, data, kind, layers, createdAt: now, updatedAt: now }
+              ]
             },
             dirty: true
           }
@@ -248,7 +373,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               ...s.project,
               textures: s.project.textures.map((t) =>
                 t.id === id
-                  ? { ...t, name: patch.name ?? t.name, data: patch.data ?? t.data, updatedAt: new Date().toISOString() }
+                  ? {
+                      ...t,
+                      name: patch.name ?? t.name,
+                      data: patch.data ?? t.data,
+                      layers: patch.layers ?? t.layers,
+                      updatedAt: new Date().toISOString()
+                    }
                   : t
               )
             },

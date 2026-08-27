@@ -2,9 +2,12 @@
 
 A visual mod maker for Better Than Adventure! 8.0.1.
 
-Create blocks, ores, liquids, plants, trees, recipes, mobs and biomes through guided editors, paint
-their textures in a built in pixel editor with layers and lighting, test the mod in game, and export
-a ready to drop jar.
+Create blocks, items, ores, liquids, plants, trees, structures, recipes, mobs, biomes and
+dimensions through guided editors, paint their textures in a built in pixel editor with layers and
+lighting, build trees and structures block by block in 3D, test the mod in game, and export a ready
+to drop jar.
+
+A guided tour runs the first time you open it, and can be reopened from the Artemis Settings menu.
 
 ## Download
 

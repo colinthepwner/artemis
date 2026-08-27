@@ -1,12 +1,19 @@
 import { app, ipcMain, shell, type WebContents } from 'electron'
-import type { ChildProcess } from 'child_process'
+import { spawn, type ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { IPC, type TestState } from '../../shared/ipc'
 import type { ArtemisProject } from '../../shared/project'
 import { getMapping } from '../../shared/generator/mappings'
 import { exportWorkspace } from '../export/exporter'
-import { runGradle, killGradle, DEFAULT_GRADLE_VERSION, type GradleRun } from '../gradle'
+import {
+  runGradle,
+  killGradle,
+  powershellPath,
+  warnIfNoJava,
+  DEFAULT_GRADLE_VERSION,
+  type GradleRun
+} from '../gradle'
 
 let child: ChildProcess | null = null
 let sender: WebContents | null = null
@@ -23,8 +30,54 @@ function emitState(state: TestState): void {
   if (sender && !sender.isDestroyed()) sender.send(IPC.TestState, state)
 }
 
+export function killClientProcesses(dir: string, onLine: (line: string) => void = () => {}): ChildProcess {
+  const watched = (child: ChildProcess): ChildProcess => {
+    child.on('error', () => onLine('Could not reach the client process. Close the game window by hand.'))
+    return child
+  }
+
+  if (process.platform === 'win32') {
+
+    return watched(
+      spawn(
+        powershellPath(),
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+
+          'Get-CimInstance Win32_Process |' +
+            " Where-Object { ($_.Name -eq 'java.exe' -or $_.Name -eq 'javaw.exe')" +
+            " -and $_.CommandLine -like ('*' + $env:ARTEMIS_WORKSPACE + '*') } |" +
+            ' ForEach-Object { Stop-Process -Id $_.ProcessId -Force }'
+        ],
+
+        { env: { ...process.env, ARTEMIS_WORKSPACE: dir }, windowsHide: true }
+      )
+    )
+  }
+
+  const killer = watched(spawn('pkill', ['-f', dir]))
+  killer.on('error', () => {
+    watched(
+      spawn('sh', [
+        '-c',
+
+        'ps ax -o pid=,command= | grep -F "$0" | grep -v grep | ' +
+          "awk '{print $1}' | xargs -r kill",
+        dir
+      ])
+    )
+  })
+  return killer
+}
+
 export function registerTestIpc(): void {
-  ipcMain.handle(IPC.TestStart, async (e, projectJson: string): Promise<{ ok: boolean; error?: string }> => {
+  ipcMain.handle(IPC.TestStart, async (
+    e,
+    projectJson: string,
+    options?: { bundleTestMods?: boolean }
+  ): Promise<{ ok: boolean; error?: string }> => {
     if (child) return { ok: false, error: 'A test session is already running. Stop it first.' }
     sender = e.sender
 
@@ -41,7 +94,10 @@ export function registerTestIpc(): void {
     emitLog(`Preparing test workspace: ${dir}`)
     try {
       const exportLog: string[] = []
-      await exportWorkspace(project, dir, exportLog)
+
+      await exportWorkspace(project, dir, exportLog, {
+        devMods: options?.bundleTestMods !== false
+      })
       exportLog.forEach(emitLog)
     } catch (err) {
       emitLog(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -66,6 +122,8 @@ export function registerTestIpc(): void {
 
     let run: GradleRun
     try {
+
+      warnIfNoJava(emitLog)
 
       run = await runGradle(
         dir,
@@ -109,6 +167,18 @@ export function registerTestIpc(): void {
     if (!child) return
     emitLog('Stopping test session…')
     killGradle(child)
+  })
+
+  ipcMain.on(IPC.TestKill, (_e, modId: string) => {
+    if (child) killGradle(child)
+    const dir = workspaceDir(modId)
+    emitLog('Killing the client…')
+
+    try {
+      killClientProcesses(dir, emitLog)
+    } catch {
+      emitLog('Could not reach the client process. Close the game window by hand.')
+    }
   })
 
   ipcMain.on(IPC.TestOpenWorkspace, (_e, modId: string) => {

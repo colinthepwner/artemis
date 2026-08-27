@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useProjectStore } from '@/store/projectStore'
+import { tintVanillaArt } from './foliageTints'
 
 export interface VanillaArt {
   blocks: Record<string, string>
   items: Record<string, string>
+
+  tops: Record<string, string>
+
+  tints?: Record<string, string>
 }
 
-const EMPTY: VanillaArt = { blocks: {}, items: {} }
+const EMPTY: VanillaArt = { blocks: {}, items: {}, tops: {} }
 
 const inFlight = new Map<string, Promise<VanillaArt>>()
 
@@ -18,7 +23,7 @@ export function useVanillaArt(): VanillaArt {
     let live = true
     let pending = inFlight.get(targetBta)
     if (!pending) {
-      pending = window.artemis.vanilla.art(targetBta).catch(() => EMPTY)
+      pending = window.artemis.vanilla.art(targetBta).then(tintVanillaArt).catch(() => EMPTY)
       inFlight.set(targetBta, pending)
     }
     void pending.then((a) => live && setArt(a))

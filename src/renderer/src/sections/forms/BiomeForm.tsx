@@ -1,12 +1,20 @@
 import { useMemo } from 'react'
-import { Plus, X } from 'lucide-react'
 import type { ElementFormProps } from './registry'
 import { FormShell, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
-import { Field, NumberInput, Select, Slider } from '@/components/ui/controls'
+import { Field, Select, Slider, Switch, SwitchList } from '@/components/ui/controls'
 import { ItemRefField } from '@/components/pixel/ItemRefPicker'
 import { BIOME_DEFAULTS, type BiomeProps } from '@shared/generator/props'
+import { HostBiomeField } from './BiomesField'
 import { useProjectStore } from '@/store/projectStore'
 import { titleCase } from '@shared/generator/templates/block'
+import { ClimateSlider } from '@/components/pixel/blockControls'
+
+const WEATHER_OPTIONS = [
+  { value: 'rain', label: 'Rain' },
+  { value: 'snow', label: 'Snow' },
+  { value: 'storm', label: 'Storms' },
+  { value: 'fog', label: 'Fog' }
+]
 
 export function BiomeForm({ element, onClose }: ElementFormProps): JSX.Element | null {
   if (!element) return null
@@ -23,46 +31,141 @@ function Inner({
   const [p, patch] = usePropEditor<BiomeProps>(element, BIOME_DEFAULTS)
 
   const allElements = useProjectStore((s) => s.project?.elements)
-  const mobs = useMemo(() => allElements?.filter((e) => e.kind === 'mob') ?? [], [allElements])
-  const mobOptions = mobs.map((m) => ({
-    value: m.name,
-    label: (m.properties['displayName'] as string) || titleCase(m.name)
-  }))
+
+  const claimants = useMemo(
+    () =>
+      allElements?.filter(
+        (e) =>
+          e.kind === 'tree' &&
+          ((e.properties['biomes'] as string[] | undefined) ?? []).some(
+            (r) => r.trim() === element.name
+          )
+      ) ?? [],
+    [allElements, element.name]
+  )
+  const inOverworld = p.generateInOverworld
+  const genStyle = p.generationStyle ?? 'substitute'
 
   const steps: WizardStep[] = [
     {
-      id: 'climate',
-      title: 'Climate',
-      desc: 'Where this biome sits in the world climate table.',
+      id: 'placement',
+      title: 'Where',
+      desc: 'Whether this biome generates naturally in the overworld.',
       content: (
         <>
-          <Field label="Temperature" hint="0 frozen · 1 scorching.">
-            <Slider value={p.temperature} onChange={(v) => patch('temperature', v)} min={0} max={1} step={0.05} />
+          <Field label="Generate in Overworld">
+            <Switch
+              checked={inOverworld}
+              onChange={(v) => patch('generateInOverworld', v)}
+              label="Generate in Overworld"
+              hint="Turn off to reserve this biome exclusively for custom dimensions."
+            />
           </Field>
-          <Field label="Humidity">
-            <Slider value={p.humidity} onChange={(v) => patch('humidity', v)} min={0} max={1} step={0.05} />
+          {inOverworld ? (
+            <>
+              <Field label="Generation Style">
+                <Select
+                  value={genStyle}
+                  onChange={(v) => patch('generationStyle', v as BiomeProps['generationStyle'])}
+                  options={[
+                    { value: 'substitute', label: 'Replaces Vanilla Biome (Reliable)' },
+                    { value: 'climate', label: 'Natural Climate (Advanced)' }
+                  ]}
+                />
+              </Field>
+              {genStyle === 'substitute' && (
+                <Field label="Replaces Vanilla Biome" hint="Your biome will automatically generate anywhere this vanilla biome would have.">
+                  <HostBiomeField value={p.hostBiome} onChange={(v) => patch('hostBiome', v)} />
+                </Field>
+              )}
+              <Field
+                label={genStyle === 'substitute' ? 'How Much Of It' : 'Frequency'}
+                hint={genStyle === 'substitute' ? "1 replaces it everywhere. Lower carves patches out of it and leaves the rest." : "1 attempts to spawn everywhere the climate matches. Lower scatters it in patches."}
+              >
+                <Slider value={p.rarity} onChange={(v) => patch('rarity', v)} min={0.05} max={1} step={0.05} />
+              </Field>
+            </>
+          ) : (
+            <p className="text-2xs leading-relaxed text-mist-600">
+              The overworld is left alone. Create a Dimension element and pick this biome there;
+              it appears nowhere else.
+            </p>
+          )}
+        </>
+      )
+    },
+    {
+      id: 'climate',
+      title: 'Climate',
+      desc: 'Not where it goes, but what it is like there: weather, and the colour of the grass.',
+      content: (
+        <>
+          <Field label="Temperature" hint="Below about 0.15 it snows instead of raining.">
+            <ClimateSlider
+              value={p.temperature}
+              onChange={(v) => patch('temperature', v)}
+              marks={[
+                { at: 0.1, swatch: 'snow', label: 'Snow' },
+                { at: 0.5, swatch: 'dirt', label: 'Grass' },
+                { at: 0.9, swatch: 'sand', label: 'Desert' }
+              ]}
+            />
           </Field>
-          <Field label="Climate Range" hint="How wide a climate band this biome claims.">
-            <Slider value={p.variance} onChange={(v) => patch('variance', v)} min={0.05} max={0.5} step={0.05} />
+          <Field label="Humidity" hint="Drier reads yellower, wetter reads greener.">
+            <ClimateSlider
+              value={p.humidity}
+              onChange={(v) => patch('humidity', v)}
+              marks={[
+                { at: 0.1, swatch: 'deadbush', label: 'Dry' },
+                { at: 0.5, swatch: 'grass', label: 'Lush' },
+                { at: 0.9, swatch: 'water', label: 'Wet' }
+              ]}
+            />
           </Field>
+          <Field label="Never Has" hint="Weather that skips this biome entirely. Most places want none of these.">
+            <SwitchList
+              options={WEATHER_OPTIONS}
+              selected={p.blockedWeathers ?? []}
+              onChange={(v) => patch('blockedWeathers', v)}
+            />
+          </Field>
+          <OptionalColorField
+            label="Custom grass colour"
+            hint="A fixed tint for grass here, all year: setting it is what turns seasons off for this biome. Off, grass follows the climate and the calendar."
+            value={p.grassColor}
+            fallback="5cb04a"
+            onChange={(v) => patch('grassColor', v)}
+          />
         </>
       )
     },
     {
       id: 'colors',
-      title: 'Colors',
-      desc: 'The tint of grass and leaves inside the biome.',
+      title: 'Sky & Water',
+      desc: 'The colour overhead and in the water. Vanilla paints both from the climate; set one only if this place should feel different.',
       content: (
-        <div className="grid grid-cols-2 gap-3">
-          <ColorField label="Grass" value={p.grassColor} onChange={(v) => patch('grassColor', v)} />
-          <ColorField label="Foliage" value={p.foliageColor} onChange={(v) => patch('foliageColor', v)} />
-        </div>
+        <>
+          <OptionalColorField
+            label="Custom sky colour"
+            hint="A fixed sky, the way the Drift wears its own. Off, the sky follows temperature."
+            value={p.skyColor}
+            fallback="78a7ff"
+            onChange={(v) => patch('skyColor', v)}
+          />
+          <OptionalColorField
+            label="Custom water colour"
+            hint="Tints water standing in this biome. Off, water follows the climate."
+            value={p.waterColor}
+            fallback="3f76e4"
+            onChange={(v) => patch('waterColor', v)}
+          />
+        </>
       )
     },
     {
       id: 'surface',
       title: 'Surface',
-      desc: 'What the ground is built from.',
+      desc: 'What the ground is built from, and how it reads on a map.',
       content: (
         <>
           <div className="grid grid-cols-2 gap-3">
@@ -83,69 +186,43 @@ function Inner({
               />
             </Field>
           </div>
-          <Field label="Tree Density">
-            <Slider value={p.treeDensity} onChange={(v) => patch('treeDensity', v)} min={0} max={20} />
+          <Field
+            label="Trees"
+            hint="Which of your trees grow here is the trees' own choice: tick this biome on the tree's World Gen slide. Any tree that claims it replaces the oaks."
+          >
+            <div className="flex flex-col gap-2">
+              {claimants.length > 0 ? (
+                <p className="text-2xs leading-relaxed text-mist-400">
+                  Claimed by{' '}
+                  <span className="text-mist-200">
+                    {claimants
+                      .map((t) => (t.properties['displayName'] as string) || t.name)
+                      .join(', ')}
+                  </span>
+                  {' — '}vanilla oaks are replaced here regardless of the switch below.
+                </p>
+              ) : (
+                <Switch
+                  checked={p.vanillaTrees !== false}
+                  onChange={(v) => patch('vanillaTrees', v)}
+                  label="Spawn vanilla trees"
+                  hint="Off makes this biome treeless until one of your trees claims it."
+                />
+              )}
+            </div>
           </Field>
+          {
+
+}
+          <ColorField
+            label="Map Colour"
+            value={p.mapColor}
+            onChange={(v) => patch('mapColor', v)}
+          />
         </>
       )
     },
-    {
-      id: 'spawns',
-      title: 'Spawns',
-      desc: 'Which of your mobs appear here. Vanilla spawns still apply.',
-      content: (
-        <>
-          {p.spawns.length === 0 && (
-            <p className="text-2xs text-mist-600">
-              {mobs.length === 0
-                ? 'Create a mob first. Spawns pick from the mobs in this mod.'
-                : 'No custom spawns yet.'}
-            </p>
-          )}
-          {p.spawns.map((spawn, i) => (
-            <div key={i} className="flex items-end gap-2">
-              <Field label="Mob" className="flex-1">
-                <Select
-                  value={spawn.entity}
-                  onChange={(v) => {
-                    const next = [...p.spawns]
-                    next[i] = { ...spawn, entity: v }
-                    patch('spawns', next)
-                  }}
-                  options={mobOptions}
-                />
-              </Field>
-              <Field label="Weight" className="w-24">
-                <NumberInput
-                  value={spawn.weight}
-                  onChange={(v) => {
-                    const next = [...p.spawns]
-                    next[i] = { ...spawn, weight: v }
-                    patch('spawns', next)
-                  }}
-                  min={1}
-                  max={100}
-                />
-              </Field>
-              <button
-                onClick={() => patch('spawns', p.spawns.filter((_, j) => j !== i))}
-                className="mb-1 shrink-0 rounded-md p-2 text-mist-500 transition-colors hover:bg-ember-500/15 hover:text-ember-400"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-          {mobs.length > 0 && (
-            <button
-              onClick={() => patch('spawns', [...p.spawns, { entity: mobs[0].name, weight: 10 }])}
-              className="flex items-center gap-1.5 rounded-md bg-ink-800 px-3 py-1.5 text-2xs text-mist-400 shadow-panel transition-colors hover:bg-ink-750 hover:text-mist-200"
-            >
-              <Plus size={12} /> Add spawn
-            </button>
-          )}
-        </>
-      )
-    }
+
   ]
 
   const checks: ReviewCheck[] = [
@@ -160,29 +237,57 @@ function Inner({
   return <FormShell element={element} onClose={onClose} steps={steps} checks={checks} />
 }
 
+function OptionalColorField(props: {
+  label: string
+  hint: string
+  value: string
+
+  fallback: string
+  onChange: (v: string) => void
+}): JSX.Element {
+  const on = props.value.trim() !== ''
+  return (
+    <div className="space-y-3">
+      <Switch
+        checked={on}
+        onChange={(v) => props.onChange(v ? props.fallback : '')}
+        label={props.label}
+        hint={props.hint}
+      />
+      {on && <ColorRow value={props.value} onChange={props.onChange} />}
+    </div>
+  )
+}
+
 function ColorField(props: { label: string; value: string; onChange: (v: string) => void }): JSX.Element {
-  const hex = props.value.replace(/[^0-9a-fA-F]/g, '').padEnd(6, '0').slice(0, 6)
   return (
     <Field label={props.label}>
-      <div className="flex items-center gap-2">
-        {}
-        <label
-          className="relative h-7 w-7 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
-          style={{ background: `#${hex}` }}
-        >
-          <input
-            type="color"
-            className="absolute inset-0 h-full w-full opacity-0"
-            value={`#${hex}`}
-            onChange={(e) => props.onChange(e.target.value.slice(1))}
-          />
-        </label>
-        <input
-          className="input-base font-mono"
-          value={props.value}
-          onChange={(e) => props.onChange(e.target.value.replace(/^#/, ''))}
-        />
-      </div>
+      <ColorRow value={props.value} onChange={props.onChange} />
     </Field>
+  )
+}
+
+function ColorRow(props: { value: string; onChange: (v: string) => void }): JSX.Element {
+  const hex = props.value.replace(/[^0-9a-fA-F]/g, '').padEnd(6, '0').slice(0, 6)
+  return (
+    <div className="flex items-center gap-2">
+      {}
+      <label
+        className="relative h-7 w-7 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
+        style={{ background: `#${hex}` }}
+      >
+        <input
+          type="color"
+          className="absolute inset-0 h-full w-full opacity-0"
+          value={`#${hex}`}
+          onChange={(e) => props.onChange(e.target.value.slice(1))}
+        />
+      </label>
+      <input
+        className="input-base font-mono"
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value.replace(/^#/, ''))}
+      />
+    </div>
   )
 }

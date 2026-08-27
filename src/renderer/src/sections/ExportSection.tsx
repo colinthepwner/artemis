@@ -4,6 +4,9 @@ import { useProjectStore } from '@/store/projectStore'
 import { useAppStore } from '@/store/appStore'
 import { Switch } from '@/components/ui/controls'
 import { CopyLogButton } from '@/sections/TestingSection'
+import { useAttention } from '@/components/ui/attention'
+import { UnfinishedList, useUnfinished } from '@/components/ui/Unfinished'
+import { autoFixProject } from '@shared/readiness'
 import { cn } from '@/lib/cn'
 
 export function ExportSection(): JSX.Element {
@@ -16,6 +19,20 @@ export function ExportSection(): JSX.Element {
   const [jarPath, setJarPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const unfinished = useUnfinished()
+  const { attention, callAttention } = useAttention()
+  const [showUnfinished, setShowUnfinished] = useState(false)
+
+  const attempt = (): void => {
+    if (unfinished.length > 0) {
+      setShowUnfinished(true)
+      callAttention()
+      return
+    }
+    setShowUnfinished(false)
+    void run()
+  }
+
   const run = async (): Promise<void> => {
     if (!project || busy) return
     setBusy(true)
@@ -24,7 +41,9 @@ export function ExportSection(): JSX.Element {
     setOutPath(null)
     setJarPath(null)
     try {
-      const res = await window.artemis.export.workspace(JSON.stringify(project))
+      const clone = JSON.parse(JSON.stringify(project))
+      autoFixProject(clone)
+      const res = await window.artemis.export.workspace(JSON.stringify(clone))
       setLog(res.log)
       if (res.ok && res.path) setOutPath(res.path)
       if (res.jarPath) setJarPath(res.jarPath)
@@ -72,21 +91,41 @@ export function ExportSection(): JSX.Element {
               label="Obfuscate exported mod"
             />
             <p className="mt-1 text-2xs leading-relaxed text-mist-500">
-              Adds a ProGuard step to the build that renames all internal classes and members, keeping
-              a stability list for entrypoints, overrides, mixins and reflection. Registry IDs and
-              string identifiers are unaffected. Turn off while debugging a build issue.
+              Obfuscation scrambles the names inside your mod, so anyone who opens the jar sees
+              working code with every class and method renamed to nonsense rather than something
+              they can read and copy. Artemis does it with a ProGuard step that keeps a stability
+              list for entrypoints, overrides, mixins and reflection, so the parts the game calls by
+              name still work. Registry IDs and string identifiers are unaffected. Turn off while
+              debugging a build issue.
             </p>
           </div>
         </div>
       </div>
 
+      {showUnfinished && unfinished.length > 0 && (
+        <div className="mt-5">
+          <UnfinishedList
+            items={unfinished}
+            proceed={{
+              label: 'Build anyway — unfinished content ships as-is',
+              onClick: () => {
+                setShowUnfinished(false)
+                void run()
+              }
+            }}
+          />
+        </div>
+      )}
+
       <div className="mt-5 flex items-center gap-3">
         <button
-          onClick={() => void run()}
+          data-tour="export-run"
+          onClick={attempt}
           disabled={!project || busy}
           className={cn(
             'flex items-center gap-2 rounded-md bg-gold-500 px-5 py-2.5 text-[13px] font-semibold text-ink-950 transition-all',
-            busy ? 'opacity-60' : 'hover:bg-gold-400 active:scale-[0.98]'
+            busy ? 'opacity-60' : 'hover:bg-gold-400 active:scale-[0.98]',
+            attention && 'jiggle'
           )}
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <PackageOpen size={15} />}

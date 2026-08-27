@@ -6,6 +6,10 @@ import { IPC, type RecentProject } from '../../shared/ipc'
 
 const ARTEMIS_FILTER = [{ name: 'Artemis Project', extensions: ['artemis'] }]
 
+export function prefsFile(): string {
+  return join(projectsRoot(), 'preferences.json')
+}
+
 export function projectsRoot(): string {
   const dir = join(app.getPath('documents'), 'ArtemisForBTA')
   try {
@@ -92,6 +96,27 @@ export function registerProjectIpc(): void {
   })
 
   ipcMain.handle(IPC.ProjectsDir, () => projectsRoot())
+
+  ipcMain.handle(IPC.PrefsLoad, (): Record<string, unknown> => {
+    try {
+      const raw = readFileSync(prefsFile(), 'utf-8')
+      const parsed: unknown = JSON.parse(raw)
+
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {}
+    } catch {
+      return {}
+    }
+  })
+
+  ipcMain.on(IPC.PrefsSave, (_e, prefs: Record<string, unknown>) => {
+    try {
+      writeFileSync(prefsFile(), JSON.stringify(prefs, null, 2), 'utf-8')
+    } catch {
+
+    }
+  })
 
   ipcMain.handle(IPC.ProjectOpenPath, async (_e, path: string) => {
     if (!existsSync(path)) return null
