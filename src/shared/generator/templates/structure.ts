@@ -2,7 +2,7 @@ import type { ArtemisElement } from '../../project'
 import { toPascalCase } from '../../project'
 import { STRUCTURE_DEFAULTS, type BuildVariant, type StructureProps } from '../props'
 import { render, JavaWriter } from '../template'
-import { biomeGuard } from '../biomeFilter'
+import { biomeGuard, extraGroundTest } from '../biomeFilter'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
 
 export function structureFeatureClassName(registryName: string): string {
@@ -22,7 +22,9 @@ export function variantFeatureWriter(
   className: string,
   variants: BuildVariant[],
   isTree: boolean,
-  ctx: EmitContext
+  ctx: EmitContext,
+
+  groundRefs: string[] = []
 ): JavaWriter {
   const s = ctx.mapping.structure
   const w = new JavaWriter(`${ctx.pkg}.worldgen`, ctx.mapping.imports)
@@ -63,7 +65,7 @@ export function variantFeatureWriter(
       variantCount: variants.length,
       cases,
       variantMethods: methods.join('\n'),
-      guard: isTree ? s.treeGuard : ''
+      guard: isTree ? render(s.treeGuard, { extraGround: extraGroundTest(groundRefs, w, ctx) }) : ''
     })
   )
   return w

@@ -36,7 +36,7 @@ interface Expectations {
 
   treelessBiomes: string[]
 
-  claimedBiomes: { biome: string; logField: string }[]
+  claimedBiomes: { biome: string; logFields: string[] }[]
 
   dimensions: { field: string; idField: string; biomes: string[]; vanillaBiomes: string[] }[]
   langKeys: string[]
@@ -114,6 +114,14 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
         )
         .map((r) => ({ biome: `${project.meta.modId}:${r}`, logField }))
     })
+
+    .reduce<{ biome: string; logFields: string[] }[]>((acc, one) => {
+      const found = acc.find((g) => g.biome === one.biome)
+      if (found) {
+        if (!found.logFields.includes(one.logField)) found.logFields.push(one.logField)
+      } else acc.push({ biome: one.biome, logFields: [one.logField] })
+      return acc
+    }, [])
 
   const dimensions = project.elements
     .filter((el) => el.kind === 'dimension')
@@ -195,7 +203,9 @@ ${javaList(e.treelessBiomes)}
 \t/** biomes a tree of the mod's claims, and the ModBlocks constant it plants
 \t *  there, index for index. See Expectations.claimedBiomes */
 \tprivate static final String[][] CLAIMED_BIOMES = {
-${e.claimedBiomes.map((c) => `\t\t{ "${c.biome}", "${c.logField}" }`).join(',\n')}
+${e.claimedBiomes
+  .map((c) => `\t\t{ "${c.biome}", ${c.logFields.map((f) => `"${f}"`).join(', ')} }`)
+  .join(',\n')}
 \t};
 \tprivate static final String[] NO_BIOMES = {};
 \t/** the mod id, which is the namespace every entry of this mod's must carry */
@@ -640,7 +650,7 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t *  that first fetched one, so it asks for its own rather than holding a
 \t *  reference across three phases of a racing boot. */
 \tprivate static void treeCensusOverworld() {
-\t\tif (TREELESS_BIOMES.length == 0) return;
+\t\tif (TREELESS_BIOMES.length == 0 && CLAIMED_BIOMES.length == 0) return;
 \t\tnet.minecraft.core.world.World world = awaitWorld(0, 60);
 \t\tif (world == null) {
 \t\t\twcheck("the overworld was still there for the tree census", false,
@@ -685,17 +695,7 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t\t\tfinal int STEP = 64;
 
 \t\t\tfor (String wanted : TREELESS_BIOMES) {
-\t\t\t\tjava.util.List<int[]> spots = new java.util.ArrayList<>();
-\t\t\t\touter:
-\t\t\t\tfor (int x = -HALF; x < HALF; x += STEP) {
-\t\t\t\t\tfor (int z = -HALF; z < HALF; z += STEP) {
-\t\t\t\t\t\tnet.minecraft.core.world.biome.Biome b = provider.getBiome(x, 64, z);
-\t\t\t\t\t\tif (b == null) continue;
-\t\t\t\t\t\tif (!wanted.equals(b.getRegistryKey())) continue;
-\t\t\t\t\t\tspots.add(new int[] { x >> 4, z >> 4 });
-\t\t\t\t\t\tif (spots.size() >= CHUNKS_PER_BIOME) break outer;
-\t\t\t\t\t}
-\t\t\t\t}
+\t\t\t\tjava.util.List<int[]> spots = spreadSpots(provider, wanted, HALF, STEP, CHUNKS_PER_BIOME);
 \t\t\t\twcheck("the census found somewhere " + wanted + " actually is",
 \t\t\t\t\tspots.size() > 0,
 \t\t\t\t\t"no column of it in the sampled grid, so nothing was grown to look at");
@@ -705,6 +705,10 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t\t\t\tint coal = 0;
 \t\t\t\tint columnsCounted = 0;
 \t\t\t\tint grown = 0;
+\t\t\t\tint ownLogs = 0;
+\t\t\t\tint ownCoal = 0;
+\t\t\t\tint ownColumns = 0;
+\t\t\t\tint ownChunks = 0;
 \t\t\t\tfor (int[] spot : spots) {
 \t\t\t\t\t// A chunk is only DECORATED once its three neighbours to the
 \t\t\t\t\t// east, south and south-east are there: that is where the game
@@ -718,15 +722,23 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t\t\t\t\t}
 \t\t\t\t\tif (!ready) continue;
 \t\t\t\t\tgrown++;
-\t\t\t\t\tint[] tally = census(world, provider, spot[0], spot[1], wanted);
+\t\t\t\t\tint[] tally = countChunk(world, provider, spot[0], spot[1], wanted, NO_TRUNKS);
 \t\t\t\t\tlogs += tally[0];
-\t\t\t\t\tcoal += tally[1];
-\t\t\t\t\tcolumnsCounted += tally[2];
+\t\t\t\t\tcoal += tally[2];
+\t\t\t\t\tcolumnsCounted += tally[3];
+\t\t\t\t\tif (decoratedOnlyBy(world, spot[0], spot[1], wanted)) {
+\t\t\t\t\t\townChunks++;
+\t\t\t\t\t\townLogs += tally[0];
+\t\t\t\t\t\townCoal += tally[2];
+\t\t\t\t\t\townColumns += tally[3];
+\t\t\t\t\t}
 \t\t\t\t}
 
 \t\t\t\tSystem.out.println("ARTEMIS-WORLDGEN CENSUS " + wanted + " logs=" + logs
 \t\t\t\t\t+ " coal=" + coal + " columns=" + columnsCounted
-\t\t\t\t\t+ " grown=" + grown + "/" + spots.size());
+\t\t\t\t\t+ " grown=" + grown + "/" + spots.size()
+\t\t\t\t\t+ " | decorated only as itself: chunks=" + ownChunks
+\t\t\t\t\t+ " logs=" + ownLogs + " coal=" + ownCoal + " columns=" + ownColumns);
 
 \t\t\t\twcheck("the census grew ground it could count in " + wanted,
 \t\t\t\t\tcolumnsCounted > 0,
@@ -745,35 +757,474 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t\t\t\twcheck("and the decorator ran over that ground, so a zero means it declined",
 \t\t\t\t\tcoal > 0,
 \t\t\t\t\t"not one ore vein in " + columnsCounted + " columns either: these chunks were generated but never decorated, so nothing here is evidence about trees");
+\t\t\t\t// The absence is asserted over the DECORATED-ONLY-AS-ITSELF chunks
+\t\t\t\t// and not over every column of the biome, and A68 is the reason.
+\t\t\t\t// BTA decorates a chunk as ONE biome, sampled at a single point, and
+\t\t\t\t// then plants that biome´s trees at offsets which cross into the
+\t\t\t\t// neighbouring chunk. So an oak standing in this biome´s column can
+\t\t\t\t// be a forest chunk´s doing, and no mod can prevent it. Demanding
+\t\t\t\t// zero over every column would be demanding something Artemis does
+\t\t\t\t// not control, and it fired for real: 9 oaks inside a claimed biome
+\t\t\t\t// whose override was working perfectly.
+\t\t\t\twcheck("and there is ground of " + wanted + " that only it decorated",
+\t\t\t\t\townColumns > 0,
+\t\t\t\t\t"no chunk sampled was decorated only as " + wanted + " (" + grown + " grown), so a zero would be about somebody else´s trees");
+\t\t\t\tif (ownColumns == 0) continue;
+\t\t\t\twcheck("and the decorator ran over THAT ground too",
+\t\t\t\t\townCoal > 0,
+\t\t\t\t\t"not one ore vein in the " + ownColumns + " columns the biome decorated itself");
 \t\t\t\twcheck("biome " + wanted + " grew no tree, as it asked",
-\t\t\t\t\tlogs == 0,
-\t\t\t\t\tlogs + " log blocks standing in " + columnsCounted + " of its own columns: vanillaTrees is off and the game planted trees there anyway");
+\t\t\t\t\townLogs == 0,
+\t\t\t\t\townLogs + " log blocks standing in " + ownColumns + " columns this biome decorated itself: vanillaTrees is off and the game planted trees there anyway");
 \t\t\t}
+
+\t\t\tclaimedCensus(world, provider);
 \t\t} finally {
 \t\t\tif (override) allowChunkLoads(world, false);
 \t\t}
 \t}
 
 \t/**
-\t * One chunk, counted only where it belongs to the biome under test.
+\t * The other half of the same ground, and the question A65 deliberately left
+\t * alone.
 \t *
-\t * A chunk straddles biomes, so a chunk containing a treeless biome usually
-\t * contains a wooded one as well and counting the whole chunk would count
-\t * that one's oaks. Every column is therefore asked its own biome and only
-\t * the matching ones are counted.
+\t * A biome with vanillaTrees off that a tree of the mod´s ALSO claims never
+\t * gets the "no trees at all" override: the claim replaces the oaks by
+\t * itself. Demanding no logs there would be demanding that the mod´s own tree
+\t * fail to grow, so those biomes are dropped from TREELESS_BIOMES and until
+\t * now nothing asked anything about them at all. The sharper question is what
+\t * the claim actually put in the ground, and it has three parts which only
+\t * mean anything together:
+\t *
+\t *   the mod´s OWN trunk is standing there   the claim was planted
+\t *   no oak is standing beside it            the claim REPLACED rather than
+\t *                                           joined the vanilla trees
+\t *   an ore vein is in the same columns      the decorator walked this ground,
+\t *                                           so both of the above are answers
+\t *                                           rather than the silence of a
+\t *                                           chunk that was never decorated
+\t *
+\t * The trunk is compared by IDENTITY against the ModBlocks field the project
+\t * says the tree plants. Blocks in BTA are singletons, so identity is the
+\t * exact question, and it is a stricter one than a logic class: LOG_OAK and a
+\t * mod´s own log share BlockLogicLog, which is what lets the oak count come
+\t * off the same walk and is the reason the treeless census can count "a log"
+\t * while this one cannot.
+\t */
+\tprivate static void claimedCensus(net.minecraft.core.world.World world,
+\t\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider) {
+\t\tif (CLAIMED_BIOMES.length == 0) return;
+\t\tClass<?> holder;
+\t\ttry {
+\t\t\tholder = Class.forName("${pkg}.init.ModBlocks");
+\t\t} catch (Throwable t) {
+\t\t\twcheck("the block holder loaded for the claimed-tree census", false, String.valueOf(t));
+\t\t\treturn;
+\t\t}
+
+\t\tfinal int CHUNKS_PER_BIOME = 4;
+\t\tfinal int HALF = 2048;
+\t\tfinal int STEP = 64;
+
+\t\t// Every census FIRST, and only then any planting, because plantClaim puts
+\t\t// real trees in the real world and a census that ran afterwards would be
+\t\t// counting them. That is not hypothetical: with two trees claiming one
+\t\t// biome, the second pass of the first version reported five trunks grown
+\t\t// naturally and every one of them had been planted by this probe a second
+\t\t// earlier.
+\t\tjava.util.List<Object[]> planted = new java.util.ArrayList<>();
+
+\t\tfor (String[] row : CLAIMED_BIOMES) {
+\t\t\tString wanted = row[0];
+\t\t\tString[] fields = java.util.Arrays.copyOfRange(row, 1, row.length);
+\t\t\tString label = String.join(" or ", fields);
+\t\t\tObject[] trunks = new Object[fields.length];
+\t\t\tboolean ok = true;
+\t\t\tfor (int i = 0; i < fields.length; i++) {
+\t\t\t\ttry {
+\t\t\t\t\ttrunks[i] = holder.getField(fields[i]).get(null);
+\t\t\t\t} catch (Throwable t) {
+\t\t\t\t\twcheck("the trunk " + fields[i] + " the claim plants exists", false, String.valueOf(t));
+\t\t\t\t\tok = false;
+\t\t\t\t\tbreak;
+\t\t\t\t}
+\t\t\t\t// A null field makes every comparison below false, and the biome
+\t\t\t\t// would then read as having grown nothing, which is the opposite of
+\t\t\t\t// what a missing block means.
+\t\t\t\tif (trunks[i] == null) {
+\t\t\t\t\twcheck("the trunk " + fields[i] + " the claim plants exists", false,
+\t\t\t\t\t\t"the field is there but null, so nothing could be counted");
+\t\t\t\t\tok = false;
+\t\t\t\t\tbreak;
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (!ok) continue;
+
+\t\t\tjava.util.List<int[]> spots = spreadSpots(provider, wanted, HALF, STEP, CHUNKS_PER_BIOME);
+\t\t\twcheck("the census found somewhere " + wanted + " actually is",
+\t\t\t\tspots.size() > 0,
+\t\t\t\t"no column of it in the sampled grid, so nothing was grown to look at");
+\t\t\tif (spots.isEmpty()) continue;
+
+\t\t\tint mine = 0;
+\t\t\tint foreign = 0;
+\t\t\tint coal = 0;
+\t\t\tint columns = 0;
+\t\t\tint grown = 0;
+\t\t\tint ownMine = 0;
+\t\t\tint ownForeign = 0;
+\t\t\tint ownColumns = 0;
+\t\t\tint ownChunks = 0;
+\t\t\tfor (int[] spot : spots) {
+\t\t\t\t// The same neighbour rule the treeless census follows: a chunk is
+\t\t\t\t// decorated only once the three to its east, south and south-east
+\t\t\t\t// exist, and a tree is decoration.
+\t\t\t\tboolean ready = true;
+\t\t\t\tfor (int dx = 0; dx <= 1; dx++) {
+\t\t\t\t\tfor (int dz = 0; dz <= 1; dz++) {
+\t\t\t\t\t\tready = awaitChunk(world, spot[0] + dx, spot[1] + dz, 40) && ready;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\tif (!ready) continue;
+\t\t\t\tgrown++;
+\t\t\t\tint[] tally = countChunk(world, provider, spot[0], spot[1], wanted, trunks);
+\t\t\t\tforeign += tally[0];
+\t\t\t\tmine += tally[1];
+\t\t\t\tcoal += tally[2];
+\t\t\t\tcolumns += tally[3];
+\t\t\t\tif (decoratedOnlyBy(world, spot[0], spot[1], wanted)) {
+\t\t\t\t\townChunks++;
+\t\t\t\t\townForeign += tally[0];
+\t\t\t\t\townMine += tally[1];
+\t\t\t\t\townColumns += tally[3];
+\t\t\t\t}
+\t\t\t}
+
+\t\t\tSystem.out.println("ARTEMIS-WORLDGEN CLAIM " + wanted + " trunk=" + label
+\t\t\t\t+ " mine=" + mine + " foreignLogs=" + foreign + " coal=" + coal
+\t\t\t\t+ " columns=" + columns + " grown=" + grown + "/" + spots.size()
+\t\t\t\t+ " | decorated only as itself: chunks=" + ownChunks + " mine=" + ownMine
+\t\t\t\t+ " foreignLogs=" + ownForeign + " columns=" + ownColumns);
+
+\t\t\twcheck("the census grew ground it could count in " + wanted,
+\t\t\t\tcolumns > 0,
+\t\t\t\t"not one column of it in " + grown + " of " + spots.size() + " chunks grown, so its counts prove nothing");
+\t\t\tif (columns == 0) continue;
+\t\t\twcheck("and the decorator ran over that ground, so the counts are answers",
+\t\t\t\tcoal > 0,
+\t\t\t\t"not one ore vein in " + columns + " columns: these chunks were generated but never decorated, so nothing here is evidence about trees");
+\t\t\tif (coal == 0) continue;
+\t\t\t// Over the chunks this biome decorated itself, and nowhere else. See
+\t\t\t// the same guard in the treeless census above, and A68: a log in this
+\t\t\t// biome´s column can be the neighbouring chunk´s doing, so demanding
+\t\t\t// zero everywhere would be demanding something no mod controls.
+\t\t\twcheck("and there is ground of " + wanted + " that only it decorated",
+\t\t\t\townColumns > 0,
+\t\t\t\t"no chunk sampled was decorated only as " + wanted + " (" + grown + " grown), so a zero would be about somebody else´s trees");
+\t\t\tif (ownColumns > 0) {
+\t\t\t\twcheck("and no tree but its own grew in " + wanted + ", so the claim replaced the oaks",
+\t\t\t\t\townForeign == 0,
+\t\t\t\t\townForeign + " log blocks that are not " + label + " in " + ownColumns
+\t\t\t\t\t\t+ " columns this biome decorated itself: the claim was planted on top of the vanilla trees rather than instead of them");
+\t\t\t}
+\t\t\t// The counts above are NOT asserted for presence, and A67 is why. BTA
+\t\t\t// decides how many trees to attempt in a chunk by comparing the biome
+\t\t\t// by identity against its own Biomes constants; a modded biome matches
+\t\t\t// none of them and is left on the bare 1-in-10 baseline, so "how many
+\t\t\t// grew here naturally" is a fact about the game´s density table rather
+\t\t\t// than about whether the claim works. Measured: 0 trunks in 5210
+\t\t\t// columns of ember_wastes with 2339 ore veins in the same columns.
+\t\t\t//
+\t\t\t// So the claim is asked directly instead, which is the half Artemis
+\t\t\t// actually owns, and it happens after every census for the reason at
+\t\t\t// the top of this method.
+\t\t\tplanted.add(new Object[] { wanted, label, trunks, spots });
+\t\t}
+
+\t\tfor (Object[] one : planted) {
+\t\t\t@SuppressWarnings("unchecked")
+\t\t\tjava.util.List<int[]> spots = (java.util.List<int[]>) one[3];
+\t\t\tplantClaim(world, provider, (String) one[0], (String) one[1], (Object[]) one[2], spots);
+\t\t}
+\t}
+
+\t/**
+\t * The claim itself, asked of the game rather than waited for.
+\t *
+\t * Three questions, and each one is a different failure. The biome has to
+\t * hand back a tree feature at all; it has to be one of THIS mod´s classes,
+\t * because a claim that silently left the vanilla feature in place would
+\t * still return something perfectly valid; and placing it has to put the
+\t * mod´s own trunk in the ground, because a feature that runs and plants
+\t * nothing is what an empty Workshop grid or a broken block reference would
+\t * produce, and neither of those throws.
+\t *
+\t * Placement is retried across columns because a tree refuses ground it does
+\t * not like (BlockTags.GROWS_TREES gates it) and one refusal is not a
+\t * failure. Only every column refusing is.
+\t */
+\tprivate static void plantClaim(net.minecraft.core.world.World world,
+\t\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider,
+\t\t\tString wanted, String label, Object[] trunks, java.util.List<int[]> spots) {
+\t\tjava.util.Random rand = new java.util.Random(20260827L);
+\t\tnet.minecraft.core.world.pos.TilePos probe = new net.minecraft.core.world.pos.TilePos();
+\t\tint wet = 0;
+\t\tint refusals = 0;
+\t\tint threw = 0;
+\t\tString lastThrow = null;
+\t\tint attempts = 0;
+\t\tint placed = 0;
+\t\tint planted = 0;
+\t\tString featureClass = null;
+\t\tboolean sawFeature = false;
+\t\tboolean modsOwn = false;
+
+\t\tfor (int[] spot : spots) {
+\t\t\tfor (int lx = 2; lx < 14 && placed == 0; lx += 3) {
+\t\t\t\tfor (int lz = 2; lz < 14 && placed == 0; lz += 3) {
+\t\t\t\t\tint x = (spot[0] << 4) + lx;
+\t\t\t\t\tint z = (spot[1] << 4) + lz;
+\t\t\t\t\tnet.minecraft.core.world.biome.Biome b = provider.getBiome(x, 64, z);
+\t\t\t\t\tif (b == null || !wanted.equals(b.getRegistryKey())) continue;
+\t\t\t\t\tnet.minecraft.core.world.generate.feature.WorldFeature feature;
+\t\t\t\t\ttry {
+\t\t\t\t\t\tfeature = b.getTreeFeature(rand);
+\t\t\t\t\t} catch (Throwable t) {
+\t\t\t\t\t\twcheck("asking " + wanted + " for its tree feature", false, String.valueOf(t));
+\t\t\t\t\t\treturn;
+\t\t\t\t\t}
+\t\t\t\t\tif (feature == null) continue;
+\t\t\t\t\tsawFeature = true;
+\t\t\t\t\tfeatureClass = feature.getClass().getName();
+\t\t\t\t\tif (featureClass.startsWith("${pkg}.")) modsOwn = true;
+\t\t\t\t\tint y = world.getHeightValue(x, z);
+\t\t\t\t\t// Dry land only. A tree refuses to stand on water and is right to,
+\t\t\t\t\t// so counting a submerged column as a refusal would blame the mod
+\t\t\t\t\t// for the sea. Skipped rather than attempted, so the attempt count
+\t\t\t\t\t// stays the number of columns the tree was genuinely offered.
+\t\t\t\t\tObject ground = world.getBlockType(probe.set(x, y - 1, z));
+\t\t\t\t\tif (ground == null) continue;
+\t\t\t\t\tif (ground == net.minecraft.core.block.Blocks.FLUID_WATER_STILL
+\t\t\t\t\t\t|| ground == net.minecraft.core.block.Blocks.FLUID_WATER_FLOWING
+\t\t\t\t\t\t|| ground == net.minecraft.core.block.Blocks.FLUID_LAVA_STILL
+\t\t\t\t\t\t|| ground == net.minecraft.core.block.Blocks.FLUID_LAVA_FLOWING) {
+\t\t\t\t\t\twet++;
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\t}
+\t\t\t\t\tattempts++;
+\t\t\t\t\t// What is already there, before anything is planted. The
+\t\t\t\t\t// difference is the assertion and the total is not, because a
+\t\t\t\t\t// tree is free to be made of a block the terrain is also made
+\t\t\t\t\t// of: "kitchen sink" plants a tree of MARBLE into a biome
+\t\t\t\t\t// floored with MARBLE, and 442 of them were standing there
+\t\t\t\t\t// before the probe planted anything at all.
+\t\t\t\t\tint before = boxCount(world, x, y, z, trunks);
+\t\t\t\t\tboolean ok;
+\t\t\t\t\ttry {
+\t\t\t\t\t\tok = feature.place(world, rand, x, y, z);
+\t\t\t\t\t} catch (Throwable t) {
+\t\t\t\t\t\t// The tree template plants with setBlockWithNotify, which walks
+\t\t\t\t\t\t// the world´s lighting queue, and this phase runs on its own
+\t\t\t\t\t\t// thread beside the server´s. So the game can throw out of its
+\t\t\t\t\t\t// own lighting ("lightUpdate is null") for a race this probe
+\t\t\t\t\t\t// caused rather than for anything the mod did, and that is not a
+\t\t\t\t\t\t// failure of the mod to report as one. Seen once in about five
+\t\t\t\t\t\t// runs of "kitchen sink". The next column is tried instead, and
+\t\t\t\t\t\t// only every column throwing is worth saying anything about.
+\t\t\t\t\t\tthrew++;
+\t\t\t\t\t\tlastThrow = String.valueOf(t);
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\t}
+\t\t\t\t\tif (!ok) {
+\t\t\t\t\t\t// What it refused, not just that it refused. A tree that says no
+\t\t\t\t\t\t// says nothing about why, and the answer is almost always the
+\t\t\t\t\t\t// block underneath.
+\t\t\t\t\t\trefusals++;
+\t\t\t\t\t\tif (refusals <= 3) {
+\t\t\t\t\t\t\tSystem.out.println("ARTEMIS-WORLDGEN REFUSED at " + x + "," + y + "," + z
+\t\t\t\t\t\t\t\t+ " ground=" + ground
+\t\t\t\t\t\t\t\t+ " growsTrees=" + net.minecraft.core.block.Blocks.hasTag(
+\t\t\t\t\t\t\t\t\tworld.getBlockId(x, y - 1, z), net.minecraft.core.block.tag.BlockTags.GROWS_TREES));
+\t\t\t\t\t\t}
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\t}
+\t\t\t\t\tplaced++;
+\t\t\t\t\tplanted += boxCount(world, x, y, z, trunks) - before;
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (placed > 0) break;
+\t\t}
+
+\t\tSystem.out.println("ARTEMIS-WORLDGEN PLANT " + wanted + " feature=" + featureClass
+\t\t\t+ " attempts=" + attempts + " wet=" + wet + " threw=" + threw
+\t\t\t+ " placed=" + placed + " trunks=" + planted);
+
+\t\twcheck(wanted + " hands back a tree feature when the game asks for one",
+\t\t\tsawFeature,
+\t\t\t"getTreeFeature returned null in every column tried, so the claim plants nothing anywhere");
+\t\tif (!sawFeature) return;
+\t\twcheck("and the feature it hands back is one of this mod´s",
+\t\t\tmodsOwn,
+\t\t\t"it returned " + featureClass + ", which is not a class this mod generated, so the claim did not take");
+\t\t// A run that found no dry column of the biome has not tested anything,
+\t\t// and must not be allowed to read as a pass or as a failure.
+\t\twcheck("and there was dry ground of " + wanted + " to offer it",
+\t\t\tattempts > 0,
+\t\t\t"every column sampled was under water or lava (" + wet + " of them), so nothing was offered to the tree");
+\t\tif (attempts == 0) return;
+\t\t// Loudly, and without asserting either way. Every column having thrown
+\t\t// means this probe never got an answer, and both a pass and a fail would
+\t\t// be inventing one. See the catch above for what throws and why.
+\t\tif (placed == 0 && threw >= attempts) {
+\t\t\tSystem.out.println("ARTEMIS-WORLDGEN SKIP planting in " + wanted
+\t\t\t\t+ ": the game threw from its own lighting on all " + threw
+\t\t\t\t+ " columns tried, which is this probe planting off the server thread: " + lastThrow);
+\t\t\treturn;
+\t\t}
+\t\twcheck("and it was allowed to plant somewhere in " + wanted,
+\t\t\tplaced > 0,
+\t\t\t"refused " + refusals + " and threw on " + threw + " of " + attempts
+\t\t\t\t+ " dry columns, so the tree can never appear there");
+\t\tif (placed == 0) return;
+\t\twcheck("and what it planted is " + label,
+\t\t\tplanted > 0,
+\t\t\t"place() said yes and the count of " + label + " where it went in did not change");
+\t}
+
+\t/**
+\t * The claimed trunks standing in a box around one point.
+\t *
+\t * A box rather than the column, because a trunk is one column and a canopy
+\t * is not, and a feature is free to plant beside the point it was handed.
+\t */
+\tprivate static int boxCount(net.minecraft.core.world.World world, int x, int y, int z, Object[] trunks) {
+\t\tint n = 0;
+\t\tnet.minecraft.core.world.pos.TilePos q = new net.minecraft.core.world.pos.TilePos();
+\t\tfor (int ox = -3; ox <= 3; ox++) {
+\t\t\tfor (int oz = -3; oz <= 3; oz++) {
+\t\t\t\tfor (int oy = 0; oy < 24 && y + oy < world.getHeightBlocks(); oy++) {
+\t\t\t\t\tif (isOneOf(world.getBlockType(q.set(x + ox, y + oy, z + oz)), trunks)) n++;
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t\treturn n;
+\t}
+
+\t/** No claimed tree at all, which is the treeless census´s whole point:
+\t *  every log it meets is a foreign log. */
+\tprivate static final Object[] NO_TRUNKS = new Object[0];
+
+\t/** Identity against any of the trunks a biome´s claim may plant. A biome
+\t *  claimed by two trees derives a getTreeFeature that picks between them,
+\t *  so "its own tree" is a set and not one block. */
+\tprivate static boolean isOneOf(Object block, Object[] trunks) {
+\t\tif (block == null) return false;
+\t\tfor (Object t : trunks) {
+\t\t\tif (t != null && block == t) return true;
+\t\t}
+\t\treturn false;
+\t}
+
+\t/**
+\t * Every column of a biome in the sampled grid, and then a SPREAD of them.
+\t *
+\t * This is not tidiness. The first version of the claim census took the first
+\t * four matches of a corner-to-corner scan, which are four chunks of one
+\t * patch of one biome cell, and the patch it happened to land on was under an
+\t * ocean: the planter refused fifty-one columns in a row and the ground under
+\t * every one of them was water. A biome is not evenly ground, so a sample
+\t * taken from one corner of it is evidence about that corner and nothing
+\t * else.
+\t */
+\tprivate static java.util.List<int[]> spreadSpots(
+\t\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider,
+\t\t\tString wanted, int half, int step, int want) {
+\t\tjava.util.List<int[]> all = new java.util.ArrayList<>();
+\t\tfor (int x = -half; x < half; x += step) {
+\t\t\tfor (int z = -half; z < half; z += step) {
+\t\t\t\tnet.minecraft.core.world.biome.Biome b = provider.getBiome(x, 64, z);
+\t\t\t\tif (b == null) continue;
+\t\t\t\tif (!wanted.equals(b.getRegistryKey())) continue;
+\t\t\t\tall.add(new int[] { x >> 4, z >> 4 });
+\t\t\t}
+\t\t}
+\t\tjava.util.List<int[]> spots = new java.util.ArrayList<>();
+\t\tif (all.isEmpty()) return spots;
+\t\tint stride = Math.max(1, all.size() / want);
+\t\tfor (int i = 0; i < all.size() && spots.size() < want; i += stride) {
+\t\t\tspots.add(all.get(i));
+\t\t}
+\t\treturn spots;
+\t}
+
+\t/**
+\t * The biome BTA decorates a chunk AS, which is not the same thing as the
+\t * biomes the chunk is made of.
+\t *
+\t * Read off ChunkDecoratorOverworld.decorate in the 8.0.1 jar rather than
+\t * guessed: it samples ONE biome, at the chunk origin plus sixteen, and every
+\t * ore vein and every tree it plants for that chunk comes from that one
+\t * biome. So a chunk made of nine biomes is decorated as whichever biome
+\t * happens to sit at that corner.
+\t */
+\tprivate static String decorationBiomeKey(net.minecraft.core.world.World world, int cx, int cz) {
+\t\tint bx = (cx << 4) + 16;
+\t\tint bz = (cz << 4) + 16;
+\t\tnet.minecraft.core.world.biome.Biome b =
+\t\t\tworld.getBlockBiome(bx, world.getHeightValue(bx, bz), bz);
+\t\treturn b == null ? null : b.getRegistryKey();
+\t}
+
+\t/**
+\t * True when every decoration pass that can reach into this chunk belonged to
+\t * the biome under test, which is the only ground on which an ABSENCE of
+\t * trees means anything.
+\t *
+\t * Four passes can reach a column, not one. The game plants at
+\t * chunkX * 16 + random(16) + 8, so a chunk´s own pass covers its columns 8
+\t * to 23 and spills the rest into the chunk to the east; the chunk to the
+\t * west spills into this one´s first eight columns. Same in z. So this asks
+\t * about (cx, cz) and the three chunks whose spill lands here, and all four
+\t * sample points lie inside the two-by-two block already loaded.
+\t */
+\tprivate static boolean decoratedOnlyBy(net.minecraft.core.world.World world, int cx, int cz, String wanted) {
+\t\treturn wanted.equals(decorationBiomeKey(world, cx, cz))
+\t\t\t&& wanted.equals(decorationBiomeKey(world, cx - 1, cz))
+\t\t\t&& wanted.equals(decorationBiomeKey(world, cx, cz - 1))
+\t\t\t&& wanted.equals(decorationBiomeKey(world, cx - 1, cz - 1));
+\t}
+
+\t/**
+\t * One chunk, counted only in the columns that belong to the biome under
+\t * test. One counter for both censuses, because they ask the same question
+\t * of the same ground and two copies of this walk would drift.
+\t *
+\t * A chunk straddles biomes, so a chunk containing the biome under test
+\t * usually contains a wooded one as well, and counting the whole chunk would
+\t * count that one´s oaks. Every column is therefore asked its own biome and
+\t * only the matching ones are counted.
+\t *
+\t * Returns { logs that are NOT this biome´s own tree, this biome´s own trunk,
+\t * ore veins, columns of the biome seen }.
+\t *
+\t * The trunk argument is the block the claiming tree plants, or null when
+\t * the biome is supposed to grow nothing at all. With null every log is a
+\t * foreign log, which is what the treeless census wants. The trunk is
+\t * compared by IDENTITY because blocks in BTA are singletons, and a logic
+\t * class could not do it: LOG_OAK and a mod´s own log both answer to
+\t * BlockLogicLog, which is the whole reason this split exists.
 \t *
 \t * A log is anything whose logic class is BlockLogicLog and an ore vein
 \t * anything whose logic is BlockLogicOreCoal, both asked of the game rather
 \t * than listed here. BTA has eight log types and a harness that named them
 \t * would be wrong the day it gains a ninth, which is the same reason the
 \t * stray sweep reads registry keys off the objects.
-\t *
-\t * Returns { logs, ore veins, columns of the biome seen }.
 \t */
-\tprivate static int[] census(net.minecraft.core.world.World world,
+\tprivate static int[] countChunk(net.minecraft.core.world.World world,
 \t\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider,
-\t\t\tint chunkX, int chunkZ, String wanted) {
-\t\tint logs = 0;
+\t\t\tint chunkX, int chunkZ, String wanted, Object[] trunks) {
+\t\tint foreign = 0;
+\t\tint mine = 0;
 \t\tint coal = 0;
 \t\tint columns = 0;
 \t\tnet.minecraft.core.world.pos.TilePos p = new net.minecraft.core.world.pos.TilePos();
@@ -792,12 +1243,13 @@ ${e.dimensions.map((d) => `\t\t{\n${javaList(d.vanillaBiomes)}\n\t\t}`).join(',\
 \t\t\t\tfor (int y = 1; y < world.getHeightBlocks(); y++) {
 \t\t\t\t\tnet.minecraft.core.block.Block<?> block = world.getBlockType(p.set(x, y, z));
 \t\t\t\t\tif (block == null) continue;
-\t\t\t\t\tif (net.minecraft.core.block.Block.hasLogicClass(block, net.minecraft.core.block.BlockLogicLog.class)) logs++;
+\t\t\t\t\tif (isOneOf(block, trunks)) mine++;
+\t\t\t\t\telse if (net.minecraft.core.block.Block.hasLogicClass(block, net.minecraft.core.block.BlockLogicLog.class)) foreign++;
 \t\t\t\t\telse if (net.minecraft.core.block.Block.hasLogicClass(block, net.minecraft.core.block.BlockLogicOreCoal.class)) coal++;
 \t\t\t\t}
 \t\t\t}
 \t\t}
-\t\treturn new int[] { logs, coal, columns };
+\t\treturn new int[] { foreign, mine, coal, columns };
 \t}
 
 \t/**
@@ -1669,7 +2121,7 @@ function runServer(root: string): Promise<string> {
     const timer = setTimeout(() => {
       console.log('  (timeout: stopping the server)')
       stop()
-    }, 8 * 60 * 1000)
+    }, 10 * 60 * 1000)
     child.on('close', () => {
       clearTimeout(timer)
       resolve(out)

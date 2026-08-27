@@ -1,4 +1,5 @@
 import type { EmitContext } from './CodeGenerator'
+import type { JavaWriter } from './template'
 
 export const VANILLA_BIOME_PREFIX = 'biome:'
 
@@ -19,4 +20,22 @@ export function biomeGuard(refs: string[] | undefined, ctx: EmitContext): string
     '\t\t\tBiome biome = this.world.getBlockBiome(new TilePos(x, y, z));\n' +
     `\t\t\tif (${test}) continue;\n`
   )
+}
+
+export function treeGroundRefs(refs: string[] | undefined, ctx: EmitContext): string[] {
+  const listed = (refs ?? []).map((r) => r.trim()).filter(Boolean)
+  const claimed = listed.filter((r) => !r.startsWith(VANILLA_BIOME_PREFIX))
+  const biomes = ctx.project.elements.filter((el) => el.kind === 'biome')
+  const wanted = listed.length === 0 ? biomes : biomes.filter((el) => claimed.includes(el.name))
+  return [
+    ...new Set(
+      wanted
+        .map((el) => String((el.properties as { topBlock?: string }).topBlock ?? '').trim())
+        .filter(Boolean)
+    )
+  ]
+}
+
+export function extraGroundTest(refs: string[], w: JavaWriter, ctx: EmitContext): string {
+  return refs.map((ref) => ` && groundId != ${ctx.blockExpr(ref, w)}.id()`).join('')
 }
