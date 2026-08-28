@@ -1,10 +1,12 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import './_studio-env'
 import { installCanvasShim } from './_canvas'
 import { renderProbe, nodeText, h, liveProject, type ProbeNode, type ProbeRoot } from './_react-probe'
 import { bridgeCalls, resetBridge, fakeStorage, emitBridge } from './_studio-env'
 import { SCENARIOS, scenario } from './audit-fixtures'
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
-import { useAppStore } from '../src/renderer/src/store/appStore'
+import { useAppStore, type PendingWork } from '../src/renderer/src/store/appStore'
 import { useTestStore } from '../src/renderer/src/store/testStore'
 import { FORM_REGISTRY, KIND_LABELS } from '../src/renderer/src/sections/forms/registry'
 import { createEmptyProject, type ArtemisElement, type ArtemisProject, type ElementKind } from '../src/shared/project'
@@ -874,50 +876,215 @@ const SECTIONS: Array<[string, () => ReturnType<typeof h>]> = [
 ]
 
 function theWayOutOfAnEditor(): void {
-  console.log('\n[titlebar] the dashboard button, for when an editor is covering everything')
+  console.log('\n[titlebar] the way out of an editor, and where it leads')
   seed(scenario('a mod from before the element rework').build())
-  useAppStore.setState({ section: 'gallery', textureEditor: null, workshopEditor: null })
+  useAppStore.setState({
+    section: 'gallery',
+    textureEditor: null,
+    workshopEditor: null,
+    pendingWork: null
+  })
 
   const bar = renderProbe(h(TitleBar))
 
-  const dashboard = (): ProbeNode | undefined =>
-    bar.all().find((n) => n.props['aria-label'] === 'Dashboard')
+  const escape = (): ProbeNode | undefined =>
+    bar.all().find((n) => n.props['aria-label'] === 'Gallery' || n.props['aria-label'] === 'Workshop')
   const reachable = (): boolean => {
-    const b = dashboard()
+    const b = escape()
     return !!b && !b.props.disabled && b.props['aria-hidden'] !== true && b.props.tabIndex === 0
   }
 
-  check('it is on the bar, folded away, when no editor is open', !!dashboard())
+  const slotWidth = (label: string): number | null => {
+    const btn = bar.all().find((n) => n.props['aria-label'] === label)
+    if (!btn) return null
+    const slot = bar.all().find((n) => n.children.includes(btn))
+    const w = slot?.props.style?.width
+    return typeof w === 'number' ? w : null
+  }
+
+  const iconOn = (b: ProbeNode | undefined): string => {
+    const svg = b && [b, ...b.children].find((n) => n.type === 'svg')
+    const cls = svg?.props.className
+    return typeof cls === 'string' ? cls : ''
+  }
+
+  check('it is on the bar, folded away, when no editor is open', !!escape())
   check('and cannot be reached from there', !reachable(),
-    JSON.stringify(dashboard()?.props.disabled) + ' ' + JSON.stringify(dashboard()?.props.tabIndex))
+    JSON.stringify(escape()?.props.disabled) + ' ' + JSON.stringify(escape()?.props.tabIndex))
+  check('with no width, so it is not merely transparent', slotWidth('Workshop') === 0,
+    String(slotWidth('Workshop')))
+  check('and the arrows have the strip to themselves',
+    slotWidth('Back') === 28 && slotWidth('Forward') === 28,
+    `${slotWidth('Back')} and ${slotWidth('Forward')}`)
 
   useAppStore.getState().openTextureEditor({ textureId: null, kind: 'block' })
   bar.flush()
   check('it becomes reachable once the texture editor covers the window', reachable())
-  bar.click(dashboard()!)
+  check('and it offers the Gallery, which is where a texture is painted from',
+    escape()?.props['aria-label'] === 'Gallery', String(escape()?.props['aria-label']))
+  check('with the Gallery´s own icon on it',
+    iconOn(escape()).includes('lucide-images'), iconOn(escape()))
+  check('and the arrows collapse into it rather than sitting beside it',
+    slotWidth('Back') === 0 && slotWidth('Forward') === 0 && slotWidth('Gallery') === 28,
+    `back ${slotWidth('Back')}, forward ${slotWidth('Forward')}, out ${slotWidth('Gallery')}`)
+  check('the folded arrows go inert with their slot, or they are a trap',
+    ['Back', 'Forward'].every((l) => {
+      const b = bar.all().find((n) => n.props['aria-label'] === l)
+      return !!b && b.props.disabled === true && b.props.tabIndex === -1 &&
+        b.props['aria-hidden'] === true
+    }))
+  bar.click(escape()!)
   bar.flush()
-  check('and it goes to the dashboard', useAppStore.getState().section === 'dashboard',
+  check('and it goes there', useAppStore.getState().section === 'gallery',
     useAppStore.getState().section)
   check(
-    'closing the editor on the way, or it would still be covering the dashboard',
+    'closing the editor on the way, or it would still be covering the shelf',
     useAppStore.getState().textureEditor === null
   )
   check('and folds away again once there is no editor to leave', !reachable())
+  check('the arrows coming back out as it goes',
+    slotWidth('Back') === 28 && slotWidth('Forward') === 28 && slotWidth('Workshop') === 0,
+    `back ${slotWidth('Back')}, forward ${slotWidth('Forward')}, out ${slotWidth('Workshop')}`)
 
   const build = live().elements.find((e) => e.kind === 'tree' || e.kind === 'structure')!
   useAppStore.getState().openWorkshopEditor(build.id)
   bar.flush()
   check('it comes back for the build editor too', reachable())
-  bar.click(dashboard()!)
+  check('and offers the Workshop instead, which is where a build is made',
+    escape()?.props['aria-label'] === 'Workshop', String(escape()?.props['aria-label']))
+  check('with the Workshop´s own icon on it',
+    iconOn(escape()).includes('lucide-hammer'), iconOn(escape()))
+  bar.click(escape()!)
   bar.flush()
-  check('which also closes on the way out', useAppStore.getState().workshopEditor === null)
+  check('going there closes the build editor', useAppStore.getState().workshopEditor === null)
+  check('and lands on the Workshop', useAppStore.getState().section === 'workshop',
+    useAppStore.getState().section)
+
+  useAppStore.getState().goForward()
+  check('and the editor is one step forward, where a back arrow would leave it',
+    useAppStore.getState().workshopEditor !== null,
+    JSON.stringify(useAppStore.getState().workshopEditor))
 
   useAppStore.getState().goBack()
-  check('and the editor can be stepped back into', useAppStore.getState().workshopEditor !== null,
-    JSON.stringify(useAppStore.getState().workshopEditor))
+  const behind = { ...useAppStore.getState() }
+  useAppStore.getState().goBack()
+  check('while Back still leads out to where the editor was opened from',
+    useAppStore.getState().section !== behind.section ||
+      useAppStore.getState().historyIndex < behind.historyIndex,
+    `${behind.section}@${behind.historyIndex} then ${useAppStore.getState().section}@${useAppStore.getState().historyIndex}`)
 
   bar.unmount()
   useAppStore.setState({ textureEditor: null, workshopEditor: null, section: 'dashboard' })
+}
+
+function theWaysOutYieldToUnsavedWork(): void {
+  console.log('\n[titlebar] the ways out, refusing to throw a drawing away')
+  seed(scenario('a mod from before the element rework').build())
+
+  const holding = (canCommit: boolean): { commits: number } => {
+    const counts = { commits: 0 }
+    useAppStore.setState({
+      pendingWork: {
+        has: () => true,
+        commit: () => {
+          counts.commits++
+          if (canCommit) useAppStore.setState({ pendingWork: null })
+          return canCommit
+        }
+      }
+    })
+    return counts
+  }
+
+  const CONTROLS = ['Back', 'Gallery'] as const
+  for (const label of CONTROLS) {
+
+    const enter = (): void => {
+      useAppStore.setState({ section: 'gallery', textureEditor: null, workshopEditor: null })
+      useAppStore.getState().navigate('gallery')
+      useAppStore.getState().openTextureEditor({ textureId: null, kind: 'block' })
+    }
+
+    enter()
+    const bar = renderProbe(h(TitleBar))
+    const control = (): ProbeNode =>
+      bar.all().find((n) => n.props['aria-label'] === label)!
+
+    const counts = holding(true)
+    const before = useAppStore.getState().refusals
+    bar.click(control())
+    bar.flush()
+    check(`${label}: one click does not leave an editor holding a drawing`,
+      useAppStore.getState().textureEditor !== null)
+    check(`${label}: and the window is shivered rather than nothing happening`,
+      useAppStore.getState().refusals === before + 1,
+      `${before} to ${useAppStore.getState().refusals}`)
+    check(`${label}: and nothing was saved behind anybody´s back`, counts.commits === 0,
+      String(counts.commits))
+
+    bar.all().find((n) => n.props['aria-label'] === label)!.props.onDoubleClick()
+    bar.flush()
+    check(`${label}: a double click keeps the work`, counts.commits === 1, String(counts.commits))
+    check(`${label}: and then leaves the editor`,
+      useAppStore.getState().textureEditor === null,
+      JSON.stringify(useAppStore.getState().textureEditor))
+    bar.unmount()
+
+    enter()
+    const bar2 = renderProbe(h(TitleBar))
+    const blocked = holding(false)
+    const refusalsBefore = useAppStore.getState().refusals
+    bar2.all().find((n) => n.props['aria-label'] === label)!.props.onDoubleClick()
+    bar2.flush()
+    check(`${label}: a drawing that cannot be saved is not left behind either`,
+      useAppStore.getState().textureEditor !== null)
+    check(`${label}: it tried`, blocked.commits === 1, String(blocked.commits))
+    check(`${label}: and said so rather than going quiet`,
+      useAppStore.getState().refusals === refusalsBefore + 1,
+      `${refusalsBefore} to ${useAppStore.getState().refusals}`)
+    bar2.unmount()
+    useAppStore.setState({ pendingWork: null })
+  }
+
+  useAppStore.setState({ section: 'gallery', textureEditor: null, workshopEditor: null, pendingWork: null })
+  useAppStore.getState().openTextureEditor({ textureId: null, kind: 'block' })
+  const plain = renderProbe(h(TitleBar))
+  const quiet = useAppStore.getState().refusals
+  plain.click(plain.all().find((n) => n.props['aria-label'] === 'Gallery')!)
+  plain.flush()
+  check('with nothing to lose it just goes', useAppStore.getState().section === 'gallery',
+    useAppStore.getState().section)
+  check('and says nothing on the way', useAppStore.getState().refusals === quiet,
+    `${quiet} to ${useAppStore.getState().refusals}`)
+  plain.unmount()
+  useAppStore.setState({ textureEditor: null, workshopEditor: null, section: 'dashboard' })
+}
+
+function theEditorDeclaresWhatItHolds(): void {
+  console.log('\n[pixel] the editor declares the work it is holding')
+  seed(scenario('a mod from before the element rework').build())
+  useAppStore.setState({ pendingWork: null, textureEditor: null, workshopEditor: null })
+
+  useAppStore.getState().openTextureEditor({ textureId: null, kind: 'block' })
+  const editor = renderProbe(h(PixelEditorOverlay))
+  const work = (): PendingWork | null => useAppStore.getState().pendingWork
+  check('an open texture editor publishes itself', !!work())
+  check('and a blank, unnamed canvas is nothing to lose', work()?.has() === false,
+    String(work()?.has()))
+
+  const nameBox = editor.findAll((n) => n.type === 'input')[0]
+  check('the name box is on screen', !!nameBox)
+  if (nameBox) {
+    editor.change(nameBox, 'copper_ore')
+    editor.flush()
+    check('naming it is work the project does not have yet', work()?.has() === true,
+      String(work()?.has()))
+  }
+
+  editor.unmount()
+  check('and it takes the flag back on the way out, or every arrow jams', work() === null,
+    JSON.stringify(work()))
+  useAppStore.setState({ textureEditor: null, pendingWork: null })
 }
 
 function theUpdateBar(): void {
@@ -994,6 +1161,172 @@ function theUpdateBar(): void {
     booting.text())
   booting.unmount()
   useAppStore.setState({ bootPhase: 'ready' })
+}
+
+interface FakeClock {
+
+  advance: (ms: number) => void
+  restore: () => void
+}
+
+function fakeClock(): FakeClock {
+  const g = globalThis as unknown as Record<string, unknown>
+  const realSet = g.setTimeout
+  const realClear = g.clearTimeout
+  const timers = new Map<number, { at: number; fn: () => void }>()
+  let now = 0
+  let nextId = 1_000_000
+
+  g.setTimeout = (fn: () => void, ms = 0): number => {
+    const id = nextId++
+    timers.set(id, { at: now + ms, fn })
+    return id
+  }
+  g.clearTimeout = (id: number): void => {
+    if (timers.delete(id)) return
+    ;(realClear as (h: number) => void)(id)
+  }
+
+  return {
+    advance(ms: number): void {
+      const until = now + ms
+
+      for (;;) {
+        let dueId = -1
+        let dueAt = Infinity
+        for (const [id, t] of timers) {
+          if (t.at <= until && t.at < dueAt) {
+            dueAt = t.at
+            dueId = id
+          }
+        }
+        if (dueId < 0) break
+        const t = timers.get(dueId)!
+        timers.delete(dueId)
+        now = t.at
+        t.fn()
+      }
+      now = until
+    },
+    restore(): void {
+      g.setTimeout = realSet
+      g.clearTimeout = realClear
+    }
+  }
+}
+
+function typedSoFar(root: ProbeRoot): string {
+  const title = root.find(
+    (n) => typeof n.props.className === 'string' && n.props.className.includes('pixel-title')
+  )
+  if (!title) return ''
+  return title.children
+    .filter((c) => {
+      const cls = c.props?.className
+      return !(typeof cls === 'string' && cls.includes('invisible'))
+    })
+    .map(nodeText)
+    .join('')
+}
+
+function theTitleTypesWhereItCanBeSeen(): void {
+  console.log('\n[dashboard] the landing title types itself, once it is on screen')
+  useProjectStore.setState({ project: null, filePath: null, dirty: false })
+  resetBridge()
+
+  const WELL_PAST_THE_END = 20_000
+  const WORDMARK = 'ARTEMIS'
+
+  {
+    const clock = fakeClock()
+    useAppStore.setState({
+      bootPhase: 'boot',
+      startupNoticeOpen: false,
+      activeTour: null,
+      reduceAnimations: false
+    })
+    const root = renderProbe(h(Dashboard))
+    clock.advance(WELL_PAST_THE_END)
+    root.flush()
+    check(
+      'with onboarding skipped it still holds off while the splash is up',
+      typedSoFar(root) === '',
+      JSON.stringify(typedSoFar(root))
+    )
+
+    useAppStore.setState({ bootPhase: 'ready' })
+    root.flush()
+    check(
+      'and nothing has been typed at the moment it lifts',
+      typedSoFar(root) === '',
+      JSON.stringify(typedSoFar(root))
+    )
+
+    clock.advance(400)
+    root.flush()
+    const partway = typedSoFar(root)
+    check(
+      'then it types, rather than appearing all at once',
+      partway.length > 0 && partway.length < WORDMARK.length,
+      `${JSON.stringify(partway)} after 400ms`
+    )
+
+    clock.advance(WELL_PAST_THE_END)
+    root.flush()
+    check(
+      'and it finishes the word',
+      typedSoFar(root) === WORDMARK,
+      JSON.stringify(typedSoFar(root))
+    )
+    root.unmount()
+    clock.restore()
+  }
+
+  const covers: Array<[string, Record<string, unknown>]> = [
+    ['the first-run notice', { startupNoticeOpen: true, activeTour: null }],
+    ['the tour', { startupNoticeOpen: false, activeTour: 'welcome' }]
+  ]
+  for (const [what, state] of covers) {
+    const clock = fakeClock()
+    useAppStore.setState({ bootPhase: 'ready', reduceAnimations: false, ...state })
+    const root = renderProbe(h(Dashboard))
+    clock.advance(WELL_PAST_THE_END)
+    root.flush()
+    check(`it holds off behind ${what}`, typedSoFar(root) === '', JSON.stringify(typedSoFar(root)))
+
+    useAppStore.setState({ startupNoticeOpen: false, activeTour: null })
+    root.flush()
+    clock.advance(WELL_PAST_THE_END)
+    root.flush()
+    check(
+      `and types once ${what} is gone`,
+      typedSoFar(root) === WORDMARK,
+      JSON.stringify(typedSoFar(root))
+    )
+    root.unmount()
+    clock.restore()
+  }
+
+  {
+    const clock = fakeClock()
+    useAppStore.setState({
+      bootPhase: 'ready',
+      startupNoticeOpen: false,
+      activeTour: null,
+      reduceAnimations: true
+    })
+    const root = renderProbe(h(Dashboard))
+    root.flush()
+    check(
+      'reduced motion gets the line without waiting for it',
+      typedSoFar(root) === WORDMARK,
+      JSON.stringify(typedSoFar(root))
+    )
+    root.unmount()
+    clock.restore()
+  }
+
+  useAppStore.setState({ reduceAnimations: false, bootPhase: 'ready', startupNoticeOpen: false })
 }
 
 function theGuidedTour(): void {
@@ -1495,6 +1828,58 @@ function registryIsTotal(): void {
   )
 }
 
+function theBootGuardIsArmedFirst(): void {
+  console.log('\n[boot] the renderer says why it did not start')
+  const src = readFileSync(join(process.cwd(), 'src/renderer/src/main.tsx'), 'utf-8')
+  const imports = src.split('\n').filter((l) => l.startsWith('import '))
+  check('the boot guard is the first import in main.tsx, or it guards nothing',
+    imports[0]?.includes('./bootGuard') === true, imports[0] ?? '(no imports)')
+
+  const guard = readFileSync(join(process.cwd(), 'src/renderer/src/bootGuard.ts'), 'utf-8')
+  check('it listens for a throw during startup', guard.includes("addEventListener('error'"))
+  check('and for a rejected promise', guard.includes("addEventListener('unhandledrejection'"))
+  check('and for the silent case, where nothing is drawn and nothing is said',
+    /setTimeout\(/.test(guard) && guard.includes('MOUNT_DEADLINE_MS'))
+  check('it builds its panel from text rather than markup, since it is printing an error',
+    !guard.includes('innerHTML'), 'innerHTML would make an error message executable')
+  check('and it stands down once the app is up, so it cannot paint over a working window',
+    guard.includes('bootGuardMounted') && src.includes('bootGuardMounted()'))
+
+  const main = readFileSync(join(process.cwd(), 'src/main/index.ts'), 'utf-8')
+  check('the launch is not bound to ready-to-show alone',
+    main.includes('beginSession') && main.includes('READY_TO_SHOW_GRACE_MS'),
+    'ready-to-show can go missing, and everything hung off it')
+  check('and a second launch insists on a window rather than exiting quietly',
+    /second-instance[\s\S]{0,900}isVisible\(\)/.test(main),
+    'this is what a stuck first instance looks like from outside')
+}
+
+function everyPaneArrivesTheSameWay(): void {
+  console.log('\n[motion] one entrance, shared by every pane that replaces another')
+  const ROOT = process.cwd()
+  const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf-8')
+
+  const PANES = [
+    ['App', 'src/renderer/src/App.tsx'],
+    ['the wizard', 'src/renderer/src/sections/forms/FormShell.tsx'],
+    ['an element section', 'src/renderer/src/sections/ElementSection.tsx']
+  ]
+  for (const [what, rel] of PANES) {
+    const src = read(rel)
+    check(`${what} uses the shared entrance`, src.includes('PANE_ENTER'), rel)
+
+    const sideways = src.match(/initial=\{\{[^}]*\bx:/g) ?? []
+    check(`${what} no longer slides a pane in sideways`, sideways.length === 0,
+      sideways.join(' | '))
+  }
+
+  const shared = read('src/renderer/src/components/ui/enter.ts')
+  check('the shared entrance moves on one axis, and it is not the sideways one',
+    !/\bx:\s*-?\d/.test(shared))
+  check('and promises the transform up front, so the glyphs are rasterised once',
+    shared.includes('willChange'), 'without it the text can be redrawn every frame, and it crawls')
+}
+
 function main(): void {
   registryIsTotal()
   everyKindMounts()
@@ -1510,7 +1895,12 @@ function main(): void {
   everyWorkshopCardDrawsSomething()
   theGuidedTour()
   theUpdateBar()
+  theTitleTypesWhereItCanBeSeen()
   theWayOutOfAnEditor()
+  theWaysOutYieldToUnsavedWork()
+  theEditorDeclaresWhatItHolds()
+  everyPaneArrivesTheSameWay()
+  theBootGuardIsArmedFirst()
   everySectionMounts()
   theSettingsScreen()
   theTestScreenAndItsGate()

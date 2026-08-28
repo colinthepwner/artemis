@@ -23,6 +23,9 @@ import { ConstructionNotice } from '@/components/layout/ConstructionNotice'
 import { UpdateBar } from '@/components/layout/UpdateBar'
 import { Tutorial } from '@/components/tutorial/Tutorial'
 import { useDismissDistantMenus, useMenuOpenFlag } from '@/components/ui/dismissDistant'
+import { useAttention } from '@/components/ui/attention'
+import { PANE_ENTER } from '@/components/ui/enter'
+import { cn } from '@/lib/cn'
 import { ELEMENT_KINDS, type ElementKind } from '@shared/project'
 import { LATEST_BTA } from '@shared/generator/mappings'
 
@@ -112,9 +115,17 @@ export default function App(): JSX.Element {
     return () => window.clearTimeout(timer)
   }, [dirty, hasProject, savingMode])
 
+  const refusals = useAppStore((s) => s.refusals)
+  const { attention, callAttention } = useAttention()
+  useEffect(() => {
+
+    if (refusals === 0) return
+    callAttention()
+  }, [refusals, callAttention])
+
   return (
     <MotionConfig reducedMotion={reduceAnimations ? 'always' : 'user'}>
-    <div className="flex h-full flex-col">
+    <div className={cn('flex h-full flex-col', attention && 'jiggle')}>
       <TitleBar />
       {
 
@@ -130,13 +141,7 @@ export default function App(): JSX.Element {
           {
 
 }
-          <motion.div
-            key={section}
-            className="absolute inset-0 flex flex-col"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <motion.div key={section} className="absolute inset-0 flex flex-col" {...PANE_ENTER}>
             {section === 'dashboard' && <Dashboard />}
             {section === 'gallery' && <GallerySection />}
             {section === 'workshop' && <WorkshopSection />}

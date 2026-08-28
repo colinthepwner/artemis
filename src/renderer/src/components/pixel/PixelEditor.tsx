@@ -212,6 +212,23 @@ const makeLayer = (name: string, grid: Grid = EMPTY): Layer => ({
 
 const snapshot = (layers: Layer[]): Layer[] => layers.map((l) => ({ ...l, grid: [...l.grid] }))
 
+function sameStack(a: Layer[], b: Layer[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((l, i) => {
+    const o = b[i]
+    return (
+      l.name === o.name &&
+      l.visible === o.visible &&
+      l.opacity === o.opacity &&
+      l.hue === o.hue &&
+      l.saturation === o.saturation &&
+      l.brightness === o.brightness &&
+      l.grid.length === o.grid.length &&
+      l.grid.every((px, j) => px === o.grid[j])
+    )
+  })
+}
+
 export function PixelEditorOverlay(): JSX.Element | null {
   const editorState = useAppStore((s) => s.textureEditor)
   if (!editorState) return null
@@ -295,30 +312,41 @@ function PixelEditor(): JSX.Element {
 
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
+  const opened = useRef<{ name: string; layers: Layer[] } | null>(null)
+
   useEffect(() => {
+
+    const settle = (ls: Layer[]): void => {
+      opened.current = { name: existing?.name ?? suggestedName ?? '', layers: snapshot(ls) }
+    }
     if (existing?.layers?.length) {
       const saved = existing.layers
-      void Promise.all(saved.map((l) => dataUrlToGrid(l.data))).then((grids) =>
-        setLayers(() => {
-          const restored = saved.map((l, i) => ({
-            ...makeLayer(l.name, grids[i]),
-            visible: l.visible,
-            opacity: l.opacity,
-            hue: l.hue,
-            saturation: l.saturation,
-            brightness: l.brightness
-          }))
-          setActiveId(restored[0].id)
-          return restored
-        })
-      )
+      void Promise.all(saved.map((l) => dataUrlToGrid(l.data))).then((grids) => {
+        const restored = saved.map((l, i) => ({
+          ...makeLayer(l.name, grids[i]),
+          visible: l.visible,
+          opacity: l.opacity,
+          hue: l.hue,
+          saturation: l.saturation,
+          brightness: l.brightness
+        }))
+        settle(restored)
+        setLayers(restored)
+        setActiveId(restored[0].id)
+      })
       return
     }
     if (existing?.data) {
-      void dataUrlToGrid(existing.data).then((g) =>
-        setLayers((ls) => ls.map((l, i) => (i === 0 ? { ...l, grid: g } : l)))
-      )
+      void dataUrlToGrid(existing.data).then((g) => {
+
+        const next = layers.map((l, i) => (i === 0 ? { ...l, grid: g } : l))
+        settle(next)
+        setLayers(next)
+      })
+      return
     }
+
+    settle(layers)
 
   }, [])
 
@@ -852,19 +880,24 @@ function PixelEditor(): JSX.Element {
   const nameAttention = useAttention()
   const saveAttention = useAttention()
   const nameRef = useRef<HTMLInputElement>(null)
-  const attemptSave = (): void => {
+
+  const attemptCommit = (): boolean => {
     if (saveBlocked) {
       nameAttention.callAttention()
       saveAttention.callAttention()
       nameRef.current?.focus()
       nameRef.current?.select()
-      return
+      return false
     }
-    save()
+    return commit()
   }
 
-  const save = (): void => {
-    if (saveBlocked) return
+  const attemptSave = (): void => {
+    if (attemptCommit()) close()
+  }
+
+  const commit = (): boolean => {
+    if (saveBlocked) return false
 
     const data = rgbaToDataUrl(displayed, composite.alpha)
 
@@ -886,8 +919,31 @@ function PixelEditor(): JSX.Element {
       const id = addTexture(saveName, data, savingKind, savedLayers)
       if (assignSlotAfter) assignTexture(assignSlotAfter, id)
     }
-    close()
+
+    opened.current = { name: finalName, layers: snapshot(layers) }
+    return true
   }
+
+  const save = (): void => {
+    if (commit()) close()
+  }
+
+  const hasUnsavedWork = (): boolean => {
+    const base = opened.current
+    if (!base) return false
+    return name.trim() !== base.name.trim() || !sameStack(layers, base.layers)
+  }
+
+  const live = useRef({ hasUnsavedWork, commit })
+  live.current = { hasUnsavedWork, commit }
+  const setPendingWork = useAppStore((s) => s.setPendingWork)
+  useEffect(() => {
+    setPendingWork({
+      has: () => live.current.hasUnsavedWork(),
+      commit: () => live.current.commit()
+    })
+    return () => setPendingWork(null)
+  }, [setPendingWork])
 
   const [hx, hy] = hover !== null ? xy(hover) : [null, null]
 

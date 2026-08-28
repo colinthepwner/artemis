@@ -8,6 +8,7 @@ import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/com
 import type { ArtemisElement, ElementKind } from '@shared/project'
 import { FORM_REGISTRY, KIND_LABELS } from '@/sections/forms/registry'
 import { ContentThumb } from '@/components/ui/ContentThumb'
+import { PANE_ENTER } from '@/components/ui/enter'
 
 export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
   const editingId = useAppStore((s) => s.editingId)
@@ -65,23 +66,11 @@ export function ElementSection({ kind }: { kind: ElementKind }): JSX.Element {
 }
       <div className="relative min-h-0 flex-1">
         {editingId ? (
-          <motion.div
-            key={editingId}
-            className="absolute inset-0"
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <motion.div key={editingId} className="absolute inset-0" {...PANE_ENTER}>
             <Form kind={kind} element={editing ?? null} onClose={() => openEditor(null)} />
           </motion.div>
         ) : (
-          <motion.div
-            key="list"
-            className="absolute inset-0 overflow-y-auto p-5"
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <motion.div key="list" className="absolute inset-0 overflow-y-auto p-5" {...PANE_ENTER}>
             {elements.length === 0 ? (
               <EmptyState label={label} onCreate={createNew} />
             ) : (

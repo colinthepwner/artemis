@@ -12,6 +12,8 @@ import { textureSlotsFor } from '../src/shared/generator/textures'
 import { kitFamily } from '../src/shared/generator/family'
 import { builtVariants, variantCells } from '../src/shared/generator/templates/structure'
 import { STRUCTURE_DEFAULTS, type StructureProps } from '../src/shared/generator/props'
+import { treeGroundRefs, VANILLA_BIOME_PREFIX } from '../src/shared/generator/biomeFilter'
+import type { EmitContext } from '../src/shared/generator/CodeGenerator'
 import { getVanillaRegistry } from '../src/shared/generator/vanilla'
 import { SCENARIOS } from './audit-fixtures'
 import { probeWorkspace } from './_temp'
@@ -54,6 +56,14 @@ interface Expectations {
     buried: boolean
     biomes: string[]
     cells: string[][]
+  }[]
+
+  decoratorTrees: {
+    field: string
+    treesPerChunk: number
+    vanillaBiomes: string[]
+    groundFields: string[]
+    sharedWith: string[]
   }[]
 
   spawns: { entityClass: string; weight: number; hostile: boolean; biomes: string[] }[]
@@ -171,12 +181,16 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     })
     .filter((d) => d.biomes.length + d.vanillaBiomes.length > 0)
 
-  const placesBlock = (blockName: string): string[] => {
+  const placesBlock = (blockName: string, self?: ArtemisElement): string[] => {
     const uses: string[] = []
     const prop = (el: ArtemisElement, key: string): string =>
       String((el.properties as Record<string, unknown>)[key] ?? '').trim()
     for (const el of project.elements) {
-      if (el.kind === 'biome') {
+      if (self && el === self) continue
+      if (el.kind === 'ore') {
+
+        if (prop(el, 'blockRef') === blockName) uses.push(`ore:${el.name}`)
+      } else if (el.kind === 'biome') {
         if (prop(el, 'topBlock') === blockName) uses.push(`biome:${el.name}/top`)
         if (prop(el, 'fillerBlock') === blockName) uses.push(`biome:${el.name}/filler`)
       } else if (el.kind === 'tree' || el.kind === 'structure') {
@@ -211,7 +225,7 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
         veinsPerChunk: (el.properties['veinsPerChunk'] as number | undefined) ?? 0,
         asked: asked.length,
 
-        sharedWith: placesBlock((el.properties['blockRef'] as string).trim()),
+        sharedWith: placesBlock((el.properties['blockRef'] as string).trim(), el),
 
         biomes: asked
           .filter((r) => project.elements.some((el2) => el2.kind === 'biome' && el2.name === r))
@@ -300,6 +314,78 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     .filter((row) => row.asked === 0 || row.biomes.length > 0)
     .map(({ name, oneIn, buried, biomes, cells }) => ({ name, oneIn, buried, biomes, cells }))
 
+  const decoratorTreeRows = project.elements
+    .filter((el) => {
+      if (el.kind !== 'tree') return false
+      if (el.properties['design'] === 'built') return false
+      if (((el.properties['treesPerChunk'] as number | undefined) ?? 0) <= 0) return false
+      const log = el.properties['logBlock']
+      if (typeof log !== 'string' || !log.trim() || log.includes(':')) return false
+      const listed = (((el.properties['biomes'] as string[] | undefined) ?? []) as string[])
+        .map((r) => r.trim())
+        .filter(Boolean)
+
+      return listed.length === 0 || listed.some((r) => r.startsWith(VANILLA_BIOME_PREFIX))
+    })
+    .map((el) => {
+      const listed = (((el.properties['biomes'] as string[] | undefined) ?? []) as string[])
+        .map((r) => r.trim())
+        .filter(Boolean)
+      const vanillaBiomes = listed
+        .filter((r) => r.startsWith(VANILLA_BIOME_PREFIX))
+        .map((r) => r.slice(VANILLA_BIOME_PREFIX.length))
+      const logRef = (el.properties['logBlock'] as string).trim()
+
+      const reachesCountedColumns = (other: ArtemisElement): boolean => {
+        if (vanillaBiomes.length === 0) return true
+
+        if (other.kind === 'biome') return false
+
+        if (other.kind === 'dimension') return true
+        const theirs = (((other.properties['biomes'] as string[] | undefined) ?? []) as string[])
+          .map((r) => r.trim())
+          .filter(Boolean)
+        if (theirs.length === 0) return true
+        return theirs.some(
+          (r) =>
+            r.startsWith(VANILLA_BIOME_PREFIX) &&
+            vanillaBiomes.includes(r.slice(VANILLA_BIOME_PREFIX.length))
+        )
+      }
+      return {
+        field: toConstantCase(logRef),
+        treesPerChunk: Math.max(
+          0,
+          Math.round((el.properties['treesPerChunk'] as number | undefined) ?? 0)
+        ),
+        vanillaBiomes,
+
+        groundFields: treeGroundRefs(
+          (el.properties['biomes'] as string[] | undefined) ?? [],
+          { project } as unknown as EmitContext
+        )
+          .map((ref) => cellTag(ref))
+          .filter((tag) => tag !== '?'),
+
+        sharedWith: placesBlock(logRef, el).filter((use) => {
+          const owner = project.elements.find(
+            (other) =>
+              use.startsWith(`${other.kind}:`) && use.split(':')[1].split('/')[0] === other.name
+          )
+          return owner ? reachesCountedColumns(owner) : true
+        })
+      }
+    })
+
+    .filter(
+      (row, i, all) =>
+        all.findIndex(
+          (other) =>
+            other.field === row.field &&
+            other.vanillaBiomes.join(',') === row.vanillaBiomes.join(',')
+        ) === i
+    )
+
   const spawns = project.elements
     .filter(
       (el) =>
@@ -346,6 +432,7 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     ores,
     plants,
     structures,
+    decoratorTrees: decoratorTreeRows,
     spawns,
     langKeys
   }
@@ -461,6 +548,40 @@ ${e.structures
 ${e.structures
   .map((st) => `\t\t{ ${st.cells.map((v) => `"${v.join(';')}"`).join(', ')} }`)
   .join(',\n')}
+\t};
+\t/** the mod's own trees that the DECORATOR plants: { ModBlocks field of the
+\t *  log, trees per chunk, Biomes FIELD names it named }, with no field at all
+\t *  meaning every biome. Fields and not registry keys because "biome:X" is a
+\t *  field name and nothing else; the key is asked of the field in the running
+\t *  game. A tree that named only the mod's own biomes is NOT here: those are
+\t *  planted by the biome's getTreeFeature and counted by CLAIMED_BIOMES, and a
+\t *  row in both places would be the tree declaring itself twice.
+\t *  See censusDecoratorTree and Expectations.decoratorTrees */
+\tprivate static final String[][] DECO_TREE_ROWS = {
+${e.decoratorTrees
+  .map(
+    (t) =>
+      `\t\t{ "${t.field}", "${t.treesPerChunk}"${t.vanillaBiomes.map((b) => `, "${b}"`).join('')} }`
+  )
+  .join(',\n')}
+\t};
+\t/** and, row for row, what that tree may stand on BEYOND the game's own
+\t *  GROWS_TREES tag, tagged "V:FIELD" for one of the game's blocks and
+\t *  "M:FIELD" for one of this mod's. Read off treeGroundRefs, which is the
+\t *  function that writes the gate, so this is the same rule asked rather than
+\t *  a second copy of it. It is what lets a zero be read: a tree pointed at a
+\t *  desert plants nothing because sand grows no trees, and that is the mod
+\t *  behaving rather than failing. */
+\tprivate static final String[] DECO_TREE_GROUND = {
+${e.decoratorTrees.map((t) => `\t\t"${t.groundFields.join(' ')}"`).join(',\n')}
+\t};
+\t/** and, row for row, everything ELSE in the project that could put that same
+\t *  log in one of the columns this row counts, empty when nothing can. A94,
+\t *  narrowed by the biome filter: a row that names one of the game's biomes
+\t *  counts only columns of it, so anything confined to the mod's own biomes
+\t *  cannot be in them. */
+\tprivate static final String[] DECO_TREE_SHARED = {
+${e.decoratorTrees.map((t) => `\t\t"${t.sharedWith.join(' ')}"`).join(',\n')}
 \t};
 \t/** the mod's own natural spawns: { entity class, weight, hostile, biomes it
 \t *  named }, tagged "M:key" for one of this mod's biomes and "V:FIELD" for one
@@ -1147,6 +1268,14 @@ ${javaNames({
 \t\t\t// spots. See censusStructure and A99.
 \t\t\tstage("the structure census");
 \t\t\tstructureCensus();
+\t\t\t// And the FOURTH, which completes the set: a tree the decorator plants
+\t\t\t// itself. Last of the four because it is the one that was missing, and
+\t\t\t// because it grows chunks like the three above it. The half of it that
+\t\t\t// belongs to a claimed mod biome is NOT here and must not be: that is
+\t\t\t// the tree census two phases up, and asking it in both places would be
+\t\t\t// the tree declaring itself twice. See decoratorTreeCensus and A68.
+\t\t\tstage("the decorator tree census");
+\t\t\tdecoratorTreeCensus();
 \t\t} catch (Throwable t) {
 \t\t\twcheck("the worldgen probe ran", false, String.valueOf(t));
 \t\t\ttrace(t);
@@ -2737,6 +2866,14 @@ ${javaNames({
 \t\t\t}
 \t\t\tfor (int i = 3; i < row.length; i++) {
 \t\t\t\tString biomeKey = row[i];
+\t\t\t\t// Named BEFORE the world is resolved, because resolving one can boot
+\t\t\t\t// a dimension that has never been loaded, and a fixture holding
+\t\t\t\t// eighteen worlds does that eighteen times. Without this line a slow
+\t\t\t\t// worldOfBiome and a slow census are the same silence; with it they
+\t\t\t\t// are a SEEKING with no BEGIN under it, and a BEGIN with no
+\t\t\t\t// STRUCTURE under it.
+\t\t\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-SEEKING " + name
+\t\t\t\t\t+ " the world of " + biomeKey + " (" + (i - 2) + " of " + (row.length - 3) + ")");
 \t\t\t\tnet.minecraft.core.world.World world = worldOfBiome(biomeKey, overworld);
 \t\t\t\tif (world == null) {
 \t\t\t\t\tSystem.out.println("ARTEMIS-WORLDGEN SKIP structure " + name + " in " + biomeKey
@@ -2767,6 +2904,284 @@ ${javaNames({
 \t}
 
 \t/**
+\t * The decorator's FOURTH and last kind of output: a tree it plants itself.
+\t *
+\t * A89 opened the mixin with ores, A95 added plants, A99 structures. This is
+\t * the one that was left, and it was left because half of it should never be
+\t * asked. A tree claiming one of the MOD's own biomes is planted by that
+\t * biome's getTreeFeature at a density BTA reserves for its own biomes, so
+\t * counting it would be asserting the game's table; CLAIMED_BIOMES already
+\t * counts those trunks from the other side. The half asked here is the other
+\t * one: a tree that named one of the GAME's biomes, or named none, is planted
+\t * from the mixin at the modder's OWN treesPerChunk, exactly like an ore vein.
+\t *
+\t * Until this ran, the guard the emitter writes for that case was the only
+\t * biome guard in the generator that no running game had ever exercised.
+\t * Every guard any census here had ever driven named one of the mod's own
+\t * biomes, because the ore rows and the claim rows both drop a "biome:FIELD"
+\t * ref on the way in. So the guard "biome != Biomes.OVERWORLD_FOREST" compiled,
+\t * shipped, and was never once shown to let a single block through.
+\t *
+\t * TRUNKS are counted and leaves are not, which is what makes the count mean
+\t * the guard. A canopy drapes sideways and can hang over a column in the next
+\t * biome along; the trunk stands in the one column the guard actually tested.
+\t *
+\t * The zero is the hard part, exactly as it was for the plant, and for the
+\t * same reason one kind of element over: an attempt is ONE column and it only
+\t * lands on ground the tree accepts. A tree pointed at a desert plants nothing
+\t * whatever, because sand carries no GROWS_TREES tag, and that is the mod
+\t * doing as it was told. So the same columns are asked how many of them the
+\t * gate would have accepted, using the gate's own two conditions read off the
+\t * generated feature: the tag, or one of the extra grounds treeGroundRefs
+\t * added. Below five expected placements the row SKIPs and claims nothing,
+\t * which is the line the plant census drew.
+\t */
+\tprivate static void decoratorTreeCensus() {
+\t\tif (DECO_TREE_ROWS.length == 0) return;
+\t\tnet.minecraft.core.world.World overworld = awaitWorld(0, 60);
+\t\tif (overworld == null) {
+\t\t\twcheck("the overworld was still there to time the decorator tree census by", false,
+\t\t\t\t"no dimension 0 arrived while waiting");
+\t\t\treturn;
+\t\t}
+\t\tif (!awaitBoot(overworld, "the decorator tree census")) return;
+\t\tClass<?> holder;
+\t\ttry {
+\t\t\tholder = Class.forName("${pkg}.init.ModBlocks");
+\t\t} catch (Throwable t) {
+\t\t\twcheck("the block holder loaded for the decorator tree census", false, String.valueOf(t));
+\t\t\treturn;
+\t\t}
+\t\tfor (int r = 0; r < DECO_TREE_ROWS.length; r++) {
+\t\t\tString[] row = DECO_TREE_ROWS[r];
+\t\t\tString field = row[0];
+\t\t\tint treesPerChunk = Integer.parseInt(row[1]);
+\t\t\tString shared = DECO_TREE_SHARED[r];
+\t\t\tObject log;
+\t\t\ttry {
+\t\t\t\tlog = holder.getField(field).get(null);
+\t\t\t} catch (Throwable t) {
+\t\t\t\twcheck("the log block " + field + " the tree is built from exists", false,
+\t\t\t\t\tString.valueOf(t));
+\t\t\t\tcontinue;
+\t\t\t}
+\t\t\t// A null field makes every identity comparison below false, and the row
+\t\t\t// would then read as a decorator that planted nothing, which is the
+\t\t\t// opposite of what a missing block means. Same trap as the ore census.
+\t\t\tif (log == null) {
+\t\t\t\twcheck("the log block " + field + " the tree is built from exists", false,
+\t\t\t\t\t"the field is there but null, so nothing could be counted");
+\t\t\t\tcontinue;
+\t\t\t}
+\t\t\t// The extra grounds the gate was written with, resolved once a row.
+\t\t\t// An unresolved one is dropped rather than guessed at, which can only
+\t\t\t// UNDERcount the ground and so only ever raises the bar.
+\t\t\tjava.util.List<Object> extraGround = new java.util.ArrayList<>();
+\t\t\tif (!DECO_TREE_GROUND[r].isEmpty()) {
+\t\t\t\tfor (String tag : DECO_TREE_GROUND[r].split(" ")) {
+\t\t\t\t\tObject g = blockOfTag(tag);
+\t\t\t\t\tif (g != null) extraGround.add(g);
+\t\t\t\t}
+\t\t\t}
+\t\t\tif (row.length == 2) {
+\t\t\t\t// Named no biome, so the emitter wrote no guard at all and the tree
+\t\t\t\t// is planted in every biome of every world this mod reaches. Asked
+\t\t\t\t// in both, the way an ore that named nothing is.
+\t\t\t\tcensusDecoratorTree(overworld, "the overworld", field, log, null, treesPerChunk,
+\t\t\t\t\tshared, extraGround);
+\t\t\t\tnet.minecraft.core.world.World away = firstDimensionWorld();
+\t\t\t\tif (away != null) {
+\t\t\t\t\tcensusDecoratorTree(away, "the first dimension", field, log, null, treesPerChunk,
+\t\t\t\t\t\tshared, extraGround);
+\t\t\t\t}
+\t\t\t\tcontinue;
+\t\t\t}
+\t\t\tfor (int i = 2; i < row.length; i++) {
+\t\t\t\tString biomeField = row[i];
+\t\t\t\t// One of the GAME's biomes, so its key is asked of the field rather
+\t\t\t\t// than predicted here, the same way a dimension's roster asks.
+\t\t\t\tnet.minecraft.core.world.biome.Biome b = biomeOfRef("V:" + biomeField);
+\t\t\t\tif (b == null) {
+\t\t\t\t\twcheck("the game declares the biome Biomes." + biomeField + " this tree named",
+\t\t\t\t\t\tfalse, "the field is missing or null, so the guard the mod compiled names nothing");
+\t\t\t\t\tcontinue;
+\t\t\t\t}
+\t\t\t\tString key = b.getRegistryKey();
+\t\t\t\tif (key == null) {
+\t\t\t\t\twcheck("the game's own biome " + biomeField + " has a registry key", false,
+\t\t\t\t\t\t"Biomes." + biomeField + " answered a biome with no key");
+\t\t\t\t\tcontinue;
+\t\t\t\t}
+\t\t\t\t// The overworld and not worldOfBiome: that helper resolves the MOD's
+\t\t\t\t// own biomes off its rosters, and one of the game's is in none of
+\t\t\t\t// them. A vanilla overworld biome generates in the overworld, which
+\t\t\t\t// is the world the guard will be asked in.
+\t\t\t\tcensusDecoratorTree(overworld, "the overworld", field, log, key, treesPerChunk,
+\t\t\t\t\tshared, extraGround);
+\t\t\t}
+\t\t}
+\t}
+
+\t/**
+\t * One decorator-planted tree, in one world, counted by its trunk.
+\t *
+\t * The sample is sized the plant census's way rather than the ore's, because
+\t * a tree attempt is a plant attempt: one column, which must be ground the
+\t * tree accepts. Forty-eight attempts is the floor for the same reason.
+\t */
+\tprivate static void censusDecoratorTree(net.minecraft.core.world.World world, String where,
+\t\t\tString field, Object log, String wanted, int treesPerChunk, String shared,
+\t\t\tjava.util.List<Object> extraGround) {
+\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider = world.getBiomeProvider();
+\t\tif (provider == null) {
+\t\t\twcheck("the decorator tree census has a biome provider in " + where, false,
+\t\t\t\t"getBiomeProvider() returned null");
+\t\t\treturn;
+\t\t}
+\t\tint want = Math.max(6, Math.min(16, (48 + treesPerChunk - 1) / treesPerChunk));
+\t\tjava.util.List<int[]> spots;
+\t\tif (wanted == null) {
+\t\t\tspots = openSpots(want);
+\t\t} else {
+\t\t\tspots = spreadSpots(provider, wanted, 2048, 64, want);
+\t\t\twcheck("the decorator tree census found somewhere " + wanted + " actually is",
+\t\t\t\tspots.size() > 0,
+\t\t\t\t"no column of it in the sampled grid, so nothing was grown to look at");
+\t\t\tif (spots.isEmpty()) return;
+\t\t}
+\t\t// The same switch every chunk-growing phase holds open, for the same
+\t\t// reason: a server with nobody in the world refuses to generate a chunk
+\t\t// nobody is standing near, and the refusal is silent. See A72 and A74.
+\t\tboolean override = allowChunkLoads(world, true);
+\t\tint blocks = 0;
+\t\tint columns = 0;
+\t\tint ground = 0;
+\t\tint grown = 0;
+\t\ttry {
+\t\t\tfor (int[] spot : spots) {
+\t\t\t\tif (!growDecorated(world, spot[0], spot[1])) continue;
+\t\t\t\tgrown++;
+\t\t\t\tint[] tally = countDecoratorTree(world, provider, spot[0], spot[1], wanted, log,
+\t\t\t\t\textraGround);
+\t\t\t\tblocks += tally[0];
+\t\t\t\tcolumns += tally[1];
+\t\t\t\tground += tally[2];
+\t\t\t}
+\t\t} finally {
+\t\t\tif (override) allowChunkLoads(world, false);
+\t\t}
+\t\tdouble expected = treesPerChunk * (ground / 256.0);
+\t\tdouble shown = Math.round(expected * 10.0) / 10.0;
+\t\t// Printed every run and not only on a failure, which is A85's rule.
+\t\tSystem.out.println("ARTEMIS-WORLDGEN DECOTREE " + field + " in " + where
+\t\t\t+ (wanted == null ? " (every biome)" : " biome=" + wanted)
+\t\t\t+ " logs=" + blocks + " columns=" + columns + " ground=" + ground
+\t\t\t+ " chunks=" + grown + "/" + spots.size()
+\t\t\t+ " attempts=" + (treesPerChunk * grown)
+\t\t\t+ " expected=" + shown
+\t\t\t+ " shared=" + (shared.isEmpty() ? "none" : shared.replace(" ", ",")));
+\t\twcheck("the decorator tree census grew ground it could count for " + field + " in " + where,
+\t\t\tcolumns > 0,
+\t\t\t"not one column to count in " + grown + " of " + spots.size()
+\t\t\t\t+ " chunks grown, so its zero proves nothing");
+\t\tif (columns == 0) return;
+\t\t// The guard is on the ZERO and not on the row, which is the ordering the
+\t\t// plant census settled: a trunk found in the ground proves the mixin
+\t\t// planted it, and how thin the sample was stops mattering once the
+\t\t// evidence is there.
+\t\tif (blocks == 0 && expected < 5.0) {
+\t\t\tSystem.out.println("ARTEMIS-WORLDGEN SKIP decotree " + field + " in " + where
+\t\t\t\t+ " :: only " + ground + " of " + columns + " columns are ground it grows on, so "
+\t\t\t\t+ (treesPerChunk * grown) + " attempts expect " + shown
+\t\t\t\t+ " and a zero proves nothing");
+\t\t\treturn;
+\t\t}
+\t\t// A94, narrowed. Anything else that could put this same log in one of
+\t\t// THESE columns makes the count unable to tell a trunk from it, and the
+\t\t// row says so rather than claiming what identity cannot prove.
+\t\tif (!shared.isEmpty()) {
+\t\t\twcheck("at least " + field + " is standing in " + where
+\t\t\t\t\t+ " (also placed by " + shared.replace(" ", ", ")
+\t\t\t\t\t+ ", so this cannot tell a trunk from it)",
+\t\t\t\tblocks > 0,
+\t\t\t\t"not one block of it in " + columns + " columns, and this mod puts it there two ways");
+\t\t\treturn;
+\t\t}
+\t\twcheck("and the decorator really planted " + field + " in " + where,
+\t\t\tblocks > 0,
+\t\t\t"not one trunk of it in " + columns + " columns after " + (treesPerChunk * grown)
+\t\t\t\t+ " attempts over " + ground + " columns of ground it grows on, which expected "
+\t\t\t\t+ shown
+\t\t\t\t+ ": the mixin planted nothing here, so the tree exists in the registry and nowhere else");
+\t}
+
+\t/**
+\t * One chunk, counted for one tree's trunk and for the ground that tree
+\t * would have been allowed to stand on.
+\t *
+\t * Separate from countPlant for the reason countPlant is separate from
+\t * countOre: the third number is a different question. A plant asks its own
+\t * canPlaceAt, and a tree has no logic object to ask, because its gate lives
+\t * in the generated feature class. So the gate's two conditions are asked
+\t * here in the order the feature asks them, off the column's own surface:
+\t * the block UNDER the heightmap value, tagged GROWS_TREES, or one of the
+\t * extra grounds treeGroundRefs put in the gate.
+\t *
+\t * A column already holding a trunk counts as ground without being asked,
+\t * the same allowance countPlant makes and for the same reason: the tree
+\t * grew there, so the ground was acceptable, and the heightmap now points at
+\t * the canopy rather than at what the tree stood on.
+\t *
+\t * Returns { logs found, columns counted, columns of ground }.
+\t */
+\tprivate static int[] countDecoratorTree(net.minecraft.core.world.World world,
+\t\t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider,
+\t\t\tint chunkX, int chunkZ, String wanted, Object log, java.util.List<Object> extraGround) {
+\t\tint found = 0;
+\t\tint columns = 0;
+\t\tint ground = 0;
+\t\tnet.minecraft.core.world.pos.TilePos p = new net.minecraft.core.world.pos.TilePos();
+\t\tfor (int lx = 0; lx < 16; lx++) {
+\t\t\tfor (int lz = 0; lz < 16; lz++) {
+\t\t\t\tint x = (chunkX << 4) + lx;
+\t\t\t\tint z = (chunkZ << 4) + lz;
+\t\t\t\tif (wanted != null) {
+\t\t\t\t\tnet.minecraft.core.world.biome.Biome b = provider.getBiome(x, 64, z);
+\t\t\t\t\tif (b == null || !wanted.equals(b.getRegistryKey())) continue;
+\t\t\t\t}
+\t\t\t\tcolumns++;
+\t\t\t\tint here = 0;
+\t\t\t\t// The world's own height, not 128: BTA is taller than the number a
+\t\t\t\t// harness would have invented.
+\t\t\t\tfor (int y = 1; y < world.getHeightBlocks(); y++) {
+\t\t\t\t\tif (world.getBlockType(p.set(x, y, z)) == log) here++;
+\t\t\t\t}
+\t\t\t\tfound += here;
+\t\t\t\tif (here > 0) {
+\t\t\t\t\tground++;
+\t\t\t\t\tcontinue;
+\t\t\t\t}
+\t\t\t\t// The generated feature's own gate, asked of the same column it
+\t\t\t\t// would have been asked of: the surface the decorator would plant
+\t\t\t\t// on is getHeightValue, and the block it tests is the one under it.
+\t\t\t\tint groundId = world.getBlockId(x, world.getHeightValue(x, z) - 1, z);
+\t\t\t\tif (net.minecraft.core.block.Blocks.hasTag(groundId,
+\t\t\t\t\t\tnet.minecraft.core.block.tag.BlockTags.GROWS_TREES)) {
+\t\t\t\t\tground++;
+\t\t\t\t\tcontinue;
+\t\t\t\t}
+\t\t\t\tfor (Object g : extraGround) {
+\t\t\t\t\tif (((net.minecraft.core.block.Block<?>) g).id() == groundId) {
+\t\t\t\t\t\tground++;
+\t\t\t\t\t\tbreak;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t\treturn new int[] { found, columns, ground };
+\t}
+
+\t/**
 \t * One structure, in one world, over a square of chunks sized against the
 \t * roll, asserted only when the shape beat its own decoy.
 \t *
@@ -2788,6 +3203,22 @@ ${javaNames({
 \tprivate static void censusStructure(net.minecraft.core.world.World world, String where,
 \t\t\tString name, int[][][] offs, Object[][] blocks, String wanted, int oneIn,
 \t\t\tboolean buried) {
+\t\t// SAID BEFORE ANYTHING SLOW HAPPENS, WHICH IS THE WHOLE POINT OF IT. This
+\t\t// census printed one line per row and printed it at the END, so a row that
+\t\t// took twenty-seven minutes and a row that never started looked identical
+\t\t// from outside: silence. A103 is that silence, and no amount of staring at
+\t\t// a log with nothing in it was going to say whether the census was stuck on
+\t\t// its first chunk or crawling through all 242 of them.
+\t\t//
+\t\t// Four lines bracket the slow part now. BEGIN says the row was entered,
+\t\t// PLAN says how much ground it is about to ask for, GROWING is a heartbeat
+\t\t// while it asks, and GROWN says the asking ended. None of them assert
+\t\t// anything: they are a reading, in A85's sense, printed every run rather
+\t\t// than only on a failure, and the failure they were built for is the one
+\t\t// where nothing is printed at all.
+\t\tlong entered = System.currentTimeMillis();
+\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-BEGIN " + name + " in " + where
+\t\t\t+ (wanted == null ? " (every biome)" : " biome=" + wanted));
 \t\tnet.minecraft.core.world.biome.provider.BiomeProvider provider = world.getBiomeProvider();
 \t\tif (provider == null) {
 \t\t\twcheck("the structure census has a biome provider in " + where, false,
@@ -2816,6 +3247,13 @@ ${javaNames({
 \t\t\tax = found.get(0)[0] - side / 2;
 \t\t\taz = found.get(0)[1] - side / 2;
 \t\t}
+\t\t// The anchor is the last thing decided before any chunk is asked for, so a
+\t\t// BEGIN with no PLAN under it says the spot search is where the time went,
+\t\t// and a PLAN says the ground is. Two different bugs, told apart by one line.
+\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-PLAN " + name + " in " + where
+\t\t\t+ " anchor=" + ax + "," + az + " side=" + side
+\t\t\t+ " asking=" + ((side + 2) * (side + 2)) + " chunks oneIn=" + oneIn
+\t\t\t+ " after=" + (System.currentTimeMillis() - entered) + "ms");
 \t\t// The same switch every chunk-growing phase holds open, for the same
 \t\t// reason: a server with nobody in the world refuses to generate a chunk
 \t\t// nobody is standing near, and the refusal is silent. See A72 and A74.
@@ -2834,11 +3272,58 @@ ${javaNames({
 \t\t\t// decorated AND every chunk that can decorate into it decorated. It
 \t\t\t// is also what keeps a cell reaching one chunk west of its anchor
 \t\t\t// inside loaded ground rather than off the edge of the sample.
+\t\t\tint asking = (side + 2) * (side + 2);
+\t\t\tint asked = 0;
+\t\t\tint arrived = 0;
+\t\t\tint refused = 0;
+\t\t\t// The slowest single chunk of the row, which is the number that tells
+\t\t\t// the two shapes of A103 apart. awaitChunk can spend forty attempts of
+\t\t\t// half a second each, and every attempt hands a generate job to the
+\t\t\t// server and waits up to thirty seconds for a tick to take it, so one
+\t\t\t// chunk against a server that is not ticking is twenty minutes on its
+\t\t\t// own. A row that crawls has a small worst and a large total; a row
+\t\t\t// that is stuck has one chunk holding nearly the whole total.
+\t\t\tlong worst = 0;
+\t\t\tint worstX = 0;
+\t\t\tint worstZ = 0;
+\t\t\tlong spoke = started;
 \t\t\tfor (int cx = ax - 1; cx <= ax + side; cx++) {
 \t\t\t\tfor (int cz = az - 1; cz <= az + side; cz++) {
-\t\t\t\t\tawaitChunk(world, cx, cz, 40);
+\t\t\t\t\tlong one = System.currentTimeMillis();
+\t\t\t\t\tif (awaitChunk(world, cx, cz, 40)) arrived++; else refused++;
+\t\t\t\t\tasked++;
+\t\t\t\t\tlong took = System.currentTimeMillis() - one;
+\t\t\t\t\tif (took > worst) {
+\t\t\t\t\t\tworst = took;
+\t\t\t\t\t\tworstX = cx;
+\t\t\t\t\t\tworstZ = cz;
+\t\t\t\t\t}
+\t\t\t\t\t// Every fifteen seconds rather than every N chunks, because the
+\t\t\t\t\t// failure this is for is one where the chunks stop arriving: a
+\t\t\t\t\t// counter that only speaks per chunk goes quiet exactly when
+\t\t\t\t\t// there is something to say. Fifteen seconds is under
+\t\t\t\t\t// awaitChunk's own twenty-second ceiling, so a row that is
+\t\t\t\t\t// merely slow still prints between chunks.
+\t\t\t\t\tlong now = System.currentTimeMillis();
+\t\t\t\t\tif (now - spoke >= 15000) {
+\t\t\t\t\t\tspoke = now;
+\t\t\t\t\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-GROWING " + name + " in " + where
+\t\t\t\t\t\t\t+ " " + asked + "/" + asking + " asked, " + arrived + " arrived, "
+\t\t\t\t\t\t\t+ refused + " refused, at " + cx + "," + cz
+\t\t\t\t\t\t\t+ ", worst=" + worst + "ms at " + worstX + "," + worstZ
+\t\t\t\t\t\t\t+ ", for=" + (now - started) + "ms");
+\t\t\t\t\t}
 \t\t\t\t}
 \t\t\t}
+\t\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-GROWN " + name + " in " + where
+\t\t\t\t+ " " + arrived + "/" + asking + " arrived, " + refused + " refused"
+\t\t\t\t+ ", worst=" + worst + "ms at " + worstX + "," + worstZ
+\t\t\t\t+ ", for=" + (System.currentTimeMillis() - started) + "ms");
+\t\t\t// The counting half is block reads on this thread with no waiting in
+\t\t\t// it, so it gets one line rather than a heartbeat: if the total sits
+\t\t\t// between GROWN and STRUCTURE then the reading is here, and that is a
+\t\t\t// different suspect entirely from the growing.
+\t\t\tlong counting = System.currentTimeMillis();
 \t\t\tfor (int cx = ax; cx < ax + side; cx++) {
 \t\t\t\tfor (int cz = az; cz < az + side; cz++) {
 \t\t\t\t\tif (!world.isChunkLoaded(cx, cz)) continue;
@@ -2850,6 +3335,8 @@ ${javaNames({
 \t\t\t\t\tcolumns += tally[3];
 \t\t\t\t}
 \t\t\t}
+\t\t\tSystem.out.println("ARTEMIS-WORLDGEN STRUCTURE-COUNTED " + name + " in " + where
+\t\t\t\t+ " " + grown + " chunks walked, for=" + (System.currentTimeMillis() - counting) + "ms");
 \t\t} finally {
 \t\t\tif (override) allowChunkLoads(world, false);
 \t\t}
@@ -4203,6 +4690,22 @@ async function main(): Promise<void> {
           `plant lines seen:\n       ${plantLines.map((l) => l.trim()).join('\n       ') || 'none'}`
       )
     }
+
+    if (expectations.decoratorTrees.length > 0) {
+      const decoTreeLines = worldgenLines.filter(
+        (l) =>
+          l.includes('ARTEMIS-WORLDGEN DECOTREE ') || l.includes('ARTEMIS-WORLDGEN SKIP decotree ')
+      )
+      const unplantedTrees = expectations.decoratorTrees.filter(
+        (t) => !decoTreeLines.some((l) => l.includes(` ${t.field} `))
+      )
+      check(
+        'and the same for every tree the decorator itself plants',
+        unplantedTrees.length === 0,
+        `nothing was reported for: ${unplantedTrees.map((t) => t.field).join(', ')}\n       ` +
+          `decorator tree lines seen:\n       ${decoTreeLines.map((l) => l.trim()).join('\n       ') || 'none'}`
+      )
+    }
   }
 
   const skipped = probeLines.filter((l) => l.includes('SKIP'))
@@ -4261,10 +4764,15 @@ function runBudget(expectations: Expectations): RunBudget {
   const dimensions = expectations.dimensions.length
   const claims = expectations.claimedBiomes.length + expectations.dimClaimedBiomes.length
 
-  const rows = [...expectations.ores, ...expectations.plants].reduce(
-    (n, row) => n + (row.biomes.length === 0 ? 2 : row.biomes.length),
-    0
-  )
+  const rows =
+    [...expectations.ores, ...expectations.plants].reduce(
+      (n, row) => n + (row.biomes.length === 0 ? 2 : row.biomes.length),
+      0
+    ) +
+    expectations.decoratorTrees.reduce(
+      (n, row) => n + (row.vanillaBiomes.length === 0 ? 2 : row.vanillaBiomes.length),
+      0
+    )
 
   const structureChunks = expectations.structures.reduce((n, row) => {
     const side = Math.ceil(Math.sqrt(Math.max(25, Math.min(225, 5 * row.oneIn))))

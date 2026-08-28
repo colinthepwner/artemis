@@ -131,6 +131,8 @@ function TypedWordmark(props: { mode: HeroMode; switches: number }): JSX.Element
   const noticeOpen = useAppStore((s) => s.startupNoticeOpen)
   const tourOpen = useAppStore((s) => s.activeTour !== null)
 
+  const booting = useAppStore((s) => s.bootPhase) !== 'ready'
+
   const [phrase, setPhrase] = useState(WORDMARK)
   const [fumble, setFumble] = useState(false)
   useEffect(() => {
@@ -138,7 +140,10 @@ function TypedWordmark(props: { mode: HeroMode; switches: number }): JSX.Element
     setFumble(Math.random() < TYPO_CHANCE)
   }, [mode, switches])
 
-  const { text, done } = useTypedText(phrase, { paused: noticeOpen || tourOpen, fumble })
+  const { text, done } = useTypedText(phrase, {
+    paused: booting || noticeOpen || tourOpen,
+    fumble
+  })
   const isWordmark = phrase === WORDMARK
 
   const rest = phrase.slice(text.length)

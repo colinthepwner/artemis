@@ -20,6 +20,7 @@ import { ScenePanel } from '@/components/preview/ScenePreview'
 import { Switch } from '@/components/ui/controls'
 import { useAppStore } from '@/store/appStore'
 import { GlideList } from '@/components/ui/glide'
+import { PANE_ENTER } from '@/components/ui/enter'
 import { cn } from '@/lib/cn'
 
 export interface WizardStep {
@@ -200,15 +201,15 @@ export function FormShell(props: {
 
         {}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
-            {}
-            <motion.div
-              key={step.id}
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-              className="mx-auto max-w-xl"
-            >
+          {
+
+}
+          <motion.div
+            key={step.id}
+            className="min-h-0 flex-1 overflow-y-auto px-8 py-6"
+            {...PANE_ENTER}
+          >
+            <div className="mx-auto max-w-xl">
               <h2 className="text-base font-semibold tracking-tight text-mist-50">{step.title}</h2>
               {step.desc && <p className="mt-1 text-2xs leading-relaxed text-mist-500">{step.desc}</p>}
               <div className="card mt-4 space-y-4 p-4">
@@ -224,8 +225,8 @@ export function FormShell(props: {
                   step.content
                 )}
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
 
           {}
           {

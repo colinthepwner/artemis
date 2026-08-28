@@ -22,6 +22,13 @@ export interface TextureEditorState {
 import type { SavingMode } from '@shared/ipc'
 export type { SavingMode }
 
+export interface PendingWork {
+
+  has: () => boolean
+
+  commit: () => boolean
+}
+
 interface Place {
   section: SectionId
   editingId: string | null
@@ -46,6 +53,28 @@ function record(state: AppState, place: Place): Partial<AppState> {
   }
   const history = [...past, place].slice(-HISTORY_LIMIT)
   return { history, historyIndex: history.length - 1 }
+}
+
+function leaveEditor(state: AppState, section: SectionId): Partial<AppState> {
+  const place: Place = { section, editingId: null, textureEditor: null, workshopEditor: null }
+  const prev = state.history[state.historyIndex - 1]
+  if (
+    prev &&
+    prev.section === section &&
+    prev.editingId === null &&
+    prev.textureEditor === null &&
+    !prev.workshopEditor
+  ) {
+    return { ...place, historyIndex: state.historyIndex - 1 }
+  }
+  const history = [...state.history]
+  history.splice(state.historyIndex, 0, place)
+
+  if (history.length > HISTORY_LIMIT) {
+    history.shift()
+    return { ...place, history, historyIndex: Math.max(0, state.historyIndex - 1) }
+  }
+  return { ...place, history, historyIndex: state.historyIndex }
 }
 
 interface AppState {
@@ -80,7 +109,15 @@ interface AppState {
   bootPhase: BootPhase
 
   savingMode: SavingMode
+
+  pendingWork: PendingWork | null
+  setPendingWork: (work: PendingWork | null) => void
+
+  refusals: number
+  refuse: () => void
   navigate: (section: SectionId) => void
+
+  leaveEditorTo: (section: SectionId) => void
   openEditor: (id: string | null) => void
   toggleInspector: () => void
   openCreateMenu: () => void
@@ -130,11 +167,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   bootPhase: 'boot',
 
   savingMode: 'onChange',
+  pendingWork: null,
+  setPendingWork: (pendingWork) => set({ pendingWork }),
+  refusals: 0,
+  refuse: () => set((s) => ({ refusals: s.refusals + 1 })),
   navigate: (section) =>
     set((s) => {
       const place: Place = { section, editingId: null, textureEditor: null, workshopEditor: null }
       return { ...place, ...record(s, place) }
     }),
+  leaveEditorTo: (section) => set((s) => leaveEditor(s, section)),
   openEditor: (editingId) =>
     set((s) => {
       const place: Place = { section: s.section, editingId, textureEditor: null, workshopEditor: null }

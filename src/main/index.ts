@@ -39,6 +39,8 @@ if (process.platform === 'win32') app.setAppUserModelId('com.colin.artemis')
 
 let mainWindow: BrowserWindow | null = null
 
+const READY_TO_SHOW_GRACE_MS = 2000
+
 let pendingOpen: string | null = projectPathFromArgv(process.argv)
 
 function deliverPendingOpen(): void {
@@ -53,12 +55,21 @@ if (app.isPackaged) {
 
     app.exit(0)
   } else {
+
     app.on('second-instance', (_event, argv) => {
       const path = projectPathFromArgv(argv)
       if (path) pendingOpen = path
-      if (mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore()
+        if (!mainWindow.isVisible()) {
+          console.error('[window] a second launch found the first one still invisible; showing it')
+          mainWindow.center()
+          mainWindow.show()
+        }
         mainWindow.focus()
+      } else {
+        console.error('[window] a second launch found no window at all; building one')
+        createWindow()
       }
       deliverPendingOpen()
     })
@@ -131,10 +142,14 @@ function createWindow(): void {
     mainWindow?.webContents.setZoomFactor(UI_SCALE)
 
     deliverPendingOpen()
+
+    setTimeout(beginSession, READY_TO_SHOW_GRACE_MS)
   })
 
-  mainWindow.on('ready-to-show', () => {
-    if (!mainWindow) return
+  let sessionStarted = false
+  const beginSession = (): void => {
+    if (sessionStarted || !mainWindow || mainWindow.isDestroyed()) return
+    sessionStarted = true
     revealWindow()
 
     runBootSequence(mainWindow, saved, { width: minWidth, height: minHeight }, checkForUpdates(mainWindow))
@@ -148,7 +163,9 @@ function createWindow(): void {
 
     registerUpdateIpc(mainWindow)
     watchForUpdates(mainWindow)
-  })
+  }
+
+  mainWindow.on('ready-to-show', beginSession)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)

@@ -15,7 +15,9 @@ import {
 
 const BAR_HEIGHT = TITLEBAR_HEIGHT
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, LayoutDashboard } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Hammer, Images } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { SectionId } from '@/store/appStore'
 import { Segmented } from '@/components/ui/controls'
 import { cn } from '@/lib/cn'
 
@@ -50,8 +52,7 @@ export function TitleBar(): JSX.Element {
 
 }
       <div className="no-drag flex items-stretch pl-1">
-        <DashboardEscape />
-        <HistoryArrows />
+        <NavCluster />
         {!inSystemMenuBar && (
           <>
             <FileMenu />
@@ -180,75 +181,121 @@ function FileMenu(): JSX.Element {
 
 const BUTTON_WIDTH = 28
 
-function DashboardEscape(): JSX.Element {
-  const navigate = useAppStore((s) => s.navigate)
-  const inTextureEditor = useAppStore((s) => s.textureEditor !== null)
-  const inBuildEditor = useAppStore((s) => s.workshopEditor !== null)
-  const reduceAnimations = useAppStore((s) => s.reduceAnimations)
-  const drag = useWindowDrag()
-  const open = inTextureEditor || inBuildEditor
-
-  return (
-
-    <motion.div
-      className="overflow-hidden"
-      initial={false}
-      animate={{ width: open ? BUTTON_WIDTH : 0, opacity: open ? 1 : 0 }}
-      transition={
-        reduceAnimations ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
+function useYieldingNav(): (go: () => void) => {
+  onClick: () => void
+  onDoubleClick: () => void
+} {
+  const refuse = useAppStore((s) => s.refuse)
+  return (go) => ({
+    onClick: () => {
+      const work = useAppStore.getState().pendingWork
+      if (work?.has()) {
+        refuse()
+        return
       }
-    >
-      <button
-        onPointerDown={drag.onPointerDown}
-        onClick={() => navigate('dashboard')}
+      go()
+    },
+    onDoubleClick: () => {
+      const work = useAppStore.getState().pendingWork
 
-        disabled={!open}
-        tabIndex={open ? 0 : -1}
-        aria-hidden={!open}
-        aria-label="Dashboard"
-        title="Leave this editor and go to the dashboard"
-        className="flex h-full items-center justify-center text-mist-400 transition-colors hover:bg-ink-750 hover:text-mist-50 focus-visible:ring-0"
-        style={{ width: BUTTON_WIDTH }}
-      >
-        <LayoutDashboard size={14} strokeWidth={2} />
-      </button>
-    </motion.div>
+      if (!work?.has()) return
+      if (work.commit()) go()
+      else refuse()
+    }
+  })
+}
+
+const EDITOR_HUBS = {
+  texture: { section: 'gallery' as SectionId, label: 'Gallery', icon: Images },
+  build: { section: 'workshop' as SectionId, label: 'Workshop', icon: Hammer }
+}
+
+const SLOT_MS = 200
+
+function NavSlot(props: { open: boolean; children: React.ReactNode }): JSX.Element {
+  const reduceAnimations = useAppStore((s) => s.reduceAnimations)
+  return (
+    <div
+      className="overflow-hidden"
+      style={{
+        width: props.open ? BUTTON_WIDTH : 0,
+        opacity: props.open ? 1 : 0,
+        transition: reduceAnimations
+          ? 'none'
+          : `width ${SLOT_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${SLOT_MS}ms ease-out`
+      }}
+    >
+      {props.children}
+    </div>
   )
 }
 
-function HistoryArrows(): JSX.Element {
+function NavCluster(): JSX.Element {
+
+  const leaveEditorTo = useAppStore((s) => s.leaveEditorTo)
   const goBack = useAppStore((s) => s.goBack)
   const goForward = useAppStore((s) => s.goForward)
   const index = useAppStore((s) => s.historyIndex)
   const depth = useAppStore((s) => s.history.length)
+  const inTextureEditor = useAppStore((s) => s.textureEditor !== null)
+  const inBuildEditor = useAppStore((s) => s.workshopEditor !== null)
 
   const drag = useWindowDrag()
 
-  const arrow = (
+  const yielding = useYieldingNav()
+
+  const inEditor = inTextureEditor || inBuildEditor
+
+  const hub = inTextureEditor ? EDITOR_HUBS.texture : EDITOR_HUBS.build
+  const HubIcon: LucideIcon = hub.icon
+
+  const button = (
+    slotOpen: boolean,
     label: string,
-    Icon: typeof ArrowLeft,
-    disabled: boolean,
-    onClick: () => void
-  ): JSX.Element => (
-    <button
-      onPointerDown={drag.onPointerDown}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={cn(
-        'flex w-7 items-center justify-center text-mist-400 transition-colors focus-visible:ring-0',
-        disabled ? 'text-mist-700' : 'hover:bg-ink-750 hover:text-mist-50'
-      )}
-    >
-      <Icon size={14} strokeWidth={2} />
-    </button>
-  )
+    title: string,
+    Icon: LucideIcon,
+    ownDisabled: boolean,
+    go: () => void
+  ): JSX.Element => {
+    const dead = !slotOpen || ownDisabled
+    return (
+      <button
+        onPointerDown={drag.onPointerDown}
+        {...yielding(go)}
+        disabled={dead}
+        tabIndex={slotOpen && !ownDisabled ? 0 : -1}
+        aria-hidden={!slotOpen}
+        aria-label={label}
+        title={title}
+        className={cn(
+          'flex h-full items-center justify-center transition-colors focus-visible:ring-0',
+          dead ? 'text-mist-700' : 'text-mist-400 hover:bg-ink-750 hover:text-mist-50'
+        )}
+        style={{ width: BUTTON_WIDTH }}
+      >
+        <Icon size={14} strokeWidth={2} />
+      </button>
+    )
+  }
 
   return (
     <div className="flex items-stretch">
-      {arrow('Back', ArrowLeft, index <= 0, goBack)}
-      {arrow('Forward', ArrowRight, index >= depth - 1, goForward)}
+      <NavSlot open={!inEditor}>
+        {button(!inEditor, 'Back', 'Back', ArrowLeft, index <= 0, goBack)}
+      </NavSlot>
+      <NavSlot open={!inEditor}>
+        {button(!inEditor, 'Forward', 'Forward', ArrowRight, index >= depth - 1, goForward)}
+      </NavSlot>
+      <NavSlot open={inEditor}>
+        {button(
+          inEditor,
+          hub.label,
+          `Leave this editor and go back to the ${hub.label}`,
+          HubIcon,
+          false,
+          () => leaveEditorTo(hub.section)
+        )}
+      </NavSlot>
     </div>
   )
 }

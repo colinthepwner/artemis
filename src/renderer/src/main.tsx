@@ -1,3 +1,4 @@
+import { bootGuardMounted } from './bootGuard'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
@@ -80,12 +81,24 @@ if (!window.artemis) {
 }
 
 void loadPreferences().finally(() => {
-  ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <CrashBoundary>
-        <App />
-        <AsyncCrashOverlay />
-      </CrashBoundary>
-    </React.StrictMode>
-  )
+
+  try {
+    const root = document.getElementById('root')
+    if (!root) throw new Error('the page has no #root to render into')
+    ReactDOM.createRoot(root).render(
+      <React.StrictMode>
+        <CrashBoundary>
+          <App />
+          <AsyncCrashOverlay />
+        </CrashBoundary>
+      </React.StrictMode>
+    )
+
+    bootGuardMounted()
+  } catch (err) {
+
+    setTimeout(() => {
+      throw err
+    })
+  }
 })

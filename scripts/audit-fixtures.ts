@@ -98,6 +98,13 @@ export const SCENARIOS: Scenario[] = [
         biomes: ['gloomwood', 'biome:OVERWORLD_DESERT'],
         treesPerChunk: 2
       })
+
+      add('tree', 'moor_tree', {
+        logBlock: 'gloom_log',
+        leavesBlock: 'gloom_leaves',
+        biomes: ['biome:OVERWORLD_GRASSLANDS'],
+        treesPerChunk: 3
+      })
       return project
     }
   },
@@ -948,7 +955,8 @@ export const SCENARIOS: Scenario[] = [
             name: 'A',
             blocks: { '0,0,0': 'realm_brick', '0,1,0': 'realm_brick', '0,2,0': 'starsteel_ore' }
           },
-          { id: 'c2', name: 'B', blocks: { '0,0,0': 'realm_brick', '1,0,0': 'realm_brick' } }
+
+          { id: 'c2', name: 'B', blocks: { '0,0,0': 'realm_brick', '1,0,0': 'starsteel_ore' } }
         ],
         biomes: cairnDoors.map(reach)
       })
