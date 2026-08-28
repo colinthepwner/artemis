@@ -3,10 +3,13 @@ import { createConnection, type Socket } from 'net'
 import { get } from 'https'
 import { join } from 'path'
 import { IPC, type PresenceState } from '../shared/ipc'
+import { RELEASES_URL } from './updater'
 
 const DISCORD_APP_ID = '1542265473008402542'
 
 const LARGE_IMAGE = 'logo'
+
+const PRESENCE_BUTTONS = [{ label: 'Get Artemis', url: RELEASES_URL }]
 
 const APP_LOOKUP = `https://discord.com/api/v10/oauth2/applications/${DISCORD_APP_ID}/rpc`
 
@@ -235,7 +238,8 @@ class Presence {
         activity: {
           details: detailsFor(this.state),
           assets: { large_image: this.imageUrl ?? LARGE_IMAGE, large_text: 'Artemis' },
-          timestamps: { start: this.since }
+          timestamps: { start: this.since },
+          buttons: PRESENCE_BUTTONS
         }
       },
       nonce: String(++this.nonce)

@@ -10,6 +10,8 @@ import { canSelfUpdate, desktopPlatform, type InstallKind } from '../shared/plat
 
 const REPO = 'colinthepwner/artemis'
 
+export const RELEASES_URL = `https://github.com/${REPO}/releases`
+
 const ALLOW_PRERELEASE = true
 
 export const OLD_SUFFIX = '.old-update'

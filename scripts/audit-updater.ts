@@ -1,4 +1,4 @@
-import { swapExe, cleanupLeftovers, OLD_SUFFIX } from '../src/main/updater'
+import { swapExe, cleanupLeftovers, noteSummary, OLD_SUFFIX, RELEASES_URL } from '../src/main/updater'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -132,6 +132,45 @@ async function main(): Promise<void> {
     }
     check('running it again, or on a folder that is not there, is quiet', threw === null, String(threw))
     rmSync(dir, { recursive: true, force: true })
+  }
+
+  console.log('\nthe one line the bar shows, and the link under the presence')
+
+  {
+
+    const heading = noteSummary('# Artemis 1.2.3\n\nIt stops eating your mod.')
+    check('a heading above the first sentence is stepped over',
+      heading === 'It stops eating your mod.', heading)
+
+    const badge = noteSummary('![build](https://x/y.svg)\n\nReal words.')
+    check('and so is a badge image', badge === 'Real words.', badge)
+
+    const inline = noteSummary('**Fixed** the [launcher](https://x).')
+    check('bold and links come through as their text',
+      inline === 'Fixed the launcher.', inline)
+
+    check('a release with no notes says nothing', noteSummary('') === '')
+    check('and neither does one that is only structure',
+      noteSummary('# Title\n\n---') === '')
+
+    const long = noteSummary('word '.repeat(80))
+    check('a long first line is cut short', long.length <= 201, String(long.length))
+    check('and cut between words rather than through one',
+      long.endsWith('word\u2026'), long.slice(-30))
+
+    const unbroken = noteSummary('a'.repeat(40) + ' ' + 'b'.repeat(400))
+    check('and cut hard when there is no boundary to cut on',
+      unbroken.length <= 201 && unbroken.endsWith('\u2026'), String(unbroken.length))
+
+    const presence = readFileSync('src/main/discordPresence.ts', 'utf-8')
+    check('the presence offers a way to get Artemis',
+      presence.includes("label: 'Get Artemis'"))
+    check('and points it at the releases, not at a second spelling of the repo',
+      presence.includes('RELEASES_URL'), 'the URL belongs in one place')
+    check('the label fits what Discord allows', 'Get Artemis'.length <= 32)
+    check('and the releases URL is a real https one',
+      /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases$/.test(RELEASES_URL),
+      RELEASES_URL)
   }
 
   console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
