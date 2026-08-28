@@ -95,7 +95,7 @@ export async function runBootSequence(
   saved: WindowState,
   minSize: { width: number; height: number },
   check: Promise<boolean>
-): Promise<void> {
+): Promise<boolean> {
   let restarting = false
   try {
     const [willRestart] = await Promise.all([
@@ -107,7 +107,8 @@ export async function runBootSequence(
 
     console.error('[boot] update check failed:', err)
   }
-  if (win.isDestroyed() || restarting) return
+
+  if (win.isDestroyed() || restarting) return false
 
   try {
     setPhase(win, 'expanding')
@@ -128,9 +129,10 @@ export async function runBootSequence(
     }
   }
 
-  if (win.isDestroyed()) return
+  if (win.isDestroyed()) return false
 
   win.setMinimumSize(minSize.width, minSize.height)
   if (saved.maximized) win.maximize()
   setPhase(win, 'ready')
+  return true
 }

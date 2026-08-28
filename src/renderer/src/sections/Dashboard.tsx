@@ -24,7 +24,7 @@ export function Dashboard(): JSX.Element {
   return (
 
     <div className="flex-1 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-10">
+      <div className="flex min-h-full items-center justify-center p-[clamp(1rem,4vh,2.5rem)]">
         {project ? <ProjectOverview /> : <WelcomeHero />}
       </div>
     </div>
@@ -182,7 +182,8 @@ function LogoHero(props: { mode: HeroMode; switches: number }): JSX.Element {
 
   const revealed = useAppStore((s) => s.bootPhase) === 'ready'
   return (
-    <div className="mb-9 flex flex-col items-center">
+
+    <div className="mb-[clamp(0.75rem,4vh,2.25rem)] flex flex-col items-center">
       <div className="relative flex items-center justify-center">
         {
 }
@@ -205,7 +206,8 @@ function LogoHero(props: { mode: HeroMode; switches: number }): JSX.Element {
           initial={{ opacity: 0, y: 8, scale: 0.96 }}
           animate={revealed ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 8, scale: 0.96 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative h-44 w-auto select-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+
+          className="relative h-[clamp(5rem,17vh,11rem)] w-auto select-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
         />
       </div>
       <TypedWordmark mode={props.mode} switches={props.switches} />

@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { spawn, spawnSync } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { adoptiumTarget, desktopPlatform, javaBinCandidates } from '../shared/platform'
 import { extractAll } from './zip'
 import { download } from './net'
@@ -71,7 +71,8 @@ export function probeJdk(home: string, source = 'chosen'): JdkCandidate | null {
   const parts = version.split(/[._-]/).map((n) => Number(n))
   const major = parts[0] === 1 ? (parts[1] ?? 0) : (parts[0] ?? 0)
   if (!Number.isFinite(major) || major <= 0) return null
-  return { home, version, major, source }
+
+  return { home: dirname(dirname(bin)), version, major, source }
 }
 
 function searchRoots(): Array<{ dir: string; source: string }> {
@@ -189,7 +190,8 @@ export function chooseJdk(home: string | null): JdkCandidate | null {
   }
   const c = probeJdk(home, 'chosen')
   if (!c || c.major < MIN_JAVA) return null
-  writeSetup({ javaHome: home })
+
+  writeSetup({ javaHome: c.home })
   return c
 }
 
@@ -200,7 +202,7 @@ export function jdkEnv(): NodeJS.ProcessEnv {
 
   if (!bin) return { ...process.env }
 
-  const binDir = bin.slice(0, bin.lastIndexOf(process.platform === 'win32' ? '\\' : '/'))
+  const binDir = dirname(bin)
   const sep = process.platform === 'win32' ? ';' : ':'
   return {
     ...process.env,

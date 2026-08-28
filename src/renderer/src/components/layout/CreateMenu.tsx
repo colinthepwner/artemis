@@ -47,16 +47,19 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
   useCloseOnEscape(onClose)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <motion.div
-        className="acrylic absolute inset-0"
+        className="acrylic fixed inset-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.14 }}
         onClick={onClose}
       />
+      <div className="relative flex min-h-full items-center justify-center p-6">
       <motion.div
-        className="relative w-[640px] overflow-hidden rounded-xl bg-ink-850 shadow-raised"
+
+        className="relative w-[min(92vw,880px)] overflow-hidden rounded-xl bg-ink-850 shadow-raised"
         initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -116,6 +119,7 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   )
 }

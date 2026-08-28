@@ -50,8 +50,27 @@ function largestWorkArea(): { width: number; height: number } {
   )
 }
 
+const EDGE_MARGIN = 24
+
+function fittedToScreen(
+  width: number,
+  height: number,
+  room: { width: number; height: number },
+  defaults: WindowDefaults
+): { width: number; height: number } {
+  const roomW = room.width ? room.width - EDGE_MARGIN : Infinity
+  const roomH = room.height ? room.height - EDGE_MARGIN : Infinity
+  return {
+    width: Math.max(defaults.minWidth, Math.min(width, roomW)),
+    height: Math.max(defaults.minHeight, Math.min(height, roomH))
+  }
+}
+
 export function loadWindowState(defaults: WindowDefaults): WindowState {
-  const fresh: WindowState = { width: defaults.width, height: defaults.height, maximized: false }
+
+  const room = screen.getPrimaryDisplay().workArea
+  const fitted = fittedToScreen(defaults.width, defaults.height, room, defaults)
+  const fresh: WindowState = { width: fitted.width, height: fitted.height, maximized: false }
   if (isDev()) return fresh
 
   let saved: Partial<WindowState>
@@ -64,11 +83,11 @@ export function loadWindowState(defaults: WindowDefaults): WindowState {
 
   if (!isFinitePair(saved.width, saved.height)) return fresh
 
-  const room = largestWorkArea()
-  const width = Math.max(defaults.minWidth, Math.min(saved.width as number, room.width || Infinity))
-  const height = Math.max(
-    defaults.minHeight,
-    Math.min(saved.height as number, room.height || Infinity)
+  const { width, height } = fittedToScreen(
+    saved.width as number,
+    saved.height as number,
+    largestWorkArea(),
+    defaults
   )
 
   const state: WindowState = { width, height, maximized: saved.maximized === true }

@@ -153,8 +153,10 @@ function createWindow(): void {
     revealWindow()
 
     runBootSequence(mainWindow, saved, { width: minWidth, height: minHeight }, checkForUpdates(mainWindow))
-      .then(() => {
+      .then((expanded) => {
         if (!mainWindow) return
+
+        if (!expanded) return
         rememberWindowState(mainWindow)
 
         announceOfferedUpdate(mainWindow)

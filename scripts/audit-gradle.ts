@@ -10,6 +10,7 @@ import {
 } from '../src/main/gradle'
 
 import { scanForJdks, jdkEnv } from '../src/main/jdk'
+import { exeName } from '../src/shared/platform'
 
 import { download } from '../src/main/net'
 import { killClientProcesses } from '../src/main/test/runner'
@@ -271,6 +272,13 @@ async function main(): Promise<void> {
         'and the environment gradle is handed points at the same one',
         jdkEnv().JAVA_HOME === chosen.home,
         `JAVA_HOME=${jdkEnv().JAVA_HOME}, the choice was ${chosen.home}`
+      )
+
+      const gradlesJavaHome = jdkEnv().JAVA_HOME as string
+      check(
+        'and gradle would take that JAVA_HOME, which is the only test that counts',
+        existsSync(join(gradlesJavaHome, 'bin', exeName('java', process.platform))),
+        `no bin/java directly under ${gradlesJavaHome}`
       )
       check(
         'so the run is allowed to start',
