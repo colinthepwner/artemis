@@ -230,15 +230,21 @@ export function serveTakeovers(hooks: HolderHooks): void {
 
     console.error('[instance] a newer Artemis is taking over; saving and standing down')
 
+    const giveUpOnSaving = setTimeout(() => {
+      console.error('[instance] the save did not answer; standing down without it')
+      app.quit()
+    }, YIELD_GRACE_MS - 1500)
+
     const bail = setTimeout(() => {
       console.error('[instance] the handover did not finish in time; exiting hard')
       app.exit(0)
-    }, YIELD_GRACE_MS - 500)
+    }, YIELD_GRACE_MS - 300)
 
     hooks
       .yield()
       .catch((err) => console.error('[instance] saving before handover failed:', err))
       .finally(() => {
+        clearTimeout(giveUpOnSaving)
         void unregisterInstance().finally(() => app.quit())
       })
   })
