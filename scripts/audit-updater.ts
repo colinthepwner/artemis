@@ -2,16 +2,10 @@ import { swapExe, cleanupLeftovers, OLD_SUFFIX } from '../src/main/updater'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const read = (p: string): string => (existsSync(p) ? readFileSync(p, 'utf-8') : '')
 
@@ -140,8 +134,8 @@ async function main(): Promise<void> {
     rmSync(dir, { recursive: true, force: true })
   }
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('UPDATER FAIL')
     process.exit(1)
   }

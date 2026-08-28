@@ -6,13 +6,8 @@ import { join } from 'path'
 import { app } from 'electron'
 import { extractAll } from './zip'
 import { download } from './net'
-import { jdkEnv } from './jdk'
-import {
-  desktopPlatform,
-  gradleBinName,
-  gradleWrapperName,
-  javaBinSegments
-} from '../shared/platform'
+import { currentJdk, jdkEnv } from './jdk'
+import { desktopPlatform, gradleBinName, gradleWrapperName } from '../shared/platform'
 
 export const DEFAULT_GRADLE_VERSION = '9.3.1'
 
@@ -48,15 +43,10 @@ export async function extractZip(zip: string, dest: string): Promise<void> {
 }
 
 export function findJava(): { home: string | null; source: string } | null {
-  const home = process.env['JAVA_HOME']
-  if (home) {
-    const bin = join(home, ...javaBinSegments(process.platform))
-    if (existsSync(bin)) return { home, source: 'JAVA_HOME' }
-  }
+  const { candidate, onPath } = currentJdk()
+  if (!candidate) return null
 
-  const probe = spawnSync('java', ['-version'], { stdio: 'ignore', shell: true })
-  if (probe.status === 0) return { home: null, source: 'PATH' }
-  return null
+  return { home: onPath ? null : candidate.home, source: candidate.source }
 }
 
 export function warnIfNoJava(onLine: (line: string) => void): boolean {

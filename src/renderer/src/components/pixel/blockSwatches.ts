@@ -447,25 +447,35 @@ function compositeTexture(sources: string[]): string {
   if (!baking.has(key)) {
     baking.add(key)
     const imgs = sources.map(() => new Image())
+
+    const ok = imgs.map(() => false)
     let remaining = imgs.length
     const onOne = (): void => {
       if (--remaining > 0) return
       baking.delete(key)
-      const side = Math.min(imgs[0].width, imgs[0].height)
+
+      const usable = imgs.filter((_, i) => ok[i])
+      if (usable.length === 0) return
+      const side = Math.min(usable[0].width, usable[0].height)
+      if (side === 0) return
       const canvas = document.createElement('canvas')
-      canvas.width = side * imgs.length
+      canvas.width = side * usable.length
       canvas.height = side
       const ctx = canvas.getContext('2d')
       if (!ctx) return
-      imgs.forEach((img, i) => {
+      usable.forEach((img, i) => {
         const src = Math.min(img.width, img.height)
         ctx.drawImage(img, 0, 0, src, src, i * side, 0, side, side)
       })
       finishBake(key, canvas)
     }
     imgs.forEach((img, i) => {
-      img.onload = onOne
-      img.onerror = () => baking.delete(key)
+      img.onload = () => {
+        ok[i] = true
+        onOne()
+      }
+
+      img.onerror = () => onOne()
       img.src = sources[i]
     })
   }

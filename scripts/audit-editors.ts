@@ -1,6 +1,6 @@
 import './_studio-env'
 import { installCanvasShim } from './_canvas'
-import { renderProbe, nodeText, h, type ProbeNode, type ProbeRoot } from './_react-probe'
+import { renderProbe, nodeText, h, liveProject, type ProbeNode, type ProbeRoot } from './_react-probe'
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
 import { useAppStore } from '../src/renderer/src/store/appStore'
 import { VoxelEditorOverlay } from '../src/renderer/src/components/workshop/VoxelEditor'
@@ -8,18 +8,12 @@ import { PixelEditorOverlay } from '../src/renderer/src/components/pixel/PixelEd
 import { HALF, keyOf } from '../src/renderer/src/components/workshop/voxel'
 import { createEmptyProject, type ArtemisProject } from '../src/shared/project'
 import { KIND_DEFAULTS, type BuildVariant } from '../src/shared/generator/props'
+import { harness } from './_harness'
 
 installCanvasShim()
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const CUBE = 34
 const groundOffset = (x: number, z: number): { offsetX: number; offsetY: number } => ({
@@ -48,11 +42,7 @@ function projectWithBuild(kind: 'tree' | 'structure', variants: BuildVariant[]):
   return project
 }
 
-const live = (): ArtemisProject => {
-  const p = useProjectStore.getState().project
-  if (!p) throw new Error('no project in the store')
-  return p
-}
+const live = liveProject
 
 const subject = (): { id: string; variants: BuildVariant[]; design?: string } => {
   const el = live().elements[0]
@@ -441,8 +431,8 @@ async function main(): Promise<void> {
   await theLayerStack()
   await savingLandsInTheSlotItWasAimedAt()
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('EDITORS FAIL')
     process.exit(1)
   }

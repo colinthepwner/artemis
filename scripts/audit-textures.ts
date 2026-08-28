@@ -35,16 +35,10 @@ import { useProjectStore } from '../src/renderer/src/store/projectStore'
 import { TOOL_KINDS, ARMOR_KINDS, kitFamily } from '../src/shared/generator/family'
 import { textureSlotsFor } from '../src/shared/generator/textures'
 import { ITEM_DEFAULTS } from '../src/shared/generator/props'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 async function main(): Promise<void> {
   const HEX = /^#[0-9a-f]{6}$/
@@ -676,8 +670,8 @@ async function main(): Promise<void> {
 }
 
 void main().then(() => {
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('TEXTURES FAIL')
     process.exit(1)
   }

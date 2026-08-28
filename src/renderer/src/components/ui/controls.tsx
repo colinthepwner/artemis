@@ -5,6 +5,7 @@ import * as SwitchPrimitive from '@radix-ui/react-switch'
 import * as SliderPrimitive from '@radix-ui/react-slider'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useOutsideClose } from '@/lib/useOutsideClose'
 import { IsoBlock } from './ContentThumb'
 
 export function Field(props: {
@@ -164,7 +165,7 @@ export function Select(props: {
   options: SelectOption[]
 }): JSX.Element {
   const current = props.options.find((o) => o.value === props.value)
-  const isOutsideClick = useRef(false)
+  const { markOutside, onCloseAutoFocus } = useOutsideClose()
   return (
     <Menu.Root modal={false}>
       <Menu.Trigger asChild>
@@ -181,15 +182,8 @@ export function Select(props: {
         <Menu.Content
           align="start"
           sideOffset={4}
-          onPointerDownOutside={() => {
-            isOutsideClick.current = true
-          }}
-          onCloseAutoFocus={(e) => {
-            if (isOutsideClick.current) {
-              e.preventDefault()
-              isOutsideClick.current = false
-            }
-          }}
+          onPointerDownOutside={markOutside}
+          onCloseAutoFocus={onCloseAutoFocus}
 
           className="z-50 flex max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] min-w-[180px] flex-col gap-1 overflow-y-auto rounded-md bg-ink-750 p-1.5 shadow-raised outline-none focus-visible:ring-0"
         >
@@ -338,7 +332,7 @@ export function MultiSelect(props: {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  const isOutsideClick = useRef(false)
+  const { markOutside, onCloseAutoFocus } = useOutsideClose()
 
   useEffect(() => {
     if (!open) setQuery('')
@@ -392,15 +386,8 @@ export function MultiSelect(props: {
         <Menu.Content
           align="start"
           sideOffset={4}
-          onPointerDownOutside={() => {
-            isOutsideClick.current = true
-          }}
-          onCloseAutoFocus={(e) => {
-            if (isOutsideClick.current) {
-              e.preventDefault()
-              isOutsideClick.current = false
-            }
-          }}
+          onPointerDownOutside={markOutside}
+          onCloseAutoFocus={onCloseAutoFocus}
 
           onKeyDown={(e) => {
             if (e.target === searchRef.current) return
@@ -501,6 +488,7 @@ export function Segmented<T extends string>(props: {
             key={o.value}
             onClick={() => props.onChange(o.value)}
             className={cn(
+
               'relative flex-1 rounded px-2 py-1 text-2xs transition-colors duration-100 focus-visible:ring-0 translate-y-[0.5px]',
               on ? 'z-10 font-medium text-ink-950' : 'text-mist-400 hover:text-mist-100'
             )}
@@ -512,6 +500,9 @@ export function Segmented<T extends string>(props: {
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             )}
+            {
+
+}
             <span className="relative z-10 inline-block">{o.label}</span>
           </button>
         )

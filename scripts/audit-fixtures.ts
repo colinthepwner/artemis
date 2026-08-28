@@ -1,5 +1,6 @@
 import { createEmptyProject, type ArtemisProject, type ElementKind } from '../src/shared/project'
 import { KIND_DEFAULTS } from '../src/shared/generator/props'
+import { migrateProject } from '../src/shared/migrate'
 
 export interface Scenario {
   name: string
@@ -24,6 +25,12 @@ function mk(modId: string): {
     })
   }
   return { project, add }
+}
+
+export function scenario(name: string): Scenario {
+  const found = SCENARIOS.find((s) => s.name === name)
+  if (!found) throw new Error(`no fixture named "${name}"`)
+  return found
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -726,6 +733,285 @@ export const SCENARIOS: Scenario[] = [
         fillerBlock: 'marble'
       })
       add('dimension', 'the_hollow', { biomes: ['hollow'], portalFrame: 'marble' })
+      return project
+    }
+  },
+  {
+
+    name: 'a mod from before the element rework',
+    build: () => {
+      const project = createEmptyProject('legacymod', 'legacymod')
+      project.meta.authors = ['Colin']
+      const at = '2026-08-27T00:00:00Z'
+      const legacy = (kind: ElementKind, name: string, properties: Record<string, unknown>): void => {
+        project.elements.push({ id: `d${seq++}`, kind, name, properties, createdAt: at, updatedAt: at })
+      }
+
+      legacy('ore', 'silver_ore', {
+        displayName: 'Silver Ore',
+        hardness: 3,
+        resistance: 5,
+        harvestLevel: 2,
+        dropMode: 'item',
+        dropItemName: 'silver',
+        veinSize: 9,
+        veinsPerChunk: 7,
+        minY: 4,
+        maxY: 40,
+        generateSet: true,
+        set: { tools: true, armor: true, durability: 700, efficiency: 6, miningLevel: 2, damage: 3 }
+      })
+      legacy('block', 'silver_log', { displayName: 'Silver Log', hardness: 2 })
+      legacy('block', 'silver_leaves', { displayName: 'Silver Leaves', hardness: 0.2 })
+      legacy('plant', 'moss_bell', { displayName: 'Moss Bell', growsOn: 'moss', patchesPerChunk: 4 })
+      legacy('mob', 'wisp', { displayName: 'Wisp', hostile: true, attackDamage: 3, health: 12 })
+      legacy('mob', 'stray_calf', { displayName: 'Stray Calf', shape: 'quadruped', health: 10 })
+      legacy('tree', 'silverwood', {
+        displayName: 'Silverwood',
+        logBlock: 'silver_log',
+        leavesBlock: 'silver_leaves',
+        treesPerChunk: 3,
+        minHeight: 5,
+        maxHeight: 9
+      })
+      legacy('biome', 'silver_glade', {
+        displayName: 'Silver Glade',
+        hostBiome: 'biome:OVERWORLD_FOREST',
+        topBlock: 'block:GRASS',
+        fillerBlock: 'block:DIRT',
+
+        spawns: [{ entity: 'wisp', weight: 12 }],
+        treeFeature: 'silverwood'
+      })
+      legacy('biome', 'silver_barrens', {
+        displayName: 'Silver Barrens',
+        hostBiome: 'biome:OVERWORLD_DESERT',
+        topBlock: 'block:SAND',
+        fillerBlock: 'block:SAND',
+        treeFeature: 'none'
+      })
+      return migrateProject(project)
+    }
+  },
+  {
+
+    name: 'sixteen doors',
+    build: () => {
+      const { project, add } = mk('gatemod')
+
+      const doors = [
+        'ember', 'cinder', 'hollow', 'lantern', 'quartz', 'tidal', 'sable', 'verdant',
+        'anvil', 'mire', 'frost', 'kiln', 'drift', 'garnet', 'thorn', 'vault'
+      ]
+
+      const borrowed: Record<string, string> = {
+        drift: 'block:BRICK_CLAY',
+        vault: 'block:SANDSTONE'
+      }
+      const title = (s: string): string => s[0].toUpperCase() + s.slice(1)
+      doors.forEach((door, i) => {
+        const ground = `${door}_stone`
+        add('block', ground, { displayName: `${title(door)} Stone`, hardness: 2, drops: 'self' })
+        add('biome', `${door}_flats`, {
+          displayName: `${title(door)} Flats`,
+          generateInOverworld: false,
+          topBlock: ground,
+          fillerBlock: ground,
+
+          mapColor: `${(0x20 + i * 13).toString(16).padStart(2, '0')}5f${(0xf0 - i * 9).toString(16).padStart(2, '0')}`
+        })
+        add('dimension', `the_${door}`, {
+          displayName: `The ${title(door)}`,
+          biomes: [`${door}_flats`],
+          portalFrame: borrowed[door] ?? ground
+        })
+      })
+      return project
+    }
+  },
+  {
+
+    name: 'a door onto the game itself',
+    build: () => {
+      const { project, add } = mk('baremod')
+      add('block', 'gate_stone', { displayName: 'Gate Stone', hardness: 2, drops: 'self' })
+      add('dimension', 'the_borrowed', {
+        displayName: 'The Borrowed',
+        biomes: ['biome:OVERWORLD_FOREST', 'biome:OVERWORLD_DESERT'],
+        portalFrame: 'gate_stone'
+      })
+      return project
+    }
+  },
+  {
+
+    name: 'sixteen furnished doors',
+    build: () => {
+      const { project, add } = mk('realmmod')
+
+      const doors = [
+        'aurora', 'basalt', 'coral', 'dusk', 'ember', 'fen', 'glacier', 'harrow',
+        'ingot', 'jetty', 'kelp', 'loam', 'marrow', 'nimbus', 'orchard', 'pyre'
+      ]
+      const borrowed: Record<string, string> = {
+        jetty: 'block:BRICK_CLAY',
+        pyre: 'block:SANDSTONE'
+      }
+
+      const oreDoors = ['aurora', 'ember', 'glacier']
+      const gloomDoors = ['dusk', 'marrow']
+      const frostDoor = 'glacier'
+      const plantDoors = ['ember', 'pyre']
+      const cairnDoors = ['basalt', 'loam']
+      const wispDoors = ['ember', 'pyre']
+      const title = (s: string): string => s[0].toUpperCase() + s.slice(1)
+      const reach = (door: string): string => `${door}_reach`
+
+      add('item', 'starsteel', {
+        displayName: 'Starsteel',
+        generateSet: true,
+        set: {
+          tools: true,
+          armor: true,
+          durability: 900,
+          efficiency: 9,
+          miningLevel: 3,
+          damage: 5,
+          armorDurability: 700,
+          totalProtection: 0.3,
+          blastProtection: 0.35,
+          fireProtection: 0.25
+        }
+      })
+      add('item', 'ember_dust', { displayName: 'Ember Dust', stackSize: 32, category: 'misc' })
+      add('block', 'starsteel_ore', {
+        displayName: 'Starsteel Ore',
+        hardness: 3,
+        harvestLevel: 2,
+        drops: 'item',
+        dropItem: 'starsteel'
+      })
+      add('block', 'realm_brick', { displayName: 'Realm Brick', hardness: 2, drops: 'self' })
+      add('block', 'gloom_log', { displayName: 'Gloom Log', hardness: 2 })
+      add('block', 'gloom_leaves', { displayName: 'Gloom Leaves', hardness: 0.2 })
+      add('block', 'frost_log', { displayName: 'Frost Log', hardness: 2 })
+      add('block', 'frost_leaves', { displayName: 'Frost Leaves', hardness: 0.2 })
+      add('liquid', 'quicksilver', { displayName: 'Quicksilver', materialKind: 'water' })
+
+      add('ore', 'starsteel_veins', {
+        displayName: 'Starsteel Veins',
+        blockRef: 'starsteel_ore',
+        veinSize: 7,
+        veinsPerChunk: 9,
+        biomes: oreDoors.map(reach)
+      })
+
+      add('ore', 'brickstone_veins', {
+        displayName: 'Brickstone Veins',
+        blockRef: 'realm_brick',
+        veinSize: 6,
+        veinsPerChunk: 4
+      })
+
+      add('tree', 'gloomwood', {
+        displayName: 'Gloomwood',
+        logBlock: 'gloom_log',
+        leavesBlock: 'gloom_leaves',
+        treesPerChunk: 3,
+        biomes: gloomDoors.map(reach)
+      })
+
+      add('tree', 'frostpine', {
+        displayName: 'Frostpine',
+        logBlock: 'frost_log',
+        leavesBlock: 'frost_leaves',
+        treesPerChunk: 2,
+        biomes: [reach(frostDoor), 'starfall_glade']
+      })
+
+      add('plant', 'emberbloom', {
+        displayName: 'Emberbloom',
+        growsOn: plantDoors.map((door) => `${door}_stone`),
+        maxHeight: 3,
+        patchesPerChunk: 4,
+        drops: 'item',
+        dropItem: 'ember_dust',
+        biomes: plantDoors.map(reach)
+      })
+      add('structure', 'realm_cairn', {
+        displayName: 'Realm Cairn',
+        placement: 'surface',
+        oneInChunks: 16,
+        variants: [
+          {
+            id: 'c1',
+            name: 'A',
+            blocks: { '0,0,0': 'realm_brick', '0,1,0': 'realm_brick', '0,2,0': 'starsteel_ore' }
+          },
+          { id: 'c2', name: 'B', blocks: { '0,0,0': 'realm_brick', '1,0,0': 'realm_brick' } }
+        ],
+        biomes: cairnDoors.map(reach)
+      })
+
+      add('mob', 'realm_wisp', {
+        displayName: 'Realm Wisp',
+        hostile: true,
+        attackDamage: 3,
+        health: 14,
+        dropItem: 'ember_dust',
+        spawnWeight: 12,
+        spawnBiomes: wispDoors.map(reach)
+      })
+
+      add('mob', 'realm_elk', {
+        displayName: 'Realm Elk',
+        shape: 'quadruped',
+        health: 18,
+        spawnWeight: 8
+      })
+
+      add('recipe', 'starsteel_from_ore', {
+        recipeType: 'furnace',
+        output: 'starsteel',
+        inputs: ['starsteel_ore']
+      })
+      add('recipe', 'realm_brick_block', {
+        recipeType: 'shaped',
+        output: 'realm_brick',
+        outputCount: 4,
+        grid: ['ember_dust', 'ember_dust', '', 'ember_dust', 'ember_dust', '', '', '', '']
+      })
+      add('recipe', 'ember_dust_pile', {
+        recipeType: 'shapeless',
+        output: 'ember_dust',
+        inputs: ['starsteel']
+      })
+
+      add('biome', 'starfall_glade', {
+        displayName: 'Starfall Glade',
+        hostBiome: 'biome:OVERWORLD_FOREST',
+        topBlock: 'block:GRASS',
+        fillerBlock: 'block:DIRT',
+        mapColor: 'a0c8e0'
+      })
+
+      doors.forEach((door, i) => {
+        const ground = `${door}_stone`
+        add('block', ground, { displayName: `${title(door)} Stone`, hardness: 2, drops: 'self' })
+        add('biome', reach(door), {
+          displayName: `${title(door)} Reach`,
+          generateInOverworld: false,
+          topBlock: ground,
+          fillerBlock: ground,
+          mapColor: `${(0x18 + i * 12).toString(16).padStart(2, '0')}${(0x30 + i * 7).toString(16).padStart(2, '0')}a4`
+        })
+        add('dimension', `the_${door}`, {
+          displayName: `The ${title(door)}`,
+
+          biomes: door === 'jetty' ? [reach(door), 'biome:OVERWORLD_DESERT'] : [reach(door)],
+          portalFrame: borrowed[door] ?? ground
+        })
+      })
       return project
     }
   }

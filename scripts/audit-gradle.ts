@@ -4,12 +4,16 @@ import {
   killGradle,
   extractZip,
   powershellPath,
+  findJava,
+  warnIfNoJava,
   DEFAULT_GRADLE_VERSION
 } from '../src/main/gradle'
 
+import { scanForJdks, jdkEnv } from '../src/main/jdk'
+
 import { download } from '../src/main/net'
 import { killClientProcesses } from '../src/main/test/runner'
-import { mkdirSync, writeFileSync, existsSync, readFileSync, copyFileSync } from 'fs'
+import { mkdirSync, writeFileSync, existsSync, readFileSync, copyFileSync, rmSync } from 'fs'
 import { spawn, spawnSync } from 'child_process'
 import { createServer, type Server } from 'https'
 import { createHash } from 'crypto'
@@ -17,16 +21,10 @@ import { globalAgent } from 'https'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { tempDir as makeTempDir, sweepTempDirs } from './_temp'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const isWin = process.platform === 'win32'
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
@@ -225,6 +223,80 @@ async function main(): Promise<void> {
   const sep = isWin ? ';' : ':'
 
   const nodeDir = join(process.execPath, '..')
+
+  console.log('the Java gate, against the JDK Artemis installed for the modder')
+
+  {
+
+    const jdks = scanForJdks()
+    if (jdks.length === 0) {
+      console.log('  skipped: this machine has no JDK for the gate to be pointed at')
+    } else {
+      const chosen = jdks[0]
+      const userData = tempDir('jdk-choice')
+      const savedJavaHome = process.env.JAVA_HOME
+      writeFileSync(
+        join(userData, 'setup.json'),
+        JSON.stringify({ javaHome: chosen.home }, null, 2),
+        'utf-8'
+      )
+      process.env.ARTEMIS_TEST_USERDATA = userData
+      delete process.env.JAVA_HOME
+      process.env.PATH = barePath
+
+      const setupPath = join(userData, 'setup.json')
+      const saved = readFileSync(setupPath, 'utf-8')
+      rmSync(setupPath, { force: true })
+      check(
+        'a machine with no Java and no choice is refused',
+        findJava() === null,
+        'the gate found a Java on a machine that was scrubbed of them, so it is not reading PATH'
+      )
+      writeFileSync(setupPath, saved, 'utf-8')
+
+      const found = findJava()
+      check(
+        'the JDK Artemis installed is one the gate can find',
+        found !== null,
+        'setup.json names a working JDK and the gate still reported no Java: this is what a ' +
+          'modder sees as "I installed it and Play Test says it cannot find it"'
+      )
+      check(
+        'and the gate names the JDK that was actually chosen',
+        found?.home === chosen.home,
+        `gate says ${JSON.stringify(found)}, the choice was ${chosen.home}`
+      )
+
+      check(
+        'and the environment gradle is handed points at the same one',
+        jdkEnv().JAVA_HOME === chosen.home,
+        `JAVA_HOME=${jdkEnv().JAVA_HOME}, the choice was ${chosen.home}`
+      )
+      check(
+        'so the run is allowed to start',
+        warnIfNoJava(() => {}),
+        'warnIfNoJava printed the install advice for a machine that has a JDK'
+      )
+
+      const old = tempDir('jdk-old')
+      writeFileSync(
+        join(old, 'setup.json'),
+        JSON.stringify({ javaHome: join(old, 'not-a-jdk') }, null, 2),
+        'utf-8'
+      )
+      process.env.ARTEMIS_TEST_USERDATA = old
+      check(
+        'and a choice pointing at something that is not a JDK is not believed',
+        findJava() === null,
+        'the gate accepted a javaHome with no java under it'
+      )
+
+      process.env.ARTEMIS_TEST_USERDATA = originalUserData ?? userData
+      if (savedJavaHome === undefined) delete process.env.JAVA_HOME
+      else process.env.JAVA_HOME = savedJavaHome
+      process.env.PATH = originalPath
+    }
+  }
 
   console.log('which launcher wins')
 
@@ -643,8 +715,8 @@ async function main(): Promise<void> {
 
   sweepTempDirs()
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('GRADLE FAIL')
     process.exit(1)
   }

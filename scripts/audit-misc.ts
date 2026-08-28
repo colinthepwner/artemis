@@ -17,6 +17,8 @@ import { SCENARIOS } from './audit-fixtures'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { associationEntries, projectPathFromArgv } from '../src/main/fileAssociation'
 import { join, sep } from 'path'
+import ts from 'typescript'
+import { harness, endingLine } from './_harness'
 
 const walkTs = (dir: string): string[] =>
   readdirSync(dir).flatMap((f) => {
@@ -24,15 +26,16 @@ const walkTs = (dir: string): string[] =>
     return statSync(p).isDirectory() ? walkTs(p) : /\.tsx?$/.test(p) ? [p] : []
   })
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
+const normaliseBody = (body: string, params: string[]): string => {
+  let out = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  params.forEach((param, index) => {
+    out = out.replace(new RegExp(`\\b${param}\\b`, 'g'), `_arg${index}_`)
+  })
+  return out.replace(/\s+/g, ' ').trim()
 }
+
+const audit = harness()
+const check = audit.check
 
 console.log('version compare (the updater runs this on every launch)')
 
@@ -251,7 +254,8 @@ console.log('one rule, one declaration (no function written out twice)')
   const files = [
     ...walkTs(join(process.cwd(), 'src/shared')),
     ...walkTs(join(process.cwd(), 'src/renderer')),
-    ...walkTs(join(process.cwd(), 'src/main'))
+    ...walkTs(join(process.cwd(), 'src/main')),
+    ...walkTs(join(process.cwd(), 'scripts'))
   ]
 
   interface Decl {
@@ -260,42 +264,46 @@ console.log('one rule, one declaration (no function written out twice)')
     body: string
   }
   const decls: Decl[] = []
+
+  const nameOf = (node: ts.Node): string | null => {
+    const named = node as { name?: ts.Node }
+    if (named.name && ts.isIdentifier(named.name as ts.Node)) return (named.name as ts.Identifier).text
+    const parent = node.parent
+    if (!parent) return null
+    if (
+      (ts.isVariableDeclaration(parent) ||
+        ts.isPropertyAssignment(parent) ||
+        ts.isPropertyDeclaration(parent)) &&
+      ts.isIdentifier(parent.name)
+    )
+      return parent.name.text
+    return null
+  }
+
   for (const file of files) {
     const rel = file.replace(process.cwd() + sep, '').replace(/\\/g, '/')
     const text = readFileSync(file, 'utf-8')
+    const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+    const visit = (node: ts.Node): void => {
+      const fn =
+        ts.isFunctionDeclaration(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isMethodDeclaration(node) ||
+        ts.isFunctionExpression(node)
+          ? (node as ts.FunctionLikeDeclaration)
+          : null
+      if (fn && fn.body && ts.isBlock(fn.body)) {
+        const params = fn.parameters
+          .map((p) => (ts.isIdentifier(p.name) ? p.name.text : null))
+          .filter((p): p is string => p !== null)
 
-    const patterns = [
-      /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)[^{]*\{/g,
-      /(?:const|let)\s+([A-Za-z0-9_]+)\s*(?::[^=\n]+)?=\s*(?:async\s+)?\(([^)]*)\)\s*(?::\s*[A-Za-z0-9_<>[\]| ]+)?=>\s*\{/g
-    ]
-    for (const re of patterns) {
-    let m: RegExpExecArray | null
-    while ((m = re.exec(text))) {
+        const body = normaliseBody(fn.body.getText().slice(1, -1), params)
 
-      let depth = 1
-      let i = re.lastIndex
-      while (i < text.length && depth > 0) {
-        if (text[i] === '{') depth++
-        else if (text[i] === '}') depth--
-        i++
+        if (body.length >= 60) decls.push({ name: nameOf(node) ?? '<anonymous>', where: rel, body })
       }
-      const raw = text.slice(re.lastIndex, i - 1)
-      const params = m[2]
-        .split(',')
-        .map((piece) => piece.trim().split(/[:=\s]/)[0])
-        .filter((piece) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(piece))
-      let body = raw
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/\/\/[^\n]*/g, '')
-      params.forEach((param, index) => {
-        body = body.replace(new RegExp(`\\b${param}\\b`, 'g'), `_arg${index}_`)
-      })
-
-      body = body.replace(/\s+/g, ' ').trim()
-
-      if (body.length >= 60) decls.push({ name: m[1], where: rel, body })
+      ts.forEachChild(node, visit)
     }
-    }
+    visit(source)
   }
 
   const byBody = new Map<string, Decl[]>()
@@ -312,10 +320,124 @@ console.log('one rule, one declaration (no function written out twice)')
   const dupes = [...byBody.entries()]
     .filter(([body, list]) => list.length > 1 && !isFormGuard(body))
     .map(([, list]) => list.map((d) => `${d.name} in ${d.where}`).join(' == '))
+
   check(
     `no function body is written out twice (${decls.length} functions compared)`,
     dupes.length === 0,
     dupes.join('\n       ')
+  )
+
+  check(
+    'and the sweep actually read the source it swept',
+    decls.length > 800 && files.length > 140,
+    `${decls.length} bodies of 60 characters or more in ${files.length} files, which is too few to be a real read`
+  )
+}
+
+console.log('one rule, one declaration, in the Java too')
+
+{
+
+  const unescapeTemplate = (text: string): string =>
+    text.replace(/\\([\s\S])/g, (whole, ch: string) => {
+      if (ch === 'n') return '\n'
+      if (ch === 't') return '\t'
+      if (ch === 'r') return '\r'
+      if (ch === '\\') return '\\'
+      if (ch === '`') return '`'
+      if (ch === '$') return '$'
+      return whole
+    })
+
+  const HEADER =
+    /\bprivate\s+static\s+(?!final\b)([\w.$]+(?:\s*<[^;{]*?>)?(?:\s*\[\s*\])*)\s+([A-Za-z_$][\w$]*)\s*\(/g
+
+  const splitParams = (text: string): string[] => {
+    const out: string[] = []
+    let depth = 0
+    let start = 0
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i]
+      if (c === '<' || c === '(' || c === '[') depth++
+      else if (c === '>' || c === ')' || c === ']') depth--
+      else if (c === ',' && depth === 0) {
+        out.push(text.slice(start, i))
+        start = i + 1
+      }
+    }
+    if (text.slice(start).trim()) out.push(text.slice(start))
+    return out.map((s) => s.trim()).filter(Boolean)
+  }
+
+  interface JavaDecl {
+    name: string
+    where: string
+    body: string
+  }
+  const javaDecls: JavaDecl[] = []
+
+  const javaFiles = walkTs(join(process.cwd(), 'scripts'))
+
+  for (const file of javaFiles) {
+    const rel = file.replace(process.cwd() + sep, '').replace(/\\/g, '/')
+
+    const text = unescapeTemplate(readFileSync(file, 'utf-8'))
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '')
+    HEADER.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = HEADER.exec(text))) {
+      let i = m.index + m[0].length
+
+      let depth = 1
+      const pStart = i
+      while (i < text.length && depth > 0) {
+        const c = text[i]
+        if (c === '(') depth++
+        else if (c === ')') depth--
+        i++
+      }
+      const params = splitParams(text.slice(pStart, i - 1))
+
+      while (i < text.length && text[i] !== '{' && text[i] !== ';') i++
+      if (text[i] !== '{') continue
+      const bStart = i + 1
+      depth = 1
+      i++
+      while (i < text.length && depth > 0) {
+        const c = text[i]
+        if (c === '{') depth++
+        else if (c === '}') depth--
+        i++
+      }
+
+      const names = params
+        .map((p) => (p.match(/([A-Za-z_$][\w$]*)\s*$/) ?? [])[1])
+        .filter((p): p is string => !!p)
+      const body = normaliseBody(text.slice(bStart, i - 1), names)
+      if (body.length >= 60) javaDecls.push({ name: m[2], where: rel, body })
+    }
+  }
+
+  const javaByBody = new Map<string, JavaDecl[]>()
+  for (const d of javaDecls) {
+    const list = javaByBody.get(d.body) ?? []
+    list.push(d)
+    javaByBody.set(d.body, list)
+  }
+  const javaDupes = [...javaByBody.values()]
+    .filter((list) => list.length > 1)
+    .map((list) => list.map((d) => `${d.name} in ${d.where}`).join(' == '))
+  check(
+    `no Java method body is written out twice (${javaDecls.length} methods compared)`,
+    javaDupes.length === 0,
+    javaDupes.join('\n       ')
+  )
+
+  check(
+    'and the Java sweep actually read the Java',
+    javaDecls.length > 40 && javaByBody.size > 30,
+    `${javaDecls.length} method bodies of 60 characters or more, which is too few to be a real read`
   )
 }
 
@@ -364,6 +486,96 @@ console.log('the .artemis file association (a double-click has one chance to wor
   check('and a real file with the wrong extension is left alone', projectPathFromArgv(['Artemis.exe', real]) === null)
 }
 
-console.log(`\n${passes} checks passed, ${failures} failed`)
-console.log(failures === 0 ? 'MISC PASS' : 'MISC: see above')
-if (failures > 0) process.exitCode = 1
+console.log('the mapping, asked what nothing reads')
+
+{
+
+  const mappingPath = join(process.cwd(), 'src/shared/generator/mappings/bta-8.0.1.json')
+  const mapping = JSON.parse(readFileSync(mappingPath, 'utf-8')) as Record<string, unknown>
+
+  const tables: Record<string, string> = {
+    imports: 'indexed by the type name a template asks JavaWriter.use for',
+    materials: 'indexed by the material a block element names',
+    sounds: 'indexed by the sound a block element names',
+    blockTags: 'indexed by the tags a block element carries',
+    harvestLevel: 'indexed by the tool a block element asks for',
+    idRanges: 'read as a whole when the exporter allocates ids',
+    fabricModJson: 'spread wholesale into fabric.mod.json, so every key is written'
+  }
+
+  const sources: string[] = []
+  const walkAll = (dir: string): void => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) walkAll(full)
+      else if (/\.tsx?$/.test(full) && !full.includes(`generator${sep}mappings`)) sources.push(full)
+    }
+  }
+  walkAll(join(process.cwd(), 'src'))
+  walkAll(join(process.cwd(), 'scripts'))
+  const sourceText = sources.map((f) => readFileSync(f, 'utf-8')).join('\n')
+
+  const namedByValue = new Set<string>()
+  const collect = (value: unknown): void => {
+    if (typeof value === 'string') namedByValue.add(value)
+    else if (value && typeof value === 'object') Object.values(value).forEach(collect)
+  }
+  collect(mapping)
+
+  const unread: string[] = []
+  let asked = 0
+  for (const [section, value] of Object.entries(mapping)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+    if (tables[section]) continue
+    for (const [key, leaf] of Object.entries(value as Record<string, unknown>)) {
+
+      if (key.startsWith('$')) continue
+
+      if (leaf && typeof leaf === 'object') continue
+      asked++
+      if (sourceText.includes(key) || namedByValue.has(key)) continue
+      unread.push(`${section}.${key}`)
+    }
+  }
+
+  check(
+    'every key in the mapping is read by something',
+    unread.length === 0,
+    `${unread.length} of ${asked} are read by nothing: ${unread.join(', ')}`
+  )
+
+  check('and the sweep actually looked at the mapping', asked > 100, `it only found ${asked} keys`)
+}
+
+console.log('how a dead game is described (a build-tool death is not a mod death)')
+
+{
+
+  const quiet = { reason: null } as unknown as Parameters<typeof endingLine>[0]
+  const stopped = { reason: 'the 1612s budget fired' } as unknown as Parameters<typeof endingLine>[0]
+
+  const gradleSaid =
+    'The message received from the daemon indicates that the daemon has disappeared. Daemon pid: 52592'
+
+  check(
+    'a daemon that disappeared is named as the build tool, not as the mod',
+    endingLine(quiet, 4294967295, null, 384, gradleSaid).includes('gradle daemon disappeared'),
+    endingLine(quiet, 4294967295, null, 384, gradleSaid)
+  )
+
+  check(
+    'and a game that really did end on its own still says so',
+    endingLine(quiet, 4294967295, null, 384, 'nothing unusual here').includes('it ended on its own'),
+    endingLine(quiet, 4294967295, null, 384, 'nothing unusual here')
+  )
+
+  check(
+    'and a stop this runner asked for outranks a daemon message',
+    endingLine(stopped, 1, null, 1614, gradleSaid).includes('this runner stopped it'),
+    endingLine(stopped, 1, null, 1614, gradleSaid)
+  )
+}
+
+console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+console.log(audit.failures === 0 ? 'MISC PASS' : 'MISC: see above')
+if (audit.failures > 0) process.exitCode = 1

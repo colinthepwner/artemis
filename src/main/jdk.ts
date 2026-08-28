@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
-import { adoptiumTarget, desktopPlatform, javaBinSegments } from '../shared/platform'
+import { adoptiumTarget, desktopPlatform, javaBinCandidates } from '../shared/platform'
 import { extractAll } from './zip'
 import { download } from './net'
 
@@ -51,9 +51,17 @@ export function managedJdkRoot(): string {
   return join(app.getPath('userData'), 'jdk')
 }
 
+function javaBin(home: string): string | null {
+  for (const segments of javaBinCandidates(process.platform)) {
+    const bin = join(home, ...segments)
+    if (existsSync(bin)) return bin
+  }
+  return null
+}
+
 export function probeJdk(home: string, source = 'chosen'): JdkCandidate | null {
-  const bin = join(home, ...javaBinSegments(process.platform))
-  if (!existsSync(bin)) return null
+  const bin = javaBin(home)
+  if (!bin) return null
   const r = spawnSync(bin, ['-version'], { encoding: 'utf-8', timeout: 10_000 })
   if (r.error || r.status !== 0) return null
   const text = `${r.stderr ?? ''}${r.stdout ?? ''}`
@@ -188,7 +196,9 @@ export function chooseJdk(home: string | null): JdkCandidate | null {
 export function jdkEnv(): NodeJS.ProcessEnv {
   const { candidate, onPath } = currentJdk()
   if (!candidate || onPath || !candidate.home) return { ...process.env }
-  const bin = join(candidate.home, ...javaBinSegments(process.platform))
+  const bin = javaBin(candidate.home)
+
+  if (!bin) return { ...process.env }
 
   const binDir = bin.slice(0, bin.lastIndexOf(process.platform === 'win32' ? '\\' : '/'))
   const sep = process.platform === 'win32' ? ';' : ':'

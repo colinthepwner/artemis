@@ -5,16 +5,10 @@ import { structureFeatureClassName } from '../src/shared/generator/templates/str
 import { treeFeatureClassName } from '../src/shared/generator/templates/tree'
 import { HALF, MAX_Y, keyOf, inBounds } from '../src/renderer/src/components/workshop/voxel'
 import { normalize } from '../src/renderer/src/store/projectStore'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 let seq = 0
 function project(
@@ -408,8 +402,8 @@ function main(): void {
     )
   }
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('WORKSHOP FAIL')
     process.exit(1)
   }

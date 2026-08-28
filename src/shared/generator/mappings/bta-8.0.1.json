@@ -196,7 +196,6 @@
       "ticking": ".setTicking(true)"
     },
     "logicPlain": "block -> new BlockLogic(block, {{material}})",
-    "logicFlower": "block -> new BlockLogicFlower(block)",
     "logicCustom": "block -> new {{logicClass}}(block, {{material}})"
   },
   "tree": {
@@ -319,8 +318,6 @@
     "$grassComment": "Grass tint is the Colorizers.grass colormap sampled by climate and season through BlockColorCustom.getWorldColor; the grass block, tall grass and everything else grass-coloured share that one path, each holding the colorizer in a public final field. A fixed per-biome grass colour therefore answers at the HEAD of that method, gated on the colorizer being the grass one so water and leaves keep their own maps. Fixing the colour is also what disables seasons for the biome: the season was only ever the colormap moving.",
     "grassColorMixinClass": "@Mixin(value = BlockColorCustom.class, remap = false)\npublic class {{className}} {\n\n\t@Inject(\n\t\tmethod = \"getWorldColor(Lnet/minecraft/core/world/WorldSource;Lnet/minecraft/core/world/pos/TilePosc;I)I\",\n\t\tat = @At(\"HEAD\"),\n\t\tcancellable = true\n\t)\n\tprivate void artemisGrassColor(WorldSource worldSource, TilePosc pos, int data, CallbackInfoReturnable<Integer> cir) {\n\t\tif (((BlockColorCustom) (Object) this).colorizer != Colorizers.grass) {\n\t\t\treturn;\n\t\t}\n\t\tBiome biome = worldSource.getBlockBiome(pos);\n{{cases}}\t}\n}",
     "grassColorCase": "\t\tif (biome == ModBiomes.{{FIELD}}) {\n\t\t\tcir.setReturnValue(0xFF{{color}});\n\t\t}\n",
-    "spawnCreature": "\t\tthis.spawnableCreatureList.add(new SpawnListEntry({{entityClass}}.class, {{weight}}));",
-    "spawnMonster": "\t\tthis.spawnableMonsterList.add(new SpawnListEntry({{entityClass}}.class, {{weight}}));",
     "decl": "public static final Biome {{FIELD}} = Biomes.register(\"{{modId}}:{{registryName}}\", new {{className}}(\"{{modId}}.{{registryName}}\")\n\t.withDebugColor(0x{{mapColor}})\n\t.withPlacementDefaults({{temperature}}f, {{humidity}}f, {{variance}}f)\n{{extraChain}}\t.withSurfaceProperties(new SurfaceProperties.Builder()\n\t\t.withTopBlock({{topBlock}})\n\t\t.withFillerBlock({{fillerBlock}})\n\t\t.build()));",
     "rangeMixinClass": "@Mixin(value = BiomeProviderOverworld.class, remap = false)\npublic class {{className}} {\n\n\t@Inject(\n\t\tmethod = \"lookupBiome(DDDD)Lnet/minecraft/core/world/biome/Biome;\",\n\t\tat = @At(\"RETURN\"),\n\t\tcancellable = true\n\t)\n\tpublic void artemisLookupBiome(double temperature, double humidity, double altitude, double variety, CallbackInfoReturnable<Biome> cir) {\n\t\tBiome vanilla = cir.getReturnValue();\n{{ranges}}\n\t}\n}",
     "range": "\t\tif (vanilla == {{hostBiome}} && variety <= {{rarity}}) {\n\t\t\tcir.setReturnValue(ModBiomes.{{FIELD}});\n\t\t\treturn;\n\t\t}",

@@ -79,6 +79,14 @@ export function unfinishedIn(project: ArtemisProject): Unfinished[] {
 
   const reservedFrames = new Set(getMapping(project.meta.targetBta).dimension.reservedFrames ?? [])
 
+  const rostered = new Set(
+    project.elements
+      .filter((el) => el.kind === 'dimension')
+      .flatMap((el) => ((el.properties['biomes'] as string[] | undefined) ?? []))
+      .map((r) => String(r ?? '').trim())
+      .filter(Boolean)
+  )
+
   const isDangling = danglingCheck(project)
 
   for (const el of project.elements) {
@@ -128,6 +136,17 @@ export function unfinishedIn(project: ArtemisProject): Unfinished[] {
     if (el.kind === 'biome') {
       checkRefs([p['topBlock'], p['fillerBlock']], 'Surface/filler block')
 
+      if (p['generateInOverworld'] === false && !rostered.has(el.name)) {
+        out.push({
+          ...base,
+          label: 'generates in no world at all',
+          detail:
+            'It is kept out of the overworld and no dimension lists it, so nothing in it is ever ' +
+            'reached: its ores, plants, structures and mobs generate nowhere. Add it to a ' +
+            "dimension's biome list, or turn Generate in Overworld back on."
+        })
+      }
+
       if (p['generateInOverworld'] !== false && p['generationStyle'] === 'climate') {
         const cr = getMapping(project.meta.targetBta).biome.climateRange
         const temp = typeof p['temperature'] === 'number' ? p['temperature'] : 0.7
@@ -155,6 +174,44 @@ export function unfinishedIn(project: ArtemisProject): Unfinished[] {
       checkRefs(grounds, 'Ground block')
       if (!grounds.some((r) => r?.trim())) {
         out.push({ ...base, label: 'has no ground it can grow on' })
+      }
+
+      const patches = Math.max(0, Math.round((p['patchesPerChunk'] as number | undefined) ?? 0))
+      const named = (Array.isArray(p['biomes']) ? (p['biomes'] as string[]) : [])
+        .map((r) => String(r ?? '').trim())
+        .filter(Boolean)
+      if (patches > 0 && named.length > 0 && grounds.some((r) => r?.trim())) {
+        const floorOf = (b: { properties: Record<string, unknown> }): string =>
+          String(b.properties['topBlock'] ?? '').trim()
+        const barren = named
+          .map((ref) => project.elements.find((e) => e.kind === 'biome' && e.name === ref))
+          .filter((b) => Boolean(b))
+          .map((b) => b as NonNullable<typeof b>)
+          .filter((b) => {
+            const floor = floorOf(b)
+            return floor.length > 0 && !grounds.some((r) => String(r ?? '').trim() === floor)
+          })
+        if (barren.length > 0) {
+          const first = barren[0]
+          const floor = floorOf(first)
+
+          const floorEl = project.elements.find((e) => e.name === floor)
+          const floorName = floorEl
+            ? titleOf(floorEl.properties, floorEl.name)
+            : floor.replace('block:', '')
+          out.push({
+            ...base,
+            label:
+              barren.length === 1
+                ? 'is set to generate in a biome it cannot grow in'
+                : `is set to generate in ${barren.length} biomes it cannot grow in`,
+            detail:
+              `${titleOf(first.properties, first.name)} is floored with ${floorName}, which is ` +
+              "not in this plant's Grows On list, so every patch the world tries to place there " +
+              'is refused and none of it ever appears. Add that block to Grows On, or drop the ' +
+              'biome from the list.'
+          })
+        }
       }
     }
     if (el.kind === 'block' || el.kind === 'plant') {

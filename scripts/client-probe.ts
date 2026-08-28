@@ -1,26 +1,20 @@
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from 'fs'
 import { join, dirname } from 'path'
-import { tmpdir } from 'os'
 import { spawn, spawnSync } from 'child_process'
 import { exportWorkspace } from '../src/main/export/exporter'
 import { toConstantCase, type ArtemisProject } from '../src/shared/project'
 import { textureSlotsFor } from '../src/shared/generator/textures'
 import { kitFamily } from '../src/shared/generator/family'
 import { SCENARIOS } from './audit-fixtures'
-import { sweepStale } from './_temp'
+import { probeWorkspace } from './_temp'
 import { GRADLE } from './_gradle'
 import { png16DataUrl, pngDataUrl } from './_canvas'
 import { collectTextureIds } from './_texture-ids'
+import { harness, kitPieceNames, onGameClose, tailLines, treeKiller, type GameRun } from './_harness'
+import { javaNames, javaReport } from './_probe-java'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 interface Expectations {
   blocks: string[]
@@ -48,10 +42,7 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
         .map(toConstantCase)
     )
   ]
-  const kitPieces = project.elements.flatMap((el) => {
-    const family = kitFamily(el)
-    return [...(family?.tools ?? []), ...(family?.armor ?? [])].map(toConstantCase)
-  })
+  const kitPieces = kitPieceNames(project)
 
   const javaFiles: string[] = []
   const walk = (dir: string): void => {
@@ -144,14 +135,10 @@ ${javaList(e.langKeys)}
 \tprivate static int pass = 0;
 \tprivate static int fail = 0;
 
+${javaReport('ARTEMIS-CLIENT')}
+
 \tprivate static void check(String name, boolean ok, String detail) {
-\t\tif (ok) {
-\t\t\tpass++;
-\t\t\tSystem.out.println("ARTEMIS-CLIENT PASS " + name);
-\t\t} else {
-\t\t\tfail++;
-\t\t\tSystem.out.println("ARTEMIS-CLIENT FAIL " + name + " :: " + detail);
-\t\t}
+\t\tif (report(name, ok, detail)) pass++; else fail++;
 \t}
 
 \t@Override
@@ -180,8 +167,10 @@ ${javaList(e.langKeys)}
 \t\t\titemModels();
 \t\t\tnames();
 \t\t} catch (Throwable t) {
-\t\t\tfail++;
-\t\t\tSystem.out.println("ARTEMIS-CLIENT FAIL probe itself threw :: " + t);
+\t\t\t// Through check() rather than printed here, so the line format lives
+\t\t\t// in one place. The text is unchanged: check prints FAIL, the name,
+\t\t\t// " :: " and the detail, which is what this wrote by hand.
+\t\t\tcheck("probe itself threw", false, String.valueOf(t));
 \t\t\tt.printStackTrace(System.out);
 \t\t}
 \t\tSystem.out.println("ARTEMIS-CLIENT SUMMARY " + pass + " " + fail);
@@ -448,24 +437,11 @@ ${javaList(e.langKeys)}
 \t * client always has one, and startGame() calls I18n.initialize before this
 \t * runs, so here it is an assertion.
 \t */
-\tprivate static void names() {
-\t\tObject i18n;
-\t\ttry {
-\t\t\ti18n = net.minecraft.core.lang.I18n.getInstance();
-\t\t} catch (Throwable t) {
-\t\t\tcheck("the client has an I18n", false, String.valueOf(t));
-\t\t\treturn;
-\t\t}
-\t\tfor (String key : LANG_KEYS) {
-\t\t\ttry {
-\t\t\t\tObject translated = i18n.getClass().getMethod("translateKey", String.class).invoke(i18n, key);
-\t\t\t\tString text = String.valueOf(translated);
-\t\t\t\tcheck("name " + key, !key.equals(text) && text.length() > 0, "translated to itself, so it shows in game as the raw key");
-\t\t\t} catch (Throwable t) {
-\t\t\t\tcheck("name " + key, false, String.valueOf(t));
-\t\t\t}
-\t\t}
-\t}
+${javaNames({
+
+  onMissingI18n: '\t\t\tcheck("the client has an I18n", false, String.valueOf(t));',
+  detail: 'translated to itself, so it shows in game as the raw key'
+})}
 }
 `
 }
@@ -492,9 +468,7 @@ async function main(): Promise<void> {
     project.textureAssignments[slot.key] = slot.paintable ? 't1' : 'skin'
   }
 
-  const stale = sweepStale('artemis-client-')
-  if (stale > 0) console.log(`swept ${stale} workspace(s) left by earlier runs`)
-  const root = mkdtempSync(join(tmpdir(), 'artemis-client-'))
+  const root = probeWorkspace('artemis-client-')
   console.log(`workspace: ${root}\n`)
   await exportWorkspace(project, root, [])
 
@@ -513,7 +487,9 @@ async function main(): Promise<void> {
   modJson.entrypoints.main.push('artemisclientprobe.ArtemisClientProbe')
   writeFileSync(modJsonPath, JSON.stringify(modJson, null, 2))
 
-  const out = await runClient(root)
+  const { out, ending, endedItself } = await runClient(root)
+
+  console.log(`\n${ending}`)
 
   const probeLines = out.split('\n').filter((l) => l.includes('ARTEMIS-CLIENT'))
   const summary = probeLines.find((l) => l.includes('ARTEMIS-CLIENT SUMMARY'))
@@ -557,6 +533,12 @@ async function main(): Promise<void> {
     out.split('\n').filter((l) => /Exception|fatal/i.test(l)).slice(0, 10).join('\n')
   )
 
+  check(
+    'the client ran until this runner stopped it',
+    !endedItself,
+    `${ending}\n       the last thing the game itself printed:\n${tailLines(out)}`
+  )
+
   if (!keep) {
     try {
       rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
@@ -565,16 +547,17 @@ async function main(): Promise<void> {
     }
   } else console.log(`kept: ${root}`)
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('CLIENT FAIL')
     process.exit(1)
   }
   console.log('CLIENT PASS')
 }
 
-function runClient(root: string): Promise<string> {
+function runClient(root: string): Promise<GameRun> {
   return new Promise((resolve) => {
+    const started = Date.now()
     const child = spawn(GRADLE, ['runClient', '--console=plain'], {
       cwd: root,
       shell: true,
@@ -582,18 +565,8 @@ function runClient(root: string): Promise<string> {
     })
     let out = ''
     let pending = ''
-    let stopping = false
-    const stop = (): void => {
-      if (stopping) return
-      stopping = true
-      setTimeout(() => {
-        try {
-          spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-        } catch {
-          child.kill('SIGKILL')
-        }
-      }, 2000)
-    }
+
+    const killer = treeKiller(child)
 
     const onData = (buf: Buffer): void => {
       const text = buf.toString()
@@ -604,7 +577,7 @@ function runClient(root: string): Promise<string> {
       for (const line of lines) {
         if (line.includes('ARTEMIS-CLIENT')) process.stdout.write(`  ${line.trim()}\n`)
       }
-      if (out.includes('ARTEMIS-CLIENT SUMMARY')) stop()
+      if (out.includes('ARTEMIS-CLIENT SUMMARY')) killer.stop('the summary had been printed')
     }
     child.stdout.on('data', onData)
     child.stderr.on('data', onData)
@@ -612,14 +585,12 @@ function runClient(root: string): Promise<string> {
     const timer = setTimeout(
       () => {
         console.log('  (timeout: stopping the client)')
-        stop()
+        killer.stop('the eight minute timeout fired')
       },
       8 * 60 * 1000
     )
-    child.on('close', () => {
-      clearTimeout(timer)
-      resolve(out)
-    })
+
+    onGameClose(child, killer, timer, started, () => out, resolve)
   })
 }
 

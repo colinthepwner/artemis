@@ -94,10 +94,30 @@ function placeBubble(rect: Rect | null): { top: number; left: number } {
     x = rect.left + rect.width / 2 - BUBBLE_W / 2
     y = above
   }
-  return {
-    top: Math.min(Math.max(MARGIN, y), Math.max(MARGIN, vh - BUBBLE_H - MARGIN)),
-    left: Math.min(Math.max(MARGIN, x), Math.max(MARGIN, vw - BUBBLE_W - MARGIN))
-  }
+
+  const placedTop = Math.min(Math.max(MARGIN, y), Math.max(MARGIN, vh - BUBBLE_H - MARGIN))
+  const placedLeft = Math.min(Math.max(MARGIN, x), Math.max(MARGIN, vw - BUBBLE_W - MARGIN))
+  return clearOfWindowControls(placedTop, placedLeft)
+}
+
+function windowControlsRect(): DOMRect | null {
+  const el = document.querySelector('[data-window-controls-gap="right"]')
+  if (!el) return null
+  const r = el.getBoundingClientRect()
+  return r.width > 0 && r.height > 0 ? r : null
+}
+
+function clearOfWindowControls(top: number, left: number): { top: number; left: number } {
+  const controls = windowControlsRect()
+  if (!controls) return { top, left }
+  const overlapsX = left + BUBBLE_W > controls.left && left < controls.right
+  const overlapsY = top < controls.bottom && top + BUBBLE_H > controls.top
+  if (!overlapsX || !overlapsY) return { top, left }
+  const vh = window.innerHeight
+  const dropped = controls.bottom + GAP
+
+  if (dropped + BUBBLE_H + MARGIN > vh) return { top, left }
+  return { top: dropped, left }
 }
 
 export function markTourSeen(tour: string): void {
@@ -109,6 +129,8 @@ export function markTourSeen(tour: string): void {
 }
 
 export function tourIsDue(tour: string): boolean {
+
+  if (window.artemis.app.skipOnboarding) return false
   if (import.meta.env.DEV) return true
   try {
     return !localStorage.getItem(seenKey(tour))
@@ -133,7 +155,7 @@ export function Tutorial(): JSX.Element | null {
   const [offered, setOffered] = useState(false)
 
   useEffect(() => {
-    if (window.artemis.app.skipOnboarding) return
+
     if (offered || noticeOpen || bootPhase !== 'ready') return
     setOffered(true)
     if (tourIsDue(WELCOME_TOUR)) startTutorial(WELCOME_TOUR)
@@ -234,7 +256,8 @@ export function Tutorial(): JSX.Element | null {
       {halo ? (
         <motion.div
           className="pointer-events-none absolute rounded-lg ring-2 ring-gold-400/70"
-          initial={reduceAnimations ? false : { opacity: 0 }}
+
+          initial={reduceAnimations ? false : { opacity: 0, ...halo }}
           animate={{ opacity: 1, ...halo }}
           transition={{ duration: reduceAnimations ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
           style={{ boxShadow: '0 0 0 9999px rgba(6, 8, 11, 0.66)' }}
@@ -248,12 +271,16 @@ export function Tutorial(): JSX.Element | null {
 }
       <div className="absolute inset-0" onClick={advance} />
 
+      {
+
+}
       <motion.div
-        key={step.id}
-        className="absolute flex flex-col rounded-xl bg-ink-850 p-4 shadow-raised"
+        className="absolute left-0 top-0 flex flex-col rounded-xl bg-ink-850 p-4 shadow-raised"
         style={{ width: BUBBLE_W, minHeight: BUBBLE_H }}
-        initial={reduceAnimations ? false : { opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1, top: bubble.top, left: bubble.left }}
+        initial={
+          reduceAnimations ? false : { opacity: 0, scale: 0.96, x: bubble.left, y: bubble.top }
+        }
+        animate={{ opacity: 1, scale: 1, x: bubble.left, y: bubble.top }}
         transition={{ duration: reduceAnimations ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="mb-2.5 flex items-center gap-2">

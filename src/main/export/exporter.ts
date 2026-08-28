@@ -394,12 +394,17 @@ ${obfuscate ? obfuscationTask() : ''}`,
     )
   }
 
+  const oneLine = (meta.description || `${meta.name}, a Better Than Adventure! mod.`)
+    .replace(/\s+/g, ' ')
+    .trim()
+  const described = !oneLine || /[.!?]$/.test(oneLine) ? oneLine : `${oneLine}.`
+
   const fmj = {
     ...mapping.fabricModJson,
     id: meta.modId,
     version: '${version}',
     name: meta.name,
-    description: `${meta.description || `${meta.name}, a Better Than Adventure! mod.`}\n\nMade using Artemis`,
+    description: `${described} Made using Artemis`.trim(),
     authors: meta.authors.length ? meta.authors : ['Unknown'],
     ...(icon ? { icon: iconPath } : {}),
     ...(mixinConfigs.length ? { mixins: mixinConfigs } : {}),

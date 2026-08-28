@@ -1,4 +1,5 @@
 import { mix, shade, type Grid } from './presets'
+import { rng, type Rand } from '@shared/rng'
 
 const SIZE = 16
 const CELLS = SIZE * SIZE
@@ -52,21 +53,7 @@ export interface Stencil {
   run: (input: StencilInput) => StencilResult
 }
 
-type Rand = () => number
-
-function rng(seed: number): Rand {
-  let a = seed >>> 0 || 1
-  return () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-export function newSeed(): number {
-  return Math.floor(Math.random() * 0xffffff) + 1
-}
+export { newSeed } from '@shared/rng'
 
 const int = (r: Rand, lo: number, hi: number): number => lo + Math.floor(r() * (hi - lo + 1))
 

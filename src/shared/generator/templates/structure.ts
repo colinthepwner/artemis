@@ -18,6 +18,18 @@ export function builtVariants(variants: BuildVariant[] | undefined): BuildVarian
   return (variants ?? []).filter((v) => Object.keys(v.blocks ?? {}).length > 0)
 }
 
+export function variantCells(
+  variant: BuildVariant
+): { x: number; y: number; z: number; ref: string }[] {
+  return Object.entries(variant.blocks ?? {})
+    .map(([key, ref]) => {
+      const [x, y, z] = key.split(',').map(Number)
+      return { x, y, z, ref }
+    })
+    .filter((c) => [c.x, c.y, c.z].every(Number.isFinite))
+    .sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x)
+}
+
 export function variantFeatureWriter(
   className: string,
   variants: BuildVariant[],
@@ -32,14 +44,7 @@ export function variantFeatureWriter(
   if (isTree) w.use('Blocks', 'BlockTags')
 
   const methods = variants.map((variant, i) => {
-
-    const cells = Object.entries(variant.blocks)
-      .map(([key, ref]) => {
-        const [x, y, z] = key.split(',').map(Number)
-        return { x, y, z, ref }
-      })
-      .filter((c) => [c.x, c.y, c.z].every(Number.isFinite))
-      .sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x)
+    const cells = variantCells(variant)
 
     const lines = cells
       .map((c) => {

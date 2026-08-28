@@ -10,18 +10,12 @@ import {
   vanillaTint
 } from '../src/renderer/src/components/pixel/foliageTints'
 import { loadVanillaArt } from '../src/main/vanillaTextures'
+import { harness } from './_harness'
 
 installCanvasShim()
 
-let passes = 0
-let failures = 0
-const check = (name: string, ok: boolean, detail?: string): void => {
-  if (ok) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 const skip = (name: string, why: string): void => console.log(`  SKIP ${name}: ${why}`)
 
 const BTA = '8.0.1'
@@ -144,9 +138,9 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  console.log(failures === 0 ? 'VANILLA ART PASS' : 'VANILLA ART: see above')
-  if (failures > 0) process.exitCode = 1
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  console.log(audit.failures === 0 ? 'VANILLA ART PASS' : 'VANILLA ART: see above')
+  if (audit.failures > 0) process.exitCode = 1
 }
 
 void main()

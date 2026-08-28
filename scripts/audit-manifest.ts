@@ -1,16 +1,9 @@
 import { getMapping, LATEST_BTA } from '../src/shared/generator/mappings'
+import { harness } from './_harness'
 
-let passes = 0
-let failures = 0
+const audit = harness()
+const check = audit.check
 let skipped = 0
-
-const check = (name: string, ok: boolean, detail?: string): void => {
-  if (ok) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
 
 const skip = (name: string, why: string): void => {
   skipped++
@@ -122,7 +115,14 @@ async function coordinate(
   artifact: string,
   version: string
 ): Promise<void> {
-  const { verdict, detail } = await resolves(repos, group, artifact, version)
+  let { verdict, detail } = await resolves(repos, group, artifact, version)
+
+  if (verdict === 'no') {
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    const again = await resolves(repos, group, artifact, version)
+    verdict = again.verdict
+    detail = `${again.detail}; asked twice, the first answer was: ${detail}`
+  }
   if (verdict === 'unknown') skip(`${label} ${version}`, 'no repository answered')
   else check(`${label} ${version} still resolves`, verdict === 'yes', detail)
 }
@@ -404,13 +404,13 @@ async function main(): Promise<void> {
   await theClientJar()
   await theTestClientMods()
 
-  console.log(`\n${passes} checks passed, ${failures} failed, ${skipped} skipped`)
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed, ${skipped} skipped`)
   if (skipped > 0)
     console.log(
       `${skipped} coordinate${skipped === 1 ? ' was' : 's were'} NOT verified. Offline, this harness proves nothing.`
     )
-  console.log(failures === 0 ? 'MANIFEST PASS' : 'MANIFEST: see above')
-  if (failures > 0) process.exitCode = 1
+  console.log(audit.failures === 0 ? 'MANIFEST PASS' : 'MANIFEST: see above')
+  if (audit.failures > 0) process.exitCode = 1
 }
 
 main().catch((e) => {

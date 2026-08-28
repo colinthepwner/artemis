@@ -18,6 +18,7 @@ import {
 } from '../src/shared/generator/props'
 import { textureSlotsFor } from '../src/shared/generator/textures'
 import { png16DataUrl } from './_canvas'
+import { walkFiles } from './_harness'
 
 const PX = png16DataUrl()
 
@@ -330,19 +331,13 @@ for (const slot of textureSlotsFor(project)) project.textureAssignments[slot.key
 
 const root = join(tmpdir(), `artemis-export-test-${Date.now()}`)
 
-const walk = (dir: string, pre = ''): string[] =>
-  readdirSync(dir).flatMap((f) => {
-    const p = join(dir, f)
-    return statSync(p).isDirectory() ? walk(p, `${pre}${f}/`) : [`${pre}${f}`]
-  })
-
 async function main(): Promise<void> {
   const log: string[] = []
   await exportWorkspace(project, root, log)
   console.log('=== LOG ===')
   console.log(log.join('\n'))
   console.log('\n=== FILE TREE ===')
-  console.log(walk(root).sort().join('\n'))
+  console.log(walkFiles(root).sort().join('\n'))
 
   const lang = join(root, 'src/main/resources/assets/testmod/lang/en_US/testmod.lang')
   console.log('\n=== lang file ===', existsSync(lang) ? '' : 'MISSING')

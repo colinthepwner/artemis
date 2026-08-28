@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import { useOutsideClose } from '@/lib/useOutsideClose'
 import * as Menu from '@radix-ui/react-dropdown-menu'
 import { useProjectStore } from '@/store/projectStore'
 import { useAppStore } from '@/store/appStore'
@@ -90,7 +91,7 @@ function useDraggableMenu(
     onCloseAutoFocus: (e: Event) => void
   }
 } {
-  const isOutsideClick = useRef(false)
+  const { markOutside, onCloseAutoFocus } = useOutsideClose()
 
   const drag = useWindowDrag({
     onDragStart: () => {
@@ -102,7 +103,7 @@ function useDraggableMenu(
     triggerProps: { onPointerDown: drag.onPointerDown },
     contentProps: {
       onPointerDownOutside: (e: { detail: { originalEvent: PointerEvent } }) => {
-        isOutsideClick.current = true
+        markOutside()
 
         const native = e.detail.originalEvent
 
@@ -112,12 +113,7 @@ function useDraggableMenu(
 
         drag.onPointerDown(native)
       },
-      onCloseAutoFocus: (e: Event) => {
-        if (isOutsideClick.current) {
-          e.preventDefault()
-          isOutsideClick.current = false
-        }
-      }
+      onCloseAutoFocus
     }
   }
 }

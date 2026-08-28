@@ -1,16 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import ts from 'typescript'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const ROOT = process.cwd()
 const SCRIPTS = join(ROOT, 'scripts')
@@ -631,6 +625,21 @@ const NOT_SWEPT: Record<string, string> = {
     'mode, collects the ones that changed nothing, and prints the verdict from the size of that ' +
     'list. There is no condition written down anywhere for a detector to read, and the thing ' +
     'that would make it dead is an empty property table, which audit-misc.ts already checks.',
+  'scripts/_harness.ts':
+    'it holds no assertion of its own. It is where the pass and fail counter lives now, so the ' +
+    'FAIL line every harness prints comes out of this file and the detector above reads that as ' +
+    'a verdict. What it declares is the counter, not a check: there is no condition written here ' +
+    'for a detector to find. If one is ever added, the mirror fails this entry as stale rather ' +
+    'than letting the new check go unswept.',
+  'scripts/_probe-java.ts':
+    'it holds no assertion of its own, in the same way _harness.ts holds none. It is where the ' +
+    'LINE FORMAT a probe reports an answer in lives now, so the PASS and FAIL lines both probes ' +
+    'print come out of this file and the detector above reads that as a verdict. What it ' +
+    'declares is the format, not a check: the only conditions here are Java inside a template ' +
+    'string, which javac rejects for A57 shapes on every gradle run and which the duplicate ' +
+    'sweep in audit-misc.ts reads for the rule this file exists to keep. If a TypeScript ' +
+    'assertion is ever written here, the mirror fails this entry as stale rather than letting ' +
+    'the new check go unswept.',
 
 }
 
@@ -688,9 +697,9 @@ function main(): void {
     }
   }
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  console.log(failures === 0 ? 'ASSERTIONS PASS' : 'ASSERTIONS FAIL')
-  process.exit(failures === 0 ? 0 : 1)
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  console.log(audit.failures === 0 ? 'ASSERTIONS PASS' : 'ASSERTIONS FAIL')
+  process.exit(audit.failures === 0 ? 0 : 1)
 }
 
 main()

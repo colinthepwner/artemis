@@ -1,6 +1,7 @@
 import { CodeGenerator, type GeneratedFile } from '../src/shared/generator/CodeGenerator'
 import { toConstantCase, type ArtemisProject } from '../src/shared/project'
 import { textureSlotsForElement } from '../src/shared/generator/textures'
+import { treeFeatureClassName } from '../src/shared/generator/templates/tree'
 import { SCENARIOS } from './audit-fixtures'
 
 let failures = 0
@@ -124,6 +125,67 @@ function auditPortalIgnition(scenario: string, project: ArtemisProject, files: G
   const className = mixin.path.split('/').pop()!.replace('.java', '')
   if (config?.content.includes(`"${className}"`)) ok()
   else fail(scenario, `${className} is not listed in the mixins config, so it never applies`)
+}
+
+function auditTreeGround(scenario: string, project: ArtemisProject, files: GeneratedFile[]): void {
+  const biomes = project.elements.filter((el) => el.kind === 'biome')
+
+  const floorOf = (el: ArtemisProject['elements'][number]): string | null => {
+    const ref = String((el.properties as { topBlock?: string }).topBlock ?? '').trim()
+    if (!ref) return null
+    if (ref.startsWith('biome:')) return null
+    if (ref.startsWith('block:')) return `Blocks.${ref.slice('block:'.length).toUpperCase()}.id()`
+    const owner = project.elements.find((e) => e.name === ref)
+    if (!owner) return null
+    return `ModBlocks.${toConstantCase(owner.kind === 'liquid' ? `${ref}_still` : ref)}.id()`
+  }
+
+  for (const tree of project.elements.filter((el) => el.kind === 'tree')) {
+    const file = files.find((f) => f.path.endsWith(`${treeFeatureClassName(tree.name)}.java`))
+    if (!file) {
+      fail(scenario, `tree ${tree.name} generated no feature class`)
+      continue
+    }
+    const gate = file.content
+      .split('\n')
+      .find((l) => l.includes('groundId') && l.includes('GROWS_TREES'))
+    if (!gate) {
+      fail(scenario, `tree ${tree.name}'s feature has no ground gate at all`)
+      continue
+    }
+    const listed = (((tree.properties['biomes'] as string[] | undefined) ?? []) as string[])
+      .map((r) => r.trim())
+      .filter(Boolean)
+
+    const claimed = listed.length === 0 ? biomes : biomes.filter((b) => listed.includes(b.name))
+    const wanted = new Set(claimed.map(floorOf).filter((e): e is string => Boolean(e)))
+    for (const expr of wanted) {
+      if (gate.includes(expr)) ok()
+      else
+        fail(
+          scenario,
+          `tree ${tree.name} claims a biome floored with ${expr} and its ground gate does not ` +
+            `name it, so it refuses every column of that biome: ${gate.trim()}`
+        )
+    }
+
+    const strangers = [
+      ...new Set(
+        biomes
+          .filter((b) => !claimed.includes(b))
+          .map(floorOf)
+          .filter((e): e is string => Boolean(e) && !wanted.has(e as string))
+          .filter((e) => gate.includes(e))
+      )
+    ]
+    if (strangers.length === 0) ok()
+    else
+      fail(
+        scenario,
+        `tree ${tree.name} may stand on ${strangers.join(', ')}, which floors a biome it never ` +
+          `claimed: the gate claims more ground than the modder asked for`
+      )
+  }
 }
 
 function auditFiles(scenario: string, files: GeneratedFile[]): void {
@@ -315,6 +377,7 @@ for (const s of SCENARIOS) {
   auditFiles(s.name, files)
   auditPlacementOrder(s.name, files)
   auditPortalIgnition(s.name, project, files)
+  auditTreeGround(s.name, project, files)
 
   const slots: string[] = []
   for (const el of project.elements) {

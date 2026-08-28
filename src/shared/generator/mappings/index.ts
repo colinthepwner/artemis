@@ -25,7 +25,6 @@ export interface BtaMapping {
     build: string
     methods: Record<string, string>
     logicPlain: string
-    logicFlower: string
     logicCustom: string
   }
   itemBuilder: { decl: string; build: string; methods: Record<string, string> }
@@ -72,8 +71,6 @@ export interface BtaMapping {
   biome: {
     decl: string
     classTemplate: string
-    spawnCreature: string
-    spawnMonster: string
 
     skyOverride: string
 

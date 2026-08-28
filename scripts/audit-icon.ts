@@ -1,5 +1,6 @@
 import { installCanvasShim, decodeDataUrl, pngDataUrl } from './_canvas'
 import { ICON_SIZE, pickIcon, scoreIcon } from '../src/shared/iconPick'
+import { harness } from './_harness'
 import {
   MAX_ZOOM,
   centeredView,
@@ -11,15 +12,8 @@ import {
 
 installCanvasShim()
 
-let passes = 0
-let failures = 0
-const check = (name: string, ok: boolean, detail?: string): void => {
-  if (ok) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const tile = (a: string, b: string): Uint8Array => decodeDataUrl(pngDataUrl(16, 16, a, b)).rgba
 
@@ -137,6 +131,6 @@ console.log('\nthe framing')
   check('and it is the width that fills the square there', Math.abs(tall.ox) < 0.001)
 }
 
-console.log(`\n${passes} checks passed, ${failures} failed`)
-console.log(failures === 0 ? 'ICON PASS' : 'ICON: see above')
-if (failures > 0) process.exitCode = 1
+console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+console.log(audit.failures === 0 ? 'ICON PASS' : 'ICON: see above')
+if (audit.failures > 0) process.exitCode = 1

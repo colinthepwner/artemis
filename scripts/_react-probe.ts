@@ -1,5 +1,7 @@
 import { createElement, type ReactElement, type ReactNode, type FunctionComponent } from 'react'
 import * as React from 'react'
+import { useProjectStore } from '../src/renderer/src/store/projectStore'
+import type { ArtemisProject } from '../src/shared/project'
 
 const internals = (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
 if (!internals?.ReactCurrentDispatcher) {
@@ -401,3 +403,9 @@ export function renderProbe(element: ReactElement): ProbeRoot {
 }
 
 export const h = createElement
+
+export function liveProject(): ArtemisProject {
+  const p = useProjectStore.getState().project
+  if (!p) throw new Error('no project in the store')
+  return p
+}

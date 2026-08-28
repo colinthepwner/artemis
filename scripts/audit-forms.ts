@@ -1,8 +1,8 @@
 import './_studio-env'
 import { installCanvasShim } from './_canvas'
-import { renderProbe, nodeText, h, type ProbeNode, type ProbeRoot } from './_react-probe'
+import { renderProbe, nodeText, h, liveProject, type ProbeNode, type ProbeRoot } from './_react-probe'
 import { bridgeCalls, resetBridge, fakeStorage, emitBridge } from './_studio-env'
-import { SCENARIOS } from './audit-fixtures'
+import { SCENARIOS, scenario } from './audit-fixtures'
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
 import { useAppStore } from '../src/renderer/src/store/appStore'
 import { useTestStore } from '../src/renderer/src/store/testStore'
@@ -30,18 +30,12 @@ import { PixelEditorOverlay } from '../src/renderer/src/components/pixel/PixelEd
 import { VoxelEditorOverlay } from '../src/renderer/src/components/workshop/VoxelEditor'
 import { kitPieces } from '../src/shared/generator/family'
 import { titleCase } from '../src/shared/generator/templates/block'
+import { harness } from './_harness'
 
 installCanvasShim()
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const ALL_KINDS = Object.keys(FORM_REGISTRY) as ElementKind[]
 
@@ -49,11 +43,7 @@ function seed(project: ArtemisProject): void {
   useProjectStore.setState({ project: structuredClone(project), filePath: null, dirty: false })
 }
 
-const live = (): ArtemisProject => {
-  const p = useProjectStore.getState().project
-  if (!p) throw new Error('no project in the store')
-  return p
-}
+const live = liveProject
 
 const elementNamed = (name: string): ArtemisElement => {
   const el = live().elements.find((e) => e.name === name)
@@ -885,7 +875,7 @@ const SECTIONS: Array<[string, () => ReturnType<typeof h>]> = [
 
 function theWayOutOfAnEditor(): void {
   console.log('\n[titlebar] the dashboard button, for when an editor is covering everything')
-  seed(SCENARIOS[SCENARIOS.length - 1].build())
+  seed(scenario('a mod from before the element rework').build())
   useAppStore.setState({ section: 'gallery', textureEditor: null, workshopEditor: null })
 
   const bar = renderProbe(h(TitleBar))
@@ -1008,7 +998,7 @@ function theUpdateBar(): void {
 
 function theGuidedTour(): void {
   console.log('\n[tour] the guided tour, end to end')
-  seed(SCENARIOS[SCENARIOS.length - 1].build())
+  seed(scenario('a mod from before the element rework').build())
 
   const anchorsOn = (make: () => ReturnType<typeof h>): string[] => {
     const root = renderProbe(make())
@@ -1243,7 +1233,7 @@ function everySectionMounts(): void {
   console.log('\n[sections] every screen the sidebar can reach')
   for (const [name, make] of SECTIONS) {
     for (const withProject of [true, false]) {
-      if (withProject) seed(SCENARIOS[SCENARIOS.length - 1].build())
+      if (withProject) seed(scenario('a mod from before the element rework').build())
       else useProjectStore.setState({ project: null, filePath: null, dirty: false })
       resetBridge()
       try {
@@ -1529,8 +1519,8 @@ function main(): void {
   everyControlIsLive()
   readingIsQuiet()
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
-  if (failures) {
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  if (audit.failures) {
     console.log('FORMS FAIL')
     process.exit(1)
   }

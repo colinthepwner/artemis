@@ -6,6 +6,7 @@ import { migrateProject } from '../src/shared/migrate'
 import { normalize } from '../src/renderer/src/store/projectStore'
 import { SCENARIOS } from './audit-fixtures'
 import { pngDataUrl } from './_canvas'
+import { generated } from './_harness'
 
 let failures = 0
 let passes = 0
@@ -20,15 +21,6 @@ const check = (name: string, condition: boolean, detail?: string): void => {
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 const stable = (p: ArtemisProject): string => JSON.stringify(p)
-
-function generated(p: ArtemisProject): string {
-  return new CodeGenerator(p)
-    .generate()
-    .slice()
-    .sort((a, b) => a.path.localeCompare(b.path))
-    .map((f) => `>>> ${f.path}\n${f.content}`)
-    .join('\n')
-}
 
 function duplicateDecls(p: ArtemisProject): string[] {
   const out: string[] = []
@@ -200,6 +192,33 @@ console.log('readiness: a biome that would generate nowhere')
   check('and substitution at the same temperature is left alone', !flaggedEmpty('coldsub'))
 }
 
+console.log('readiness: a biome nobody can reach')
+
+{
+
+  const { project, add } = mk('strandedmod')
+  add('block', 'slate', {})
+  add('biome', 'stranded', { generateInOverworld: false, topBlock: 'slate', fillerBlock: 'slate' })
+  add('biome', 'reached', { generateInOverworld: false, topBlock: 'slate', fillerBlock: 'slate' })
+  add('biome', 'overworld_one', {
+    generateInOverworld: true,
+    topBlock: 'block:GRASS',
+    fillerBlock: 'block:DIRT'
+  })
+  add('dimension', 'the_deep', { biomes: ['reached'], portalFrame: 'slate' })
+
+  const items = unfinishedIn(project)
+  const stranded = (name: string): boolean => {
+    const el = project.elements.find((e) => e.name === name)!
+    return items.some((u) => u.elementId === el.id && /no world at all/i.test(u.label))
+  }
+  check('a biome out of the overworld that no dimension lists is flagged', stranded('stranded'),
+    JSON.stringify(items, null, 1))
+  check('the one a dimension does list is left alone', !stranded('reached'))
+  check('and a biome that simply generates in the overworld is left alone',
+    !stranded('overworld_one'))
+}
+
 console.log('readiness: two doors that could not both open')
 
 {
@@ -225,6 +244,52 @@ console.log('readiness: two doors that could not both open')
     flagged('nether_door', /portal of its own/), JSON.stringify(items, null, 1))
   check('and a frame nobody else wants is left alone',
     !flagged('own_door', /shares its portal frame|portal of its own/))
+}
+
+console.log('readiness: a plant scattered into ground it will not stand on')
+
+{
+
+  const { project, add } = mk('barrenmod')
+  add('block', 'ash_stone', { displayName: 'Ash Stone' })
+  add('block', 'loam', { displayName: 'Loam' })
+  add('biome', 'ash_flats', {
+    generateInOverworld: true,
+    topBlock: 'ash_stone',
+    fillerBlock: 'ash_stone'
+  })
+  add('biome', 'loam_downs', { generateInOverworld: true, topBlock: 'loam', fillerBlock: 'loam' })
+  add('biome', 'green_downs', {
+    generateInOverworld: true,
+    topBlock: 'block:GRASS',
+    fillerBlock: 'block:DIRT'
+  })
+
+  add('plant', 'ash_tuft', { growsOn: ['loam'], patchesPerChunk: 4, biomes: ['ash_flats'] })
+
+  add('plant', 'loam_tuft', { growsOn: ['loam'], patchesPerChunk: 4, biomes: ['loam_downs'] })
+
+  add('plant', 'grass_tuft', {
+    growsOn: ['block:GRASS'],
+    patchesPerChunk: 4,
+    biomes: ['green_downs']
+  })
+
+  add('plant', 'shelf_moss', { growsOn: ['loam'], patchesPerChunk: 0, biomes: ['ash_flats'] })
+
+  add('plant', 'open_tuft', { growsOn: ['loam'], patchesPerChunk: 4 })
+
+  const items = unfinishedIn(project)
+  const barren = (name: string): boolean => {
+    const el = project.elements.find((e) => e.name === name)!
+    return items.some((u) => u.elementId === el.id && /cannot grow in/i.test(u.label))
+  }
+  check('a plant scattered into a biome whose floor it does not accept is flagged',
+    barren('ash_tuft'), JSON.stringify(items, null, 1))
+  check('and the one pointed at the floor it accepts is left alone', !barren('loam_tuft'))
+  check("and so is one growing on the game's own grass", !barren('grass_tuft'))
+  check('a crafted-only plant is left alone whatever it names', !barren('shelf_moss'))
+  check('and a plant with no biome filter is left alone', !barren('open_tuft'))
 }
 
 console.log('readiness: a finished mod is not nagged about content')

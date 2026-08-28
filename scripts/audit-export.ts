@@ -24,20 +24,15 @@ import { png16DataUrl, pngDataUrl, decodeDataUrl, decodePng } from './_canvas'
 import { collectTextureIds } from './_texture-ids'
 import { tempDir, sweepTempDirs } from './_temp'
 import { getMapping, LATEST_BTA } from '../src/shared/generator/mappings'
+import { harness } from './_harness'
+import { walkFiles } from './_harness'
 
 const PX = png16DataUrl()
 
 const SKIN = pngDataUrl(64, 32)
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const skip = (name: string, why: string): void => console.log(`  SKIP ${name}: ${why}`)
 
@@ -73,12 +68,6 @@ async function halplibeResolves(root: string): Promise<void> {
   skip('halplibe resolves', 'no maven answered, so nothing could be verified')
 }
 
-const walk = (dir: string, pre = ''): string[] =>
-  readdirSync(dir).flatMap((f) => {
-    const p = join(dir, f)
-    return statSync(p).isDirectory() ? walk(p, `${pre}${f}/`) : [`${pre}${f}`]
-  })
-
 function paint(project: ArtemisProject): void {
   project.textures = [
     { id: 'flat', name: 'checker', data: PX, createdAt: '2026-08-27', updatedAt: '2026-08-27' },
@@ -106,7 +95,7 @@ async function main(): Promise<void> {
   await exportTo(project, root)
 
   let lastWorkspace = root
-  const tree = walk(root)
+  const tree = walkFiles(root)
   const read = (rel: string): string => readFileSync(join(root, rel), 'utf-8')
   const javaFiles = tree.filter((f) => f.endsWith('.java'))
   const allJava = javaFiles.map((f) => read(f)).join('\n')
@@ -340,6 +329,7 @@ async function main(): Promise<void> {
   if (existsSync(join(root, fmjPath))) {
     const fmj = JSON.parse(read(fmjPath)) as {
       id?: string
+      description?: string
       entrypoints?: Record<string, unknown[]>
       mixins?: string[]
       custom?: { credits?: string[] }
@@ -361,6 +351,19 @@ async function main(): Promise<void> {
       'the credits end with "Made using Artemis"',
       (fmj.custom?.credits ?? []).some((c) => c.includes('Made using Artemis')),
       JSON.stringify(fmj.custom?.credits)
+    )
+
+    check(
+      'the description carries the credit too',
+      (fmj.description ?? '').includes('Made using Artemis'),
+      JSON.stringify(fmj.description)
+    )
+
+    check(
+      'and the description is one line, because the game cannot draw a second',
+
+      !/[\u0000-\u001f]/.test(fmj.description ?? ''),
+      JSON.stringify(fmj.description)
     )
   }
 
@@ -502,7 +505,7 @@ async function main(): Promise<void> {
     )
     check('and a hand-written package outside its own is untouched', existsSync(keeperPath))
     check('and a texture the modder dropped in by hand is still there', existsSync(handPainted))
-    const after = walk(root)
+    const after = walkFiles(root)
     check(
       'the smaller mod still exports its own block',
       after.some((f) => f.endsWith(`init/ModBlocks.java`)),
@@ -511,7 +514,7 @@ async function main(): Promise<void> {
 
     const cleanDir = tempDir('artemis-audit-clean-')
     await exportTo(smaller, cleanDir)
-    const cleanFiles = new Set(walk(cleanDir))
+    const cleanFiles = new Set(walkFiles(cleanDir))
     const planted = new Set([
       'src/main/java/com/handwritten/Keeper.java',
       'src/main/resources/assets/keepme.txt',
@@ -538,10 +541,10 @@ async function main(): Promise<void> {
     check('the export records what it generated', existsSync(manifest))
     check(
       'and the record stays out of src/, so it never reaches the jar',
-      !walk(dir).some((f) => f.startsWith('src/') && f.includes('.artemis-generated')),
-      walk(dir).filter((f) => f.includes('.artemis-generated')).join(', ')
+      !walkFiles(dir).some((f) => f.startsWith('src/') && f.includes('.artemis-generated')),
+      walkFiles(dir).filter((f) => f.includes('.artemis-generated')).join(', ')
     )
-    const before = walk(dir)
+    const before = walkFiles(dir)
     rmSync(manifest)
 
     const smaller = createEmptyProject(project.meta.name, project.meta.modId)
@@ -555,7 +558,7 @@ async function main(): Promise<void> {
     })
     paint(smaller)
     await exportTo(smaller, dir)
-    const survivors = walk(dir)
+    const survivors = walkFiles(dir)
 
     const lost = before.filter(
       (f) =>
@@ -582,7 +585,7 @@ async function main(): Promise<void> {
       threw = (e as Error).message
     }
     check(`"${s.name}" exports without throwing`, threw === null, threw ?? '')
-    const files = walk(dir)
+    const files = walkFiles(dir)
     check(
       `"${s.name}" writes a build script`,
       files.some((f) => f === 'build.gradle' || f === 'build.gradle.kts'),
@@ -593,10 +596,10 @@ async function main(): Promise<void> {
 
   await halplibeResolves(lastWorkspace)
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
   sweepTempDirs()
-  console.log(failures === 0 ? 'EXPORT PASS' : 'EXPORT: see above')
-  if (failures > 0) process.exitCode = 1
+  console.log(audit.failures === 0 ? 'EXPORT PASS' : 'EXPORT: see above')
+  if (audit.failures > 0) process.exitCode = 1
 }
 
 main().catch((e) => {

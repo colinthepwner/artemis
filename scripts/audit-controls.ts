@@ -5,6 +5,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 import { MODES, V, variant, buildProject } from './_modes'
+import { generated } from './_harness'
 
 const MUTATE: Record<string, unknown> = {
   'block.material': 'wood',
@@ -95,15 +96,6 @@ function mutateByType(key: string, value: unknown): unknown {
   return value
 }
 
-function fingerprint(project: ArtemisProject): string {
-  return new CodeGenerator(project)
-    .generate()
-    .slice()
-    .sort((a, b) => a.path.localeCompare(b.path))
-    .map((f) => `>>> ${f.path}\n${f.content}`)
-    .join('\n')
-}
-
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
 interface Result {
@@ -118,7 +110,7 @@ const errors: string[] = []
 for (const kind of Object.keys(MODES) as ElementKind[]) {
   for (const [modeName, modeProps] of Object.entries(MODES[kind])) {
     const base = buildProject(kind, modeProps)
-    const baseline = fingerprint(base)
+    const baseline = generated(base)
     const subject = base.elements.find((e) => e.name === `subject_${kind}`)!
     const props = subject.properties as Record<string, unknown>
     const keys = Array.from(
@@ -138,7 +130,7 @@ for (const kind of Object.keys(MODES) as ElementKind[]) {
 
       let out: string
       try {
-        out = fingerprint(trial)
+        out = generated(trial)
       } catch (err) {
         errors.push(`${id} [${modeName}]: generator threw ${(err as Error).message}`)
         continue

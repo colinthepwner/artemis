@@ -11,7 +11,7 @@ import {
   desktopPlatform,
   gradleBinName,
   gradleWrapperName,
-  javaBinSegments,
+  javaBinCandidates,
   usesControlsOverlay,
   type InstallKind
 } from '../src/shared/platform'
@@ -26,16 +26,10 @@ import { TitleBar } from '../src/renderer/src/components/titlebar/TitleBar'
 import { SetupScreen } from '../src/renderer/src/components/layout/SetupScreen'
 import { useAppStore } from '../src/renderer/src/store/appStore'
 import type { JdkCandidate, PermissionIssue } from '../src/shared/ipc'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const ALL: NodeJS.Platform[] = ['win32', 'darwin', 'linux']
 
@@ -71,20 +65,32 @@ function theRules(): void {
   check('on macOS', gradleWrapperName('darwin') === 'gradlew')
   check('and on Linux', gradleWrapperName('linux') === 'gradlew')
 
+  const darwinPaths = javaBinCandidates('darwin').map((c) => c.join('/'))
   check(
-    'java lives under Contents/Home on macOS',
-    javaBinSegments('darwin').join('/') === 'Contents/Home/bin/java',
-    javaBinSegments('darwin').join('/')
+    'java is looked for under Contents/Home on macOS',
+    darwinPaths[0] === 'Contents/Home/bin/java',
+    darwinPaths.join(' , ')
+  )
+  check(
+    'and ALSO under a bare bin on macOS, which is where Homebrew and SDKMAN put it',
+    darwinPaths.includes('bin/java'),
+    darwinPaths.join(' , ')
   )
   check(
     'and under bin, with .exe, on Windows',
-    javaBinSegments('win32').join('/') === 'bin/java.exe',
-    javaBinSegments('win32').join('/')
+    javaBinCandidates('win32').map((c) => c.join('/')).join(',') === 'bin/java.exe',
+    javaBinCandidates('win32').map((c) => c.join('/')).join(',')
   )
   check(
     'and under bin, bare, on Linux',
-    javaBinSegments('linux').join('/') === 'bin/java',
-    javaBinSegments('linux').join('/')
+    javaBinCandidates('linux').map((c) => c.join('/')).join(',') === 'bin/java',
+    javaBinCandidates('linux').map((c) => c.join('/')).join(',')
+  )
+
+  check(
+    'and neither Windows nor Linux is given a path it does not have',
+    javaBinCandidates('win32').length === 1 && javaBinCandidates('linux').length === 1,
+    `${javaBinCandidates('win32').length} and ${javaBinCandidates('linux').length}`
   )
 
   const kinds: InstallKind[] = ['windows-portable', 'appimage', 'macos-app', 'managed']
@@ -573,15 +579,15 @@ async function main(): Promise<void> {
   theTitleBar()
   await theSetupScreens()
 
-  console.log(`\n${passes} checks passed, ${failures} failed`)
+  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
 
   console.log('\nNot covered here, and only a real machine can:')
   console.log('  - that the mac traffic lights actually land centred in a 40px bar')
   console.log('  - that ditto unpacks a signed .app that then launches')
   console.log('  - that an AppImage swapped under a running process relaunches')
   console.log('  - that Chromium draws the overlay where env(titlebar-area-width) says')
-  console.log(failures === 0 ? 'PLATFORM PASS' : 'PLATFORM FAIL')
-  process.exit(failures === 0 ? 0 : 1)
+  console.log(audit.failures === 0 ? 'PLATFORM PASS' : 'PLATFORM FAIL')
+  process.exit(audit.failures === 0 ? 0 : 1)
 }
 
 void main()

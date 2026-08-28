@@ -35,10 +35,10 @@ export function gradleWrapperName(platform: NodeJS.Platform): string {
   return desktopPlatform(platform) === 'win32' ? 'gradlew.bat' : 'gradlew'
 }
 
-export function javaBinSegments(platform: NodeJS.Platform): string[] {
+export function javaBinCandidates(platform: NodeJS.Platform): string[][] {
   const p = desktopPlatform(platform)
-  if (p === 'darwin') return ['Contents', 'Home', 'bin', 'java']
-  return ['bin', exeName('java', platform)]
+  if (p === 'darwin') return [['Contents', 'Home', 'bin', 'java'], ['bin', 'java']]
+  return [['bin', exeName('java', platform)]]
 }
 
 export function adoptiumTarget(

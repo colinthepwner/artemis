@@ -10,6 +10,8 @@ const STEPS = [
   ['assertions', process.execPath, ['scripts/run.mjs', 'scripts/audit-assertions.ts']],
 
   ['platform', process.execPath, ['scripts/run.mjs', 'scripts/audit-platform.ts']],
+
+  ['temp', process.execPath, ['scripts/run.mjs', 'scripts/temp-smoke.ts']],
   ['controls', process.execPath, ['scripts/run.mjs', 'scripts/audit-controls.ts']],
   ['forms', process.execPath, ['scripts/run.mjs', 'scripts/audit-forms.ts']],
   ['editors', process.execPath, ['scripts/run.mjs', 'scripts/audit-editors.ts']],
@@ -54,3 +56,5 @@ console.log('  node scripts/run.mjs scripts/ingame-probe.ts')
 
 console.log('and in a client, which is the only thing that sees textures, models and mob skins:')
 console.log('  node scripts/run.mjs scripts/client-probe.ts')
+console.log('and every fixture through both, which takes about an hour and is the overnight one:')
+console.log('  node scripts/run.mjs scripts/probe-all.ts')

@@ -17,6 +17,12 @@ export function ConstructionNotice(): JSX.Element | null {
 
   useEffect(() => {
 
+    if (window.artemis.app.skipOnboarding) {
+      setOpen(false)
+      setStartupNoticeOpen(false)
+      return
+    }
+
     if (import.meta.env.DEV) {
       setOpen(true)
       setStartupNoticeOpen(true)

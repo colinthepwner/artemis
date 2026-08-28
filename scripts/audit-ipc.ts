@@ -1,15 +1,9 @@
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { harness } from './_harness'
 
-let failures = 0
-let passes = 0
-const check = (name: string, condition: boolean, detail?: string): void => {
-  if (condition) passes++
-  else {
-    failures++
-    console.log(`  FAIL ${name}${detail ? `\n       ${detail}` : ''}`)
-  }
-}
+const audit = harness()
+const check = audit.check
 
 const ROOT = process.cwd()
 const walk = (dir: string): string[] =>
@@ -162,6 +156,6 @@ for (const f of preloadSrc) {
   )
 }
 
-console.log(`\n${passes} checks passed, ${failures} failed`)
-console.log(failures === 0 ? 'IPC PASS' : 'IPC: see above')
-if (failures > 0) process.exitCode = 1
+console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+console.log(audit.failures === 0 ? 'IPC PASS' : 'IPC: see above')
+if (audit.failures > 0) process.exitCode = 1
