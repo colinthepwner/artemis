@@ -433,7 +433,7 @@ ${javaReport('ARTEMIS-CLIENT')}
 \t/**
 \t * Every key in the exported lang file resolves to something other than the
 \t * key. The server probe reports this as SKIP whenever a dedicated server
-\t * never initialises I18n, so on that path nothing is being checked. A
+\t * never initializes I18n, so on that path nothing is being checked. A
 \t * client always has one, and startGame() calls I18n.initialize before this
 \t * runs, so here it is an assertion.
 \t */

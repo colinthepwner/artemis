@@ -1,7 +1,7 @@
 export const ICON_SIZE = 128
 
 const BRIGHTNESS_WEIGHT = 0.5
-const COLOUR_WEIGHT = 0.3
+const COLOR_WEIGHT = 0.3
 const VARIETY_WEIGHT = 0.2
 
 const VARIETY_BITS = 3
@@ -14,7 +14,7 @@ export interface IconScore {
 
   brightness: number
 
-  colour: number
+  color: number
 
   variety: number
 
@@ -22,7 +22,7 @@ export interface IconScore {
 }
 
 export function scoreIcon(rgba: Uint8Array | Uint8ClampedArray): IconScore {
-  const empty: IconScore = { coverage: 0, brightness: 0, colour: 0, variety: 0, score: 0 }
+  const empty: IconScore = { coverage: 0, brightness: 0, color: 0, variety: 0, score: 0 }
   const pixels = Math.floor(rgba.length / 4)
   if (pixels === 0) return empty
 
@@ -47,17 +47,17 @@ export function scoreIcon(rgba: Uint8Array | Uint8ClampedArray): IconScore {
 
   const coverage = painted / pixels
   const brightness = luminance / painted
-  const colour = chroma / painted
+  const color = chroma / painted
 
   const variety = Math.min(1, seen.size / painted)
   return {
     coverage,
     brightness,
-    colour,
+    color,
     variety,
     score:
       coverage *
-      (BRIGHTNESS_WEIGHT * brightness + COLOUR_WEIGHT * colour + VARIETY_WEIGHT * variety)
+      (BRIGHTNESS_WEIGHT * brightness + COLOR_WEIGHT * color + VARIETY_WEIGHT * variety)
   }
 }
 

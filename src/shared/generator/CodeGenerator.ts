@@ -537,7 +537,7 @@ export class CodeGenerator {
       )
       files.push({
         path: `${javaRoot}/${mixinPkg}/${waterClass}.java`,
-        content: ww.toString(this.header('Per-biome water colour')),
+        content: ww.toString(this.header('Per-biome water color')),
         language: 'java'
       })
 
@@ -572,7 +572,7 @@ export class CodeGenerator {
       )
       files.push({
         path: `${javaRoot}/${mixinPkg}/${rainClass}.java`,
-        content: rw.toString(this.header('Rain tinted to the biome water colour')),
+        content: rw.toString(this.header('Rain tinted to the biome water color')),
         language: 'java'
       })
     }
@@ -598,7 +598,7 @@ export class CodeGenerator {
       )
       files.push({
         path: `${javaRoot}/${mixinPkg}/${grassClass}.java`,
-        content: gw.toString(this.header('Per-biome grass colour')),
+        content: gw.toString(this.header('Per-biome grass color')),
         language: 'java'
       })
     }

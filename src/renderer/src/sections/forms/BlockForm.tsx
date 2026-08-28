@@ -29,7 +29,7 @@ export function useMappingOptions() {
     materials: opts(mapping.materials, all),
     sounds: opts(mapping.sounds, all),
 
-    behaviourTags: opts(
+    behaviorTags: opts(
       mapping.blockTags,
       (k) => !isToolTag(k) && k !== 'notInCreativeMenu'
     )
@@ -105,8 +105,8 @@ export function MaterialFeelFields({ p, patch }: BlockFieldProps): JSX.Element {
 }
 
 export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
-  const { behaviourTags } = useMappingOptions()
-  const behaviourOptions = useSwatchedOptions(behaviourTags)
+  const { behaviorTags } = useMappingOptions()
+  const behaviorOptions = useSwatchedOptions(behaviorTags)
   return (
     <>
       <Field label="Mined With" hint="The tool this block answers to. Blocks have one, not several.">
@@ -125,9 +125,9 @@ export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
       {
 
 }
-      <Field label="Behaviour" hint="Optional. Most blocks want none of these.">
+      <Field label="Behavior" hint="Optional. Most blocks want none of these.">
         <SwitchList
-          options={behaviourOptions}
+          options={behaviorOptions}
           selected={p.tags.filter((t) => !isToolTag(t))}
           onChange={(v) => patch('tags', [...p.tags.filter(isToolTag), ...v])}
         />

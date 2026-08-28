@@ -3,7 +3,7 @@ import { getVanillaRegistry } from '../src/shared/generator/vanilla'
 import {
   FOLIAGE_TINTS,
   TINTED_BLOCKS,
-  isColourless,
+  isColorless,
   multiplyPixels,
   tintTexture,
   tintVanillaArt,
@@ -33,10 +33,10 @@ async function main(): Promise<void> {
 
     const families = new Set(Object.keys(FOLIAGE_TINTS))
     const strays = [...new Set(Object.values(TINTED_BLOCKS))].filter((f) => !families.has(f))
-    check('and every one names a colormap that has a colour', strays.length === 0, strays.join(', '))
+    check('and every one names a colormap that has a color', strays.length === 0, strays.join(', '))
 
     const badHex = Object.entries(FOLIAGE_TINTS).filter(([, hex]) => !/^#[0-9a-f]{6}$/.test(hex))
-    check('and every colour is a six-digit hex', badHex.length === 0, JSON.stringify(badHex))
+    check('and every color is a six-digit hex', badHex.length === 0, JSON.stringify(badHex))
 
     check(
       'cherry blossom is pink rather than a green guess',
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   {
 
     const px = new Uint8ClampedArray([255, 255, 255, 255, 128, 128, 128, 255, 0, 0, 0, 0])
-    check('a grayscale buffer is recognised as one', isColourless(px))
+    check('a grayscale buffer is recognized as one', isColorless(px))
     multiplyPixels(px, '#ffcceb')
     check(
       'white takes the tint exactly',
@@ -58,26 +58,26 @@ async function main(): Promise<void> {
       `${px[0]},${px[1]},${px[2]}`
     )
     check(
-      'and mid grey takes half of it',
+      'and mid gray takes half of it',
       px[4] === 128 && px[5] === 102 && px[6] === 118,
       `${px[4]},${px[5]},${px[6]}`
     )
     check('and a fully transparent pixel keeps its alpha', px[11] === 0)
 
-    const coloured = new Uint8ClampedArray([200, 40, 40, 255])
-    check('painted art is not mistaken for grayscale', !isColourless(coloured))
+    const colored = new Uint8ClampedArray([200, 40, 40, 255])
+    check('painted art is not mistaken for grayscale', !isColorless(colored))
   }
 
   console.log('\nthe round trip through a real PNG')
 
   {
 
-    const grey = pngDataUrl(16, 16, '#ffffff', '#808080')
-    const out = await tintTexture(grey, FOLIAGE_TINTS.cherry)
-    check('a grayscale texture comes back changed', out !== grey)
+    const gray = pngDataUrl(16, 16, '#ffffff', '#808080')
+    const out = await tintTexture(gray, FOLIAGE_TINTS.cherry)
+    check('a grayscale texture comes back changed', out !== gray)
     const px = decodeDataUrl(out).rgba
     const first = [px[0], px[1], px[2]].join(',')
-    check('and its white pixels are the colormap colour', first === '255,204,235', first)
+    check('and its white pixels are the colormap color', first === '255,204,235', first)
 
     const painted = pngDataUrl(16, 16, '#b03a3a', '#6e1f1f')
     const same = await tintTexture(painted, FOLIAGE_TINTS.cherry)
@@ -117,8 +117,8 @@ async function main(): Promise<void> {
       const tinted = await tintVanillaArt(art)
       const before = decodeDataUrl(blocks['LEAVES_CHERRY']).rgba
       const after = decodeDataUrl(tinted.blocks['LEAVES_CHERRY']).rgba
-      check('cherry leaves come out of the jar grey', isColourless(before))
-      check('and reach the studio pink', !isColourless(after))
+      check('cherry leaves come out of the jar gray', isColorless(before))
+      check('and reach the studio pink', !isColorless(after))
 
       const holes = (px: Uint8Array): number => {
         let n = 0
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
 
       check('a painted block is the same picture after the pass',
         tinted.blocks['LOG_OAK'] === blocks['LOG_OAK'])
-      check('and the pass reports which blocks it coloured',
+      check('and the pass reports which blocks it colored',
         tinted.tints['LEAVES_CHERRY'] === FOLIAGE_TINTS.cherry)
     }
   }

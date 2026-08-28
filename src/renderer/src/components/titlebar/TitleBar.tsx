@@ -338,7 +338,7 @@ function SettingsMenu(): JSX.Element {
           className="z-50 min-w-[260px] rounded-md bg-ink-750 p-1 shadow-raised outline-none focus-visible:ring-0"
         >
           <CheckItem
-            label="Capitalise each word in names"
+            label="Capitalize each word in names"
             hint="Type “wood block”, get “Wood Block”."
             checked={autoCapitalize}
             onChange={setAutoCapitalize}

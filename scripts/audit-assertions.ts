@@ -539,7 +539,7 @@ const HARNESS_PREAMBLE =
   `  if (!condition) console.log(name, detail)\n` +
   `}\n`
 
-function diagnoseSnippet(src: string): { dead: Dead[]; analysed: number } {
+function diagnoseSnippet(src: string): { dead: Dead[]; analyzed: number } {
   const fileName = join(SCRIPTS, '__sample.ts')
   const text = HARNESS_PREAMBLE + src + '\n'
   const sample = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true)
@@ -561,9 +561,9 @@ function diagnoseSnippet(src: string): { dead: Dead[]; analysed: number } {
   const program = ts.createProgram([fileName], options, host)
   snippetGlobals = program.getGlobalDiagnostics().length
   const sf = program.getSourceFile(fileName)
-  if (!sf) return { dead: [], analysed: 0 }
+  if (!sf) return { dead: [], analyzed: 0 }
   const r = sweep(program, [sf])
-  return { dead: r.dead, analysed: [...r.perFile.values()].reduce((a, b) => a + b, 0) }
+  return { dead: r.dead, analyzed: [...r.perFile.values()].reduce((a, b) => a + b, 0) }
 }
 
 let snippetGlobals = -1
@@ -574,8 +574,8 @@ function proveTeeth(): void {
   console.log('\n[teeth] every sample is actually read')
 
   for (const s of [...POISON.map((p) => p.src), ...CLEAN]) {
-    const { analysed } = diagnoseSnippet(s)
-    check(`the sweep reads \`${lastLine(s)}\``, analysed === 1, `analysed ${analysed} assertions`)
+    const { analyzed } = diagnoseSnippet(s)
+    check(`the sweep reads \`${lastLine(s)}\``, analyzed === 1, `analyzed ${analyzed} assertions`)
     check(
       `and types it against a real lib: \`${lastLine(s)}\``,
       snippetGlobals === 0,
@@ -661,14 +661,14 @@ function main(): void {
   const total = [...perFile.values()].reduce((a, b) => a + b, 0)
   console.log(
     `         ${helpers.size} assertion helper${helpers.size === 1 ? '' : 's'} ` +
-      `(${[...helpers.keys()].sort().join(', ')}), ${total} assertions analysed`
+      `(${[...helpers.keys()].sort().join(', ')}), ${total} assertions analyzed`
   )
 
   console.log('\n[mirror] no harness drops out of coverage unnoticed')
   const declaring = new Set([...helpers.values()].map((h) => h.file.replace(/\\/g, '/')))
   for (const f of declaring) {
     check(`${f} has assertions the sweep can read`, (perFile.get(f) ?? 0) > 0,
-      'the file declares an assertion helper and the sweep analysed none of its calls')
+      'the file declares an assertion helper and the sweep analyzed none of its calls')
   }
 
   for (const f of filesThatReportAVerdict(files)) {
@@ -678,7 +678,7 @@ function main(): void {
       check(`${rel} reports a verdict and the sweep can see its assertions`, true)
 
       check(`${rel} is not excused as well as covered`, excuse === undefined,
-        'this file is analysed now, so its entry in NOT_SWEPT should go')
+        'this file is analyzed now, so its entry in NOT_SWEPT should go')
       continue
     }
     check(`${rel} reports a verdict and is either swept or excused in writing`,

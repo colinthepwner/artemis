@@ -353,8 +353,8 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
           <Switch
             checked={autoCapitalize}
             onChange={setAutoCapitalize}
-            label="Capitalise each word"
-            hint="Type “wood block”, get “Wood Block”. Words you capitalise yourself are left alone."
+            label="Capitalize each word"
+            hint="Type “wood block”, get “Wood Block”. Words you capitalize yourself are left alone."
           />
         </div>
       </div>

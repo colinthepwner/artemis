@@ -185,15 +185,15 @@ async function main(): Promise<void> {
     }
     return out
   }
-  const blockModelled = dispatched(/BlockModel/)
-  const itemModelled = dispatched(/ItemModel/)
+  const blockModeled = dispatched(/BlockModel/)
+  const itemModeled = dispatched(/ItemModel/)
 
   const registeredBlocks = [
     ...allJava.matchAll(/\.build\(\s*new\s+Block\w*(?:<>)?\(\s*"([^"]+)"/g)
   ].map((m) => m[1])
   const registeredItems = idArgs.map(([, name]) => name)
 
-  const blocksWithoutModel = registeredBlocks.filter((n) => !blockModelled.has(toConstantCase(n)))
+  const blocksWithoutModel = registeredBlocks.filter((n) => !blockModeled.has(toConstantCase(n)))
   check(
     'every registered block has a block model registration',
     blocksWithoutModel.length === 0,
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
   )
 
   const itemsWithoutModel = registeredItems.filter(
-    (n) => !itemModelled.has(toConstantCase(n)) && !blockModelled.has(toConstantCase(n))
+    (n) => !itemModeled.has(toConstantCase(n)) && !blockModeled.has(toConstantCase(n))
   )
   check(
     'every registered item has an item model registration',
@@ -210,7 +210,7 @@ async function main(): Promise<void> {
   )
   check(
     'the mod registers some models at all',
-    blockModelled.size + itemModelled.size > 0,
+    blockModeled.size + itemModeled.size > 0,
     'no model dispatches found, everything would be invisible'
   )
 

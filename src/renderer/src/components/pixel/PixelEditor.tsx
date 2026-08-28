@@ -164,7 +164,7 @@ function shiftGrid(g: Grid, dx: number, dy: number): Grid {
   return out
 }
 
-function neighbours(g: Grid, i: number): string[] {
+function neighbors(g: Grid, i: number): string[] {
   const [x, y] = xy(i)
   const out: string[] = []
   if (x > 0 && g[i - 1]) out.push(g[i - 1])
@@ -483,7 +483,7 @@ function PixelEditor(): JSX.Element {
 
           const v =
             tool === 'smooth'
-              ? blendColors([cur, ...neighbours(g, i)], 0.65)
+              ? blendColors([cur, ...neighbors(g, i)], 0.65)
               : shade(cur, f)
           if (v === cur) continue
           next ??= [...g]
@@ -1069,7 +1069,7 @@ function PixelEditor(): JSX.Element {
                   <ToolButton icon={SunMedium} active={tool === 'lighten'} onClick={() => setTool('lighten')} label="Lighten (U)" />
                   <ToolButton icon={Moon} active={tool === 'darken'} onClick={() => setTool('darken')} label="Darken (D)" />
                   <ToolButton icon={Sparkles} active={tool === 'noise'} onClick={() => setTool('noise')} label="Noise brush (N)" />
-                  <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbours" />
+                  <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbors" />
                 </div>
               </div>
 
@@ -1232,7 +1232,7 @@ function PixelEditor(): JSX.Element {
 
                 <span
                   className="h-5 w-5 rounded-[3px] bg-white/[0.04]"
-                  title="Colours you paint with show up here"
+                  title="Colors you paint with show up here"
                 />
               )}
               {usedColors.slice(0, 10).map((c) => (

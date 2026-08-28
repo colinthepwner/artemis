@@ -44,7 +44,7 @@ export function vanillaTint(field: string): string | undefined {
   return family ? FOLIAGE_TINTS[family] : undefined
 }
 
-export function isColourless(px: Uint8ClampedArray | Uint8Array): boolean {
+export function isColorless(px: Uint8ClampedArray | Uint8Array): boolean {
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] === 0) continue
     if (Math.abs(px[i] - px[i + 1]) > 10 || Math.abs(px[i + 1] - px[i + 2]) > 10) return false
@@ -77,7 +77,7 @@ export function tintTexture(src: string, hex: string): Promise<string> {
       ctx.imageSmoothingEnabled = false
       ctx.drawImage(img, 0, 0)
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      if (!isColourless(data.data)) return resolve(src)
+      if (!isColorless(data.data)) return resolve(src)
       multiplyPixels(data.data, hex)
       ctx.putImageData(data, 0, 0)
       resolve(canvas.toDataURL())

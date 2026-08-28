@@ -97,7 +97,7 @@ function Inner({
     {
       id: 'climate',
       title: 'Climate',
-      desc: 'Not where it goes, but what it is like there: weather, and the colour of the grass.',
+      desc: 'Not where it goes, but what it is like there: weather, and the color of the grass.',
       content: (
         <>
           <Field label="Temperature" hint="Below about 0.15 it snows instead of raining.">
@@ -130,7 +130,7 @@ function Inner({
             />
           </Field>
           <OptionalColorField
-            label="Custom grass colour"
+            label="Custom grass color"
             hint="A fixed tint for grass here, all year: setting it is what turns seasons off for this biome. Off, grass follows the climate and the calendar."
             value={p.grassColor}
             fallback="5cb04a"
@@ -142,18 +142,18 @@ function Inner({
     {
       id: 'colors',
       title: 'Sky & Water',
-      desc: 'The colour overhead and in the water. Vanilla paints both from the climate; set one only if this place should feel different.',
+      desc: 'The color overhead and in the water. Vanilla paints both from the climate; set one only if this place should feel different.',
       content: (
         <>
           <OptionalColorField
-            label="Custom sky colour"
+            label="Custom sky color"
             hint="A fixed sky, the way the Drift wears its own. Off, the sky follows temperature."
             value={p.skyColor}
             fallback="78a7ff"
             onChange={(v) => patch('skyColor', v)}
           />
           <OptionalColorField
-            label="Custom water colour"
+            label="Custom water color"
             hint="Tints water standing in this biome. Off, water follows the climate."
             value={p.waterColor}
             fallback="3f76e4"
@@ -215,7 +215,7 @@ function Inner({
 
 }
           <ColorField
-            label="Map Colour"
+            label="Map Color"
             value={p.mapColor}
             onChange={(v) => patch('mapColor', v)}
           />

@@ -37,7 +37,7 @@ function template(): MenuItemConstructorOptions[] {
         {
           label: 'Settings',
           submenu: [
-            item('Capitalise each word in names', 'settings.autoCapitalize', {
+            item('Capitalize each word in names', 'settings.autoCapitalize', {
               type: 'checkbox',
               checked: state.autoCapitalize
             }),

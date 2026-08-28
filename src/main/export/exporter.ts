@@ -43,7 +43,7 @@ export function registerExportIpc(): void {
         properties: ['openDirectory', 'createDirectory']
       })
       if (res.canceled || res.filePaths.length === 0) {
-        return { ok: false, error: 'Export cancelled.', log }
+        return { ok: false, error: 'Export canceled.', log }
       }
       const root = join(res.filePaths[0], project.meta.modId)
       await exportWorkspace(project, root, log)
@@ -280,7 +280,7 @@ repositories {
 	// the vanilla client jar, addressed by content hash
 	ivy {
 		url = 'https://piston-data.mojang.com'
-		patternLayout { artifact 'v1/[organisation]/[revision]/[module].jar' }
+		patternLayout { artifact 'v1/[organization]/[revision]/[module].jar' }
 		metadataSources { artifact() }
 	}
 ${g.repositories.map((url) => `\tmaven { url = '${url}' }`).join('\n')}

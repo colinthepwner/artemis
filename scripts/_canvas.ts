@@ -58,7 +58,7 @@ export function decodePng(buf: Buffer): Decoded {
   let pos = 8
   let width = 0
   let height = 0
-  let colourType = 6
+  let colorType = 6
   const idat: Buffer[] = []
   while (pos < buf.length) {
     const len = buf.readUInt32BE(pos)
@@ -68,15 +68,15 @@ export function decodePng(buf: Buffer): Decoded {
       width = data.readUInt32BE(0)
       height = data.readUInt32BE(4)
       if (data[8] !== 8) throw new Error(`unsupported bit depth ${data[8]}`)
-      colourType = data[9]
-      if (colourType !== 6 && colourType !== 2) {
-        throw new Error(`unsupported colour type ${colourType}`)
+      colorType = data[9]
+      if (colorType !== 6 && colorType !== 2) {
+        throw new Error(`unsupported color type ${colorType}`)
       }
     } else if (type === 'IDAT') idat.push(Buffer.from(data))
     else if (type === 'IEND') break
     pos += 12 + len
   }
-  const channels = colourType === 6 ? 4 : 3
+  const channels = colorType === 6 ? 4 : 3
   const bpp = channels
   const stride = width * channels
   const raw = inflateSync(Buffer.concat(idat))

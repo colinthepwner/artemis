@@ -20,8 +20,8 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   const itemModels: string[] = [...ctx.itemModelCalls(el.name)]
 
   const tool = p.piece && (TOOL_KINDS as readonly string[]).includes(p.piece) ? p.piece : null
-  const armour = p.piece && (ARMOR_KINDS as readonly string[]).includes(p.piece) ? p.piece : null
-  if (tool || armour) {
+  const armor = p.piece && (ARMOR_KINDS as readonly string[]).includes(p.piece) ? p.piece : null
+  if (tool || armor) {
     const s = p.set
     const setVars = { FIELD, registryName: el.name, displayName, modId: ctx.meta.modId }
     if (tool) {
@@ -39,7 +39,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
           creative: ctx.creativeCall('tool')
         })
       )
-    } else if (armour) {
+    } else if (armor) {
       itemDecls.push(
         render(ctx.mapping.armorMaterial.decl, {
           ...setVars,
@@ -51,7 +51,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
           drown: 0,
           generic: 0
         }),
-        render(ctx.mapping.armorMaterial.standalone[armour], {
+        render(ctx.mapping.armorMaterial.standalone[armor], {
           ...setVars,
           creative: ctx.creativeCall('armor')
         })
@@ -88,7 +88,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
     }
     const pieces = kitPieces(el)
     const tools = pieces.filter((piece) => piece.slot === 'tools')
-    const armour = pieces.filter((piece) => piece.slot === 'armor')
+    const armor = pieces.filter((piece) => piece.slot === 'armor')
 
     if (tools.length > 0) {
       itemDecls.push(
@@ -113,7 +113,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
       }
     }
 
-    if (armour.length > 0) {
+    if (armor.length > 0) {
 
       itemDecls.push(
         render(ctx.mapping.armorMaterial.decl, {
@@ -127,7 +127,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
           generic: 0
         })
       )
-      for (const piece of armour) {
+      for (const piece of armor) {
         itemDecls.push(
           render(ctx.mapping.armorMaterial.pieces[piece.kind as ArmorKind], {
             ...setVars,

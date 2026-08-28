@@ -123,7 +123,7 @@ function labelOf(root: ProbeRoot, target: ProbeNode): string {
     at = parents.get(at)
   }
   const own = target.props['aria-label'] ?? target.props.placeholder ?? target.props.title
-  return own ? String(own) : 'unlabelled'
+  return own ? String(own) : 'unlabeled'
 }
 
 function controlsOn(root: ProbeRoot): Control[] {
@@ -1111,17 +1111,28 @@ function theUpdateBar(): void {
   const button = (label: string): ProbeNode | undefined =>
     root.clickable().find((n) => nodeText(n).includes(label))
   check('there is a way to save first', !!button('Save and update'))
-  check('and a way to skip the saving', !!button('Update without saving'))
+  check('and a way to leave it until later', !!button('Update when'))
+  check(
+    'and no way to update that throws the open project away',
+    !button('without saving'),
+    'a one-click discard of unsaved work is not a choice worth offering'
+  )
 
   const since = (mark: number): string[] => bridgeCalls.slice(mark).map((c) => c.name)
 
-  const plain = bridgeCalls.length
-  root.click(button('Update without saving')!)
+  const later = bridgeCalls.length
+  root.click(button('Update when')!)
   root.flush()
-  check('updating without saving installs', since(plain).includes('update.install'),
-    since(plain).join(', '))
-  check('and does not write the project', !since(plain).includes('project.save'),
-    since(plain).join(', '))
+  check('leaving it until later installs nothing now', !since(later).includes('update.install'),
+    since(later).join(', '))
+  check('and says when it will happen instead',
+    root.text().toLowerCase().includes('next time you open'), root.text())
+
+  offer({ status: 'available', version: '9.9.9' })
+  check('and the same version stays put away', !button('Save and update'), root.text())
+
+  offer({ status: 'available', version: '9.9.10' })
+  check('while a newer one asks again', !!button('Save and update'), root.text())
 
   const saved = bridgeCalls.length
   root.click(button('Save and update')!)
@@ -1135,15 +1146,30 @@ function theUpdateBar(): void {
     names.join(' > ')
   )
 
-  offer({ status: 'downloading', version: '9.9.9', percent: 42 })
+  offer({ status: 'available', version: '9.9.11' })
+  check('a release with no notes has no Why? to press', !button('Why?'), root.text())
+
+  offer({ status: 'available', version: '9.9.12', notes: 'It stops eating your mod.' })
+  const why = button('Why?')
+  check('a release with notes offers one', !!why)
+  check('and keeps them out of the way until asked',
+    !root.text().includes('It stops eating your mod.'), root.text())
+  if (why) {
+    root.click(why)
+    root.flush()
+    check('pressing it shows what changed',
+      root.text().includes('It stops eating your mod.'), root.text())
+  }
+
+  offer({ status: 'downloading', version: '9.9.12', percent: 42 })
   check('a download in progress shows how far it has got', root.text().includes('42'), root.text())
   check('and stops offering a choice that has been made', !button('Save and update'))
 
-  offer({ status: 'installing', version: '9.9.9' })
+  offer({ status: 'installing', version: '9.9.12' })
   check('and installing says the app is about to restart',
     root.text().toLowerCase().includes('restart'), root.text())
 
-  offer({ status: 'available', version: '9.9.9' })
+  offer({ status: 'available', version: '9.9.13' })
   const close = root.clickable().find((n) => n.props['aria-label'] === 'Not now')
   check('it can be put away', !!close)
   if (close) {

@@ -36,7 +36,7 @@ export function wordCells(word: string): Cell[] {
 
 export type Face = 'top' | 'front' | 'back' | 'left' | 'right'
 
-const NEIGHBOURS: Record<Face, Cell> = {
+const NEIGHBORS: Record<Face, Cell> = {
   top: { x: 0, y: 1, z: 0 },
   front: { x: 0, y: 0, z: 1 },
   back: { x: 0, y: 0, z: -1 },
@@ -48,8 +48,8 @@ export function visibleFaces(cells: Cell[]): { cell: Cell; faces: Face[] }[] {
   const filled = new Set(cells.map((c) => `${c.x},${c.y},${c.z}`))
   return cells.map((cell) => ({
     cell,
-    faces: (Object.keys(NEIGHBOURS) as Face[]).filter((face) => {
-      const n = NEIGHBOURS[face]
+    faces: (Object.keys(NEIGHBORS) as Face[]).filter((face) => {
+      const n = NEIGHBORS[face]
       return !filled.has(`${cell.x + n.x},${cell.y + n.y},${cell.z + n.z}`)
     })
   }))

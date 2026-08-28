@@ -22,7 +22,7 @@ const TERRAIN: Entry[] = [
 const WORLD: Entry[] = [
   { kind: 'ore', desc: 'Grows veins of a block you designed' },
   { kind: 'structure', desc: 'A build stamped into the world, in variants' },
-  { kind: 'biome', desc: 'Climate, colours & weather' },
+  { kind: 'biome', desc: 'Climate, colors & weather' },
   { kind: 'dimension', desc: 'A world of your biomes, behind a portal' }
 ]
 

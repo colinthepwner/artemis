@@ -39,7 +39,7 @@ function Inner({
             />
           </Field>
           <p className="text-2xs leading-relaxed text-mist-600">
-            Design biomes first, then pick them here. Their surface blocks, trees, colours and
+            Design biomes first, then pick them here. Their surface blocks, trees, colors and
             weather all come along, and your ores, plants and mobs generate there through their
             own Biomes filters.
           </p>

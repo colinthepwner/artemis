@@ -224,7 +224,7 @@ function theExtractor(): void {
       bat ? '0' + bat.mode.toString(8) : 'missing'
     )
     check(
-      'a directory entry is recognised as one',
+      'a directory entry is recognized as one',
       carried.filter((e) => e.isDirectory).length === 2,
       JSON.stringify(carried.filter((e) => e.isDirectory).map((e) => e.name))
     )
@@ -394,7 +394,7 @@ function theTitleBar(): void {
       String(header?.props.className ?? '').includes('drag-region'),
       String(header?.props.className))
     check(
-      `${platform}: and is still ${TITLEBAR_HEIGHT} pixels once the zoom is cancelled`,
+      `${platform}: and is still ${TITLEBAR_HEIGHT} pixels once the zoom is canceled`,
       Math.abs(Number(header?.props.style?.height ?? 0) * UI_SCALE - TITLEBAR_HEIGHT) < 1e-9,
       String(header?.props.style?.height)
     )
@@ -582,7 +582,7 @@ async function main(): Promise<void> {
   console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
 
   console.log('\nNot covered here, and only a real machine can:')
-  console.log('  - that the mac traffic lights actually land centred in a 40px bar')
+  console.log('  - that the mac traffic lights actually land centered in a 40px bar')
   console.log('  - that ditto unpacks a signed .app that then launches')
   console.log('  - that an AppImage swapped under a running process relaunches')
   console.log('  - that Chromium draws the overlay where env(titlebar-area-width) says')

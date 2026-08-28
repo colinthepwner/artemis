@@ -46,8 +46,8 @@ export function visibleVoxels(
     const { x, y, z } = parseKey(key)
     const faces = (Object.keys(FACE_NORMALS) as Face[]).filter((face) => {
       const n = FACE_NORMALS[face]
-      const neighbour = shown.get(keyOf(x + n.x, y + n.y, z + n.z))
-      return neighbour === undefined || !solid(neighbour)
+      const neighbor = shown.get(keyOf(x + n.x, y + n.y, z + n.z))
+      return neighbor === undefined || !solid(neighbor)
     })
     if (faces.length) out.push({ x, y, z, ref, faces })
   }

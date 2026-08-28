@@ -17,11 +17,11 @@ const check = audit.check
 
 const tile = (a: string, b: string): Uint8Array => decodeDataUrl(pngDataUrl(16, 16, a, b)).rgba
 
-function speck(colour: string): Uint8Array {
+function speck(color: string): Uint8Array {
   const rgba = new Uint8Array(16 * 16 * 4)
-  const r = parseInt(colour.slice(1, 3), 16)
-  const g = parseInt(colour.slice(3, 5), 16)
-  const b = parseInt(colour.slice(5, 7), 16)
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
   for (let i = 0; i < 4; i++) {
     const at = i * 4
     rgba[at] = r
@@ -40,13 +40,13 @@ console.log('the score')
   check('a white tile is brighter than a black one', white.brightness > black.brightness)
   check('and scores higher for it', white.score > black.score)
 
-  const grey = scoreIcon(tile('#808080', '#808080'))
-  const colourful = scoreIcon(tile('#c02020', '#20c060'))
-  check('grey has no colour in it', grey.colour < 0.02, String(grey.colour))
-  check('and a two colour tile has both colour and variety',
-    colourful.colour > 0.3 && colourful.variety > 0, JSON.stringify(colourful))
-  check('so the colourful one beats the grey one', colourful.score > grey.score,
-    `${colourful.score} vs ${grey.score}`)
+  const gray = scoreIcon(tile('#808080', '#808080'))
+  const colorful = scoreIcon(tile('#c02020', '#20c060'))
+  check('gray has no color in it', gray.color < 0.02, String(gray.color))
+  check('and a two color tile has both color and variety',
+    colorful.color > 0.3 && colorful.variety > 0, JSON.stringify(colorful))
+  check('so the colorful one beats the gray one', colorful.score > gray.score,
+    `${colorful.score} vs ${gray.score}`)
 
   const empty = scoreIcon(new Uint8Array(16 * 16 * 4))
   check('a blank square scores nothing at all', empty.score === 0)
@@ -69,7 +69,7 @@ console.log('\nthe pick')
     { id: 'speck', rgba: speck('#ffffff') }
   ]
   const best = pickIcon(candidates)
-  check('the bright colourful one wins', best?.id === 'bright', JSON.stringify(best))
+  check('the bright colorful one wins', best?.id === 'bright', JSON.stringify(best))
 
   const reversed = pickIcon([...candidates].reverse())
   check('and the order it was given in makes no difference', reversed?.id === best?.id)
@@ -92,13 +92,13 @@ console.log('\nthe framing')
   check('and the scaled picture is at least as big as the square in both directions',
     wide.w * cover >= S - 0.001 && wide.h * cover >= S - 0.001)
 
-  const centred = centeredView(wide.w, wide.h, S)
-  check('centred leaves the same amount off each side',
-    Math.abs(centred.ox - (S - wide.w * centred.scale) / 2) < 0.001, JSON.stringify(centred))
-  check('and the top edge sits exactly on the square', Math.abs(centred.oy) < 0.001)
+  const centered = centeredView(wide.w, wide.h, S)
+  check('centered leaves the same amount off each side',
+    Math.abs(centered.ox - (S - wide.w * centered.scale) / 2) < 0.001, JSON.stringify(centered))
+  check('and the top edge sits exactly on the square', Math.abs(centered.oy) < 0.001)
 
   for (const [dx, dy] of [[9999, 9999], [-9999, -9999], [400, -50]]) {
-    const dragged = clampView({ ...centred, ox: centred.ox + dx, oy: centred.oy + dy }, wide.w, wide.h, S)
+    const dragged = clampView({ ...centered, ox: centered.ox + dx, oy: centered.oy + dy }, wide.w, wide.h, S)
     const covered =
       dragged.ox <= 0.001 &&
       dragged.oy <= 0.001 &&
@@ -108,19 +108,19 @@ console.log('\nthe framing')
   }
 
   check('it cannot be zoomed out past cover',
-    clampView({ ...centred, scale: 0.001 }, wide.w, wide.h, S).scale === cover)
+    clampView({ ...centered, scale: 0.001 }, wide.w, wide.h, S).scale === cover)
   check('and not in past the limit',
-    Math.abs(clampView({ ...centred, scale: cover * 999 }, wide.w, wide.h, S).scale - cover * MAX_ZOOM) < 0.001)
+    Math.abs(clampView({ ...centered, scale: cover * 999 }, wide.w, wide.h, S).scale - cover * MAX_ZOOM) < 0.001)
 
   const at = { x: 90, y: 200 }
-  const zoomed = zoomAt(centred, 2, at, wide.w, wide.h, S)
-  const beforeX = (at.x - centred.ox) / centred.scale
+  const zoomed = zoomAt(centered, 2, at, wide.w, wide.h, S)
+  const beforeX = (at.x - centered.ox) / centered.scale
   const afterX = (at.x - zoomed.ox) / zoomed.scale
   check('zooming holds the pixel under the pointer', Math.abs(beforeX - afterX) < 0.5,
     `${beforeX} vs ${afterX}`)
 
-  const saved = scaleView(centred, S, ICON_SIZE)
-  const sameFraction = Math.abs(saved.ox / (wide.w * saved.scale) - centred.ox / (wide.w * centred.scale))
+  const saved = scaleView(centered, S, ICON_SIZE)
+  const sameFraction = Math.abs(saved.ox / (wide.w * saved.scale) - centered.ox / (wide.w * centered.scale))
   check('the saved square frames what the big one framed', sameFraction < 0.001, String(sameFraction))
   check('and it covers the icon square too',
     saved.ox <= 0.001 && saved.ox + wide.w * saved.scale >= ICON_SIZE - 0.001)

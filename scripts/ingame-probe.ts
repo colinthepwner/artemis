@@ -1172,7 +1172,7 @@ ${javaNames({
 
 \t/** The same line format as check(), from the same one place, and its own
 \t *  counter: a biome can register cleanly and still generate nowhere, so the
-\t *  two phases are summarised apart. */
+\t *  two phases are summarized apart. */
 \tprivate static void wcheck(String name, boolean ok, String detail) {
 \t\tif (report(name, ok, detail)) wpass++; else wfail++;
 \t}
@@ -1231,8 +1231,8 @@ ${javaNames({
 \t\t\t// And the way IN, which is a different question again.
 \t\t\tstage("lighting a portal to each dimension");
 \t\t\tportals();
-\t\t\t// and whether the way in leads anywhere a traveller survives.
-\t\t\tstage("travelling through each portal");
+\t\t\t// and whether the way in leads anywhere a traveler survives.
+\t\t\tstage("traveling through each portal");
 \t\t\tjourneys();
 \t\t\t// LAST, and deliberately. It is the only phase that makes the server
 \t\t\t// generate chunks for its own sake, sixteen of them, and A53 is the
@@ -1407,7 +1407,7 @@ ${javaNames({
 \t\t\t//
 \t\t\t// This phase reports an ABSENCE, and an absence is only ever as good
 \t\t\t// as the thing that would have seen the presence. A census that
-\t\t\t// cannot recognise a log reports zero for every biome in the game
+\t\t\t// cannot recognize a log reports zero for every biome in the game
 \t\t\t// and reads afterwards as proof that the switch works. That is not
 \t\t\t// hypothetical: feeding a vanilla FOREST to this census is how the
 \t\t\t// height bug was found, and the honest run before it had happily
@@ -1478,7 +1478,7 @@ ${javaNames({
 \t\t\t\t// and not over every column of the biome, and A68 is the reason.
 \t\t\t\t// BTA decorates a chunk as ONE biome, sampled at a single point, and
 \t\t\t\t// then plants that biome´s trees at offsets which cross into the
-\t\t\t\t// neighbouring chunk. So an oak standing in this biome´s column can
+\t\t\t\t// neighboring chunk. So an oak standing in this biome´s column can
 \t\t\t\t// be a forest chunk´s doing, and no mod can prevent it. Demanding
 \t\t\t\t// zero over every column would be demanding something Artemis does
 \t\t\t\t// not control, and it fired for real: 9 oaks inside a claimed biome
@@ -1584,7 +1584,7 @@ ${javaNames({
 \t\t\tif (coal == 0) continue;
 \t\t\t// Over the chunks this biome decorated itself, and nowhere else. See
 \t\t\t// the same guard in the treeless census above, and A68: a log in this
-\t\t\t// biome´s column can be the neighbouring chunk´s doing, so demanding
+\t\t\t// biome´s column can be the neighboring chunk´s doing, so demanding
 \t\t\t// zero everywhere would be demanding something no mod controls.
 \t\t\twcheck("and there is ground of " + wanted + " that only it decorated",
 \t\t\t\townColumns > 0,
@@ -2031,9 +2031,9 @@ ${javaNames({
 \t\t// Chunks the biome would decorate BY ITSELF first, because that is the
 \t\t// only ground either census can conclude anything from. See A68: BTA
 \t\t// decorates a chunk as one biome and plants at offsets that spill into
-\t\t// the neighbour, so a log in this biome´s column can be somebody else´s
+\t\t// the neighbor, so a log in this biome´s column can be somebody else´s
 \t\t// doing, and both censuses therefore count only over chunks whose whole
-\t\t// two-by-two decorating neighbourhood is this biome.
+\t\t// two-by-two decorating neighborhood is this biome.
 \t\t//
 \t\t// This used to grow four chunks the biome merely APPEARS in and hope one
 \t\t// of them qualified, which is a coin toss that gets worse the thinner the
@@ -2109,7 +2109,7 @@ ${javaNames({
 \t * Sampled at the same block the decorator samples, and over the same four
 \t * chunks, both of which come from one place above so that a change to the
 \t * rule cannot reach one asker and not the other. That is A75's lesson: the
-\t * neighbour rule was written out twice and the two copies were already
+\t * neighbor rule was written out twice and the two copies were already
 \t * spelled differently.
 \t */
 \tprivate static boolean likelyDecoratedOnlyBy(
@@ -2762,7 +2762,7 @@ ${javaNames({
 \t * 289 generations rather than 900. That is the difference between this
 \t * census being affordable and not, and it costs nothing in honesty because
 \t * the decorator's Random is seeded from the chunk COORDINATES alone
-\t * (see mapping.oreGen.mixinClass), so neighbouring chunks roll
+\t * (see mapping.oreGen.mixinClass), so neighboring chunks roll
 \t * independently and a block of them is as good a sample as a spread.
 \t *
 \t * THE SHAPE IS WHAT IS COUNTED. A structure is built out of blocks that
@@ -2787,7 +2787,7 @@ ${javaNames({
 \t * here, and it says so and claims nothing.
 \t *
 \t * AND THERE IS A CEILING ABOVE BOTH OF THEM, which is the one rule here
-\t * that is arithmetic rather than judgement: the mixin rolls once a chunk
+\t * that is arithmetic rather than judgment: the mixin rolls once a chunk
 \t * and places once, so more builds than chunks is not a better answer, it is
 \t * proof the count has stopped counting placements. A100 found that the
 \t * decoy alone does not catch it, because a shape that matches everywhere
@@ -2849,7 +2849,7 @@ ${javaNames({
 \t\t\t\tunresolved == 0,
 \t\t\t\tunresolved + " of its cells name a block field that is not there at runtime");
 \t\t\tif (usable == 0) {
-\t\t\t\twcheck("the structure " + name + " is built out of blocks this census can recognise",
+\t\t\t\twcheck("the structure " + name + " is built out of blocks this census can recognize",
 \t\t\t\t\tfalse, "not one variant has a single resolvable cell, so no placement could be told from terrain");
 \t\t\t\tcontinue;
 \t\t\t}
@@ -3237,8 +3237,8 @@ ${javaNames({
 \t\t\tax = 8;
 \t\t\taz = 8;
 \t\t} else {
-\t\t\t// One spot the biome really is, and the square centred on it. The
-\t\t\t// centring is what stops a biome-restricted row sampling a square
+\t\t\t// One spot the biome really is, and the square centered on it. The
+\t\t\t// centering is what stops a biome-restricted row sampling a square
 \t\t\t// that merely touches its biome at one corner.
 \t\t\tjava.util.List<int[]> found = spreadSpots(provider, wanted, 2048, 64, 1);
 \t\t\twcheck("the structure census found somewhere " + wanted + " actually is",
@@ -3357,7 +3357,7 @@ ${javaNames({
 \t\t\t"not one chunk of the " + (side * side) + " it asked for came back loaded, so its zero proves nothing");
 \t\tif (columns == 0) return;
 \t\t// The CEILING first, and it is the one rule here that is not a
-\t\t// judgement call. mapping.oreGen.structureSurface and structureBuried
+\t\t// judgment call. mapping.oreGen.structureSurface and structureBuried
 \t\t// are both a single-iteration loop that rolls once and places once, so
 \t\t// the mixin cannot have stamped more builds into these chunks than
 \t\t// there are chunks. A count above that is not counting placements, it
@@ -3753,7 +3753,7 @@ ${javaNames({
 \t * packets and the player-list bookkeeping, which are the parts a mod cannot
 \t * get wrong. What is left is the part it can: the destination world, the
 \t * coordinate scale, and PortalHandler.teleportEntity, which finds a portal
-\t * near the arrival column or builds one, and moves the traveller to it.
+\t * near the arrival column or builds one, and moves the traveler to it.
 \t *
 \t * It travels an EntityItem rather than a player on purpose. Entity's own
 \t * handlePortal is an empty method and only Player overrides it, so a mob
@@ -3763,7 +3763,7 @@ ${javaNames({
 \t * same way for either. That handlePortal is Player-only is asserted below
 \t * rather than assumed, so this comment cannot quietly go stale.
 \t *
-\t * What it demands on arrival is what a modder would: a traveller in the
+\t * What it demands on arrival is what a modder would: a traveler in the
 \t * right world, a portal of this mod's own block within reach of where they
 \t * landed, and ground under their feet with room to stand.
 \t */
@@ -3813,7 +3813,7 @@ ${javaNames({
 \t\t// serverRunning is no use as the signal, it is set in the constructor.
 \t\t// The honest one is the clock: the world time only advances once the
 \t\t// server is in its main loop, which is the same moment Done is printed.
-\t\tif (!awaitBoot(overworld, "anyone travelled")) return;
+\t\tif (!awaitBoot(overworld, "anyone traveled")) return;
 \t\tfor (int i = 0; i < DIM_FIELDS.length; i++) {
 \t\t\tString fieldName = DIM_FIELDS[i];
 \t\t\ttry {
@@ -3884,7 +3884,7 @@ ${javaNames({
 \t\t\tsx = spawn.x + 64;
 \t\t\tsz = spawn.z + 64;
 \t\t\tif (!awaitChunk(from, sx >> 4, sz >> 4, 60)) {
-\t\t\t\twcheck(label + ": the chunk the traveller starts in loaded", false,
+\t\t\t\twcheck(label + ": the chunk the traveler starts in loaded", false,
 \t\t\t\t\t"nothing can depart from a chunk the server never generated");
 \t\t\t\treturn;
 \t\t\t}
@@ -3893,9 +3893,9 @@ ${javaNames({
 \t\t\tif (fromOverride) allowChunkLoads(from, false);
 \t\t}
 
-\t\tnet.minecraft.core.entity.EntityItem traveller =
+\t\tnet.minecraft.core.entity.EntityItem traveler =
 \t\t\tnew net.minecraft.core.entity.EntityItem(from);
-\t\ttraveller.moveTo(sx + 0.5D, sy, sz + 0.5D, 0.0F, 0.0F);
+\t\ttraveler.moveTo(sx + 0.5D, sy, sz + 0.5D, 0.0F, 0.0F);
 
 \t\t// PortalHandler reads the DEPARTING dimension's data off DISK, not out
 \t\t// of the running world: Dimension.getDimensionData answers from memory
@@ -3928,10 +3928,10 @@ ${javaNames({
 \t\t// as the provider's shared empty chunk and every write lands in it,
 \t\t// which reads afterwards as a portal that was never built.
 \t\tfloat scale = net.minecraft.core.world.Dimension.getCoordScale(oldDim, newDim);
-\t\ttraveller.setWorld(to);
-\t\ttraveller.moveTo(traveller.x * scale, traveller.y, traveller.z * scale, 0.0F, 0.0F);
+\t\ttraveler.setWorld(to);
+\t\ttraveler.moveTo(traveler.x * scale, traveler.y, traveler.z * scale, 0.0F, 0.0F);
 
-\t\t// PortalHandler BUILDS the portal it drops the traveller beside, and it
+\t\t// PortalHandler BUILDS the portal it drops the traveler beside, and it
 \t\t// builds it with setBlockWithNotify, which drains the world's lighting
 \t\t// queue. That queue is a plain ArrayList and the SERVER thread drains the
 \t\t// same one every tick in updatingLighting(), both of them taking the LAST
@@ -3964,7 +3964,7 @@ ${javaNames({
 \t\t\t\t\t// nothing, and a leg that still cannot be run says so out loud
 \t\t\t\t\t// instead of asserting anything either way. See A92.
 \t\t\t\t\tif (!onServerThread(label + ": the teleport",
-\t\t\t\t\t\t\t() -> new net.minecraft.core.world.PortalHandler().teleportEntity(to, traveller,
+\t\t\t\t\t\t\t() -> new net.minecraft.core.world.PortalHandler().teleportEntity(to, traveler,
 \t\t\t\t\t\t\t\tnet.minecraft.core.util.helper.DyeColor.WHITE, oldDim, newDim))) {
 \t\t\t\t\t\tbreak;
 \t\t\t\t\t}
@@ -3988,13 +3988,13 @@ ${javaNames({
 \t\t\treturn;
 \t\t}
 
-\t\twcheck(label + ": the traveller is in the destination world",
-\t\t\ttraveller.world == to,
-\t\t\t"it is in " + (traveller.world == null ? "no world" : String.valueOf(traveller.world)));
+\t\twcheck(label + ": the traveler is in the destination world",
+\t\t\ttraveler.world == to,
+\t\t\t"it is in " + (traveler.world == null ? "no world" : String.valueOf(traveler.world)));
 
-\t\tint tx = net.minecraft.core.util.helper.MathHelper.floor(traveller.x);
-\t\tint ty = net.minecraft.core.util.helper.MathHelper.floor(traveller.y);
-\t\tint tz = net.minecraft.core.util.helper.MathHelper.floor(traveller.z);
+\t\tint tx = net.minecraft.core.util.helper.MathHelper.floor(traveler.x);
+\t\tint ty = net.minecraft.core.util.helper.MathHelper.floor(traveler.y);
+\t\tint tz = net.minecraft.core.util.helper.MathHelper.floor(traveler.z);
 
 \t\t// A portal of THIS mod's block, within arm's reach of where they landed.
 \t\t// PortalHandler either found one or built one; which of the two it did
@@ -4003,7 +4003,7 @@ ${javaNames({
 \t\twcheck(label + ": a " + portalBlock.getKey() + " portal stands where they arrived",
 \t\t\tfound != null,
 \t\t\t"nothing of that block within 8 of " + tx + "," + ty + "," + tz
-\t\t\t\t+ ": the traveller is stranded in an empty world");
+\t\t\t\t+ ": the traveler is stranded in an empty world");
 \t\tif (found != null) {
 \t\t\t// And a frame around it, which is what lets a player who breaks the
 \t\t\t// portal light it again rather than being locked in.
@@ -4166,14 +4166,14 @@ ${javaNames({
 \t\tif (!installServerBox()) return false;
 \t\tfinal java.util.concurrent.atomic.AtomicReference<Throwable> thrown =
 \t\t\tnew java.util.concurrent.atomic.AtomicReference<>();
-\t\tfinal java.util.concurrent.atomic.AtomicBoolean cancelled =
+\t\tfinal java.util.concurrent.atomic.AtomicBoolean canceled =
 \t\t\tnew java.util.concurrent.atomic.AtomicBoolean(false);
 \t\tfinal java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
 \t\tSERVER_WORK.add(() -> {
 \t\t\t// Checked at entry only. A job the waiter gave up on while it was
-\t\t\t// already running still finishes, which is the honest behaviour: it
+\t\t\t// already running still finishes, which is the honest behavior: it
 \t\t\t// is the server's thread and half a write is worse than a whole one.
-\t\t\tif (cancelled.get()) return;
+\t\t\tif (canceled.get()) return;
 \t\t\ttry {
 \t\t\t\tjob.run();
 \t\t\t} catch (Throwable t) {
@@ -4190,7 +4190,7 @@ ${javaNames({
 \t\t\tran = false;
 \t\t}
 \t\tif (!ran) {
-\t\t\tcancelled.set(true);
+\t\t\tcanceled.set(true);
 \t\t\twcheck("the server thread took the probe's work: " + what, false,
 \t\t\t\t"thirty seconds went by without a tick running it, so the server is not ticking"
 \t\t\t\t\t+ " and nothing was written");
@@ -4233,7 +4233,7 @@ ${javaNames({
 \t}
 
 \t/** The nearest block of the given kind, or null. Small radius on purpose:
-\t *  the question is whether the traveller landed AT a portal, not whether
+\t *  the question is whether the traveler landed AT a portal, not whether
 \t *  the world contains one somewhere. */
 \tprivate static int[] nearest(net.minecraft.core.world.World world, int x, int y, int z,
 \t\t\tnet.minecraft.core.block.Block<?> want, int radius) {
@@ -4274,7 +4274,7 @@ ${javaNames({
 \t\t\treturn null;
 \t\t}
 \t\t// Five wide and three deep inside the chunk, so nothing it writes crosses
-\t\t// into a neighbour nobody loaded.
+\t\t// into a neighbor nobody loaded.
 \t\tint bx = (chunkX << 4) + 5;
 \t\tint bz = (chunkZ << 4) + 8;
 \t\tint by = Math.min(world.getHeightValue(bx, bz) + 8, world.getHeightBlocks() - 8);
@@ -4333,7 +4333,7 @@ ${javaNames({
 \t * src, and this is Java inside a template string in scripts.
 \t *
 \t * The && is deliberately on the right. Putting it on the left lets Java
-\t * short-circuit and skip growing the rest of the neighbours.
+\t * short-circuit and skip growing the rest of the neighbors.
 \t */
 \tprivate static boolean growDecorated(net.minecraft.core.world.World world, int cx, int cz) {
 \t\tboolean ready = true;
@@ -4651,7 +4651,7 @@ async function main(): Promise<void> {
           .filter(
             (leg) =>
               !out.includes(
-                `ARTEMIS-PROBE PASS ${leg} ${d.field}: the traveller is in the destination world`
+                `ARTEMIS-PROBE PASS ${leg} ${d.field}: the traveler is in the destination world`
               ) && !out.includes(`ARTEMIS-WORLDGEN SKIP ${leg} ${d.field} ::`)
           )
           .map((leg) => `${leg} ${d.field}`)

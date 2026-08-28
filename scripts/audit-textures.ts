@@ -45,9 +45,9 @@ async function main(): Promise<void> {
   const painted = (g: Grid): number => g.filter(Boolean).length
   const sameGrid = (a: Grid, b: Grid): boolean => a.length === b.length && a.every((c, i) => c === b[i])
 
-  function testGrid(colour = '#4a8fd8'): Grid {
+  function testGrid(color = '#4a8fd8'): Grid {
     const g: Grid = Array(256).fill('')
-    for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) g[y * 16 + x] = colour
+    for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) g[y * 16 + x] = color
     g[0] = '#ffffff'
     g[255] = '#1b1b1b'
     g[8 * 16 + 8] = ''
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
       const g = preset.generate('#d85555')
       check(`${preset.id} generates 256 cells`, g.length === 256, `got ${g.length}`)
       check(
-        `${preset.id} generates only valid colours`,
+        `${preset.id} generates only valid colors`,
         g.every((c) => c === '' || HEX.test(c)),
         g.find((c) => c !== '' && !HEX.test(c))
       )
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
 
     check('mix at t=0 is a', mix('#102030', '#a0b0c0', 0) === '#102030')
     check('mix at t=1 is b', mix('#102030', '#a0b0c0', 1) === '#a0b0c0')
-    check('mix stays six digits on dark colours', HEX.test(mix('#000000', '#000001', 0.5)))
+    check('mix stays six digits on dark colors', HEX.test(mix('#000000', '#000001', 0.5)))
   }
 
   console.log('\npng round trip (this is what a save and a reopen do)')
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
     const l: LitLayer = { grid: top, visible: true, opacity: 100 }
     check('adjustedGrid with no adjustment returns the same grid', adjustedGrid(l) === top)
     const shifted = adjustedGrid({ ...l, hue: 120 })
-    check('adjustedGrid with a hue shift changes colours', !sameGrid(shifted, top))
+    check('adjustedGrid with a hue shift changes colors', !sameGrid(shifted, top))
     check('and leaves the painted grid untouched', sameGrid(top, testGrid('#d85555')))
     check(
       'and does not paint or erase pixels',
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
     )
     const halfAlone = compositeLayers([{ grid: top, visible: true, opacity: 50 }])
     check(
-      'a 50% layer over nothing keeps its colour and half coverage',
+      'a 50% layer over nothing keeps its color and half coverage',
       halfAlone.grid[4 * 16 + 4] === '#d85555' && Math.abs(halfAlone.alpha[4 * 16 + 4] - 0.5) < 1e-9
     )
     check('and leaves the empty pixels at zero coverage', halfAlone.alpha[8 * 16 + 8] === 0)
@@ -265,7 +265,7 @@ async function main(): Promise<void> {
       sameGrid(applyDirectionalShading(top, 0.5, 0), top)
     )
     check(
-      'shading only recolours, never reshapes',
+      'shading only recolors, never reshapes',
       applyDirectionalShading(top, 0.5, 100).every((c, i) => !!c === !!top[i])
     )
 
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
     ])
     check('a merge over one silhouette carries a real opacity', sameShape.opacity > 0 && sameShape.opacity < 100, String(sameShape.opacity))
     check(
-      'and re-compositing it reproduces the pair, colour and coverage',
+      'and re-compositing it reproduces the pair, color and coverage',
       sameGrid(mergedLook.grid, pairLook.grid) &&
         mergedLook.alpha.every((a, i) => Math.abs(a - pairLook.alpha[i]) < 0.01),
       String(sameShape.opacity)
@@ -330,7 +330,7 @@ async function main(): Promise<void> {
     )
     check('a merge with uneven coverage lands opaque', uneven.opacity === 100)
     check(
-      'and still keeps the blended colours',
+      'and still keeps the blended colors',
       sameGrid(
         uneven.grid,
         compositeLayers([
@@ -350,7 +350,7 @@ async function main(): Promise<void> {
       { grid: top, visible: true, opacity: 100, hue: 140, saturation: 20 }
     )
     check(
-      'a merge bakes the upper layer colour shift in',
+      'a merge bakes the upper layer color shift in',
       tintedMerge.grid[4 * 16 + 4] !== '#d85555' &&
         tintedMerge.grid[4 * 16 + 4] === adjustedGrid({
           grid: top,
@@ -411,7 +411,7 @@ async function main(): Promise<void> {
       if (result.grid) {
         check(`${s.id}: returns 256 cells`, result.grid.length === 256, `got ${result.grid.length}`)
         check(
-          `${s.id}: returns only valid colours`,
+          `${s.id}: returns only valid colors`,
           result.grid.every((c) => c === '' || HEX.test(c)),
           result.grid.find((c) => c !== '' && !HEX.test(c))
         )
@@ -432,11 +432,11 @@ async function main(): Promise<void> {
         sameGrid(preview, previewStencil(s, input({ params })))
       )
 
-      const otherColour = previewStencil(s, input({ params, color: '#4a8fd8' }))
+      const otherColor = previewStencil(s, input({ params, color: '#4a8fd8' }))
       if (s.usesColor) {
-        check(`${s.id}: claims usesColor and responds to it`, !sameGrid(preview, otherColour))
+        check(`${s.id}: claims usesColor and responds to it`, !sameGrid(preview, otherColor))
       } else {
-        check(`${s.id}: claims no colour and ignores it`, sameGrid(preview, otherColour))
+        check(`${s.id}: claims no color and ignores it`, sameGrid(preview, otherColor))
       }
       const otherSeed = previewStencil(s, input({ params, seed: 987654 }))
       if (s.usesSeed) {
@@ -487,7 +487,7 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log('\nkit generator (one colour, nine pieces, against the real store)')
+  console.log('\nkit generator (one color, nine pieces, against the real store)')
 
   {
     const store = useProjectStore
@@ -575,7 +575,7 @@ async function main(): Promise<void> {
       const live = store.getState().project!
       check('a regenerate rebuilds the generator\'s pieces', re.updated > 0, JSON.stringify(re))
       check(
-        'the sword was repainted in the new colour',
+        'the sword was repainted in the new color',
         live.textures.find((t) => t.name === 'ruby_sword')!.data !== swordBefore
       )
       check(
@@ -589,7 +589,7 @@ async function main(): Promise<void> {
           const g = TEXTURE_PRESETS.find((p) => p.id === 'gem')!.generate(DEFAULT_KIT_ACCENT)
           return gridToDataUrl(g)
         })()),
-        'the base doubles as the colour source, so rebuilding it under the modder is wrong'
+        'the base doubles as the color source, so rebuilding it under the modder is wrong'
       )
     }
 
@@ -643,7 +643,7 @@ async function main(): Promise<void> {
       check('and generation bakes from it', r.accent === '#4fd8d8', JSON.stringify(r))
       const sword = store.getState().project!.textures.find((t) => t.name === 'ruby_sword')!
       check(
-        'so the sword is the artwork colour, not the fallback',
+        'so the sword is the artwork color, not the fallback',
         sword.data === gridToDataUrl(TEXTURE_PRESETS.find((p) => p.id === 'sword')!.generate('#4fd8d8'))
       )
     }
@@ -661,7 +661,7 @@ async function main(): Promise<void> {
       const dark: Grid = Array(256).fill('#0a0a0a')
       const id = store.getState().addTexture('ruby', gridToDataUrl(dark), 'item')
       store.getState().assignTexture('item/ruby', id)
-      check('art with no readable colour suggests nothing', (await suggestKitAccent(itemId)) === null)
+      check('art with no readable color suggests nothing', (await suggestKitAccent(itemId)) === null)
       const r = await generateKitTextures(itemId)
       check('and generation falls back rather than refusing', r.accent === DEFAULT_KIT_ACCENT && r.created === 9)
     }

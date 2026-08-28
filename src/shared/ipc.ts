@@ -97,6 +97,8 @@ export interface UpdateState {
   page?: string
 
   selfInstall?: boolean
+
+  notes?: string
 }
 
 export interface PresenceState {

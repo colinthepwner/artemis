@@ -26,7 +26,7 @@ const walkTs = (dir: string): string[] =>
     return statSync(p).isDirectory() ? walkTs(p) : /\.tsx?$/.test(p) ? [p] : []
   })
 
-const normaliseBody = (body: string, params: string[]): string => {
+const normalizeBody = (body: string, params: string[]): string => {
   let out = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
   params.forEach((param, index) => {
     out = out.replace(new RegExp(`\\b${param}\\b`, 'g'), `_arg${index}_`)
@@ -177,15 +177,15 @@ console.log('workshop grid (a cell out of bounds reaches the world)')
     for (let x = -1; x <= 1; x++)
       for (let y = 0; y <= 2; y++) for (let z = -1; z <= 1; z++) blocks[keyOf(x, y, z)] = 'block:STONE'
     const visible = visibleVoxels(blocks, MAX_Y)
-    const centre = visible.find((c) => c.x === 0 && c.y === 1 && c.z === 0)
+    const center = visible.find((c) => c.x === 0 && c.y === 1 && c.z === 0)
     check(
       'a cell surrounded on all six sides is not drawn',
-      centre === undefined,
-      centre ? JSON.stringify(centre) : ''
+      center === undefined,
+      center ? JSON.stringify(center) : ''
     )
 
     const under = visible.find((c) => c.x === 0 && c.y === 0 && c.z === 0)
-    check('the cell under the centre is culled with it', under === undefined)
+    check('the cell under the center is culled with it', under === undefined)
     check('the rest of the shell is drawn', visible.length === 25, `${visible.length} cells`)
     check('and nothing is drawn with an empty face list', visible.every((c) => c.faces.length > 0))
     check('no cell ever reports a bottom face', visible.every((c) => !c.faces.includes('down' as never)))
@@ -196,7 +196,7 @@ console.log('workshop grid (a cell out of bounds reaches the world)')
     const solidTop = visibleVoxels(blocks, MAX_Y)
       .find((c) => c.y === 0)!
       .faces.includes('top')
-    check('a solid neighbour still hides the face under it', !solidTop)
+    check('a solid neighbor still hides the face under it', !solidTop)
 
     const seeThrough = visibleVoxels(blocks, MAX_Y, (ref) => ref !== 'block:LEAVES_OAK')
       .find((c) => c.y === 0)!
@@ -297,7 +297,7 @@ console.log('one rule, one declaration (no function written out twice)')
           .map((p) => (ts.isIdentifier(p.name) ? p.name.text : null))
           .filter((p): p is string => p !== null)
 
-        const body = normaliseBody(fn.body.getText().slice(1, -1), params)
+        const body = normalizeBody(fn.body.getText().slice(1, -1), params)
 
         if (body.length >= 60) decls.push({ name: nameOf(node) ?? '<anonymous>', where: rel, body })
       }
@@ -414,7 +414,7 @@ console.log('one rule, one declaration, in the Java too')
       const names = params
         .map((p) => (p.match(/([A-Za-z_$][\w$]*)\s*$/) ?? [])[1])
         .filter((p): p is string => !!p)
-      const body = normaliseBody(text.slice(bStart, i - 1), names)
+      const body = normalizeBody(text.slice(bStart, i - 1), names)
       if (body.length >= 60) javaDecls.push({ name: m[2], where: rel, body })
     }
   }

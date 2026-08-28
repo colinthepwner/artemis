@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowUpCircle, ExternalLink, Save, X } from 'lucide-react'
+import { ArrowUpCircle, Check, ExternalLink, Save, X } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import type { UpdateState } from '@shared/ipc'
@@ -8,6 +8,10 @@ import type { UpdateState } from '@shared/ipc'
 export function UpdateBar(): JSX.Element | null {
   const [update, setUpdate] = useState<UpdateState>({ status: 'idle' })
   const [dismissed, setDismissed] = useState(false)
+
+  const [showNotes, setShowNotes] = useState(false)
+
+  const [deferred, setDeferred] = useState(false)
   const reduceAnimations = useAppStore((s) => s.reduceAnimations)
   const bootPhase = useAppStore((s) => s.bootPhase)
   const hasProject = useProjectStore((s) => s.project !== null)
@@ -21,6 +25,13 @@ export function UpdateBar(): JSX.Element | null {
     if (typeof listen !== 'function') return
     return listen(setUpdate)
   }, [])
+
+  const version = update.version
+  useEffect(() => {
+    setDismissed(false)
+    setDeferred(false)
+    setShowNotes(false)
+  }, [version])
 
   const install = (): void => window.artemis.update.install()
 
@@ -41,7 +52,36 @@ export function UpdateBar(): JSX.Element | null {
   const busy = update.status === 'downloading' || update.status === 'installing'
   if (!busy && (update.status !== 'available' || dismissed)) return null
 
+  if (deferred) {
+    return (
+      <motion.div
+        initial={reduceAnimations ? false : { height: 0, opacity: 0 }}
+        animate={{ height: 'auto', opacity: 1 }}
+        transition={{ duration: reduceAnimations ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className="shrink-0 overflow-hidden border-b border-gold-500/20 bg-gold-500/[0.07]"
+      >
+        <div className="flex h-9 items-center gap-2.5 px-4">
+          <Check size={14} className="shrink-0 text-gold-400" strokeWidth={2} />
+          <span className="text-2xs text-mist-200">
+            Artemis will update to {update.version ? `v${update.version}` : 'the new version'} the
+            next time you open it.
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={() => setDismissed(true)}
+            title="Hide this"
+            aria-label="Hide this"
+            className="rounded p-1 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
+    <>
     <motion.div
       initial={reduceAnimations ? false : { height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
@@ -103,7 +143,7 @@ export function UpdateBar(): JSX.Element | null {
             {
 
 }
-            {hasProject && (
+            {hasProject ? (
               <button
                 onClick={() => void saveThenInstall()}
                 disabled={saving}
@@ -111,15 +151,44 @@ export function UpdateBar(): JSX.Element | null {
               >
                 <Save size={11} strokeWidth={2.4} /> {saving ? 'Saving…' : 'Save and update'}
               </button>
+            ) : (
+              <button
+                onClick={install}
+                className="rounded-md bg-gold-500 px-2.5 py-1 text-2xs font-medium text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.98]"
+              >
+                Update now
+              </button>
             )}
+            {
+
+}
             <button
-              onClick={install}
+              onClick={() => setDeferred(true)}
               className="rounded-md bg-ink-750 px-2.5 py-1 text-2xs text-mist-200 transition-colors hover:bg-ink-700"
             >
-              {hasProject ? 'Update without saving' : 'Update now'}
+              Update when I&rsquo;m done
             </button>
               </>
             )}
+
+            {
+
+}
+            {update.notes && (
+              <button
+                onClick={() => setShowNotes((open) => !open)}
+                aria-expanded={showNotes}
+                title={showNotes ? 'Hide what changed' : 'What changed'}
+                className={`rounded-md px-2 py-1 text-2xs transition-colors ${
+                  showNotes
+                    ? 'bg-ink-750 text-mist-100'
+                    : 'text-mist-400 hover:bg-ink-750 hover:text-mist-200'
+                }`}
+              >
+                Why?
+              </button>
+            )}
+
             <button
               onClick={() => setDismissed(true)}
               title="Not now"
@@ -132,5 +201,15 @@ export function UpdateBar(): JSX.Element | null {
         )}
       </div>
     </motion.div>
+
+    {
+
+}
+    {showNotes && !busy && update.notes && (
+      <div className="shrink-0 border-b border-gold-500/20 bg-gold-500/[0.04] px-4 py-2">
+        <p className="max-w-3xl pl-6 text-2xs leading-relaxed text-mist-300">{update.notes}</p>
+      </div>
+    )}
+    </>
   )
 }

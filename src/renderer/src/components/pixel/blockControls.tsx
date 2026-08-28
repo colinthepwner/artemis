@@ -16,7 +16,7 @@ const LIGHT_MARKS: { at: number; swatch: string; label: string }[] = [
   { at: 15, swatch: 'glowstone', label: 'Glowstone' }
 ]
 
-const cellCentre = (level: number): string => `${((level * 2 + 1) / (LEVELS * 2)) * 100}%`
+const cellCenter = (level: number): string => `${((level * 2 + 1) / (LEVELS * 2)) * 100}%`
 
 export function LightSlider(props: {
   value: number
@@ -70,7 +70,7 @@ export function LightSlider(props: {
           <span
             aria-hidden
             className="pointer-events-none absolute top-1/2 h-7 -translate-x-1/2 -translate-y-1/2 rounded-[4px] bg-mist-50/20 shadow-raised ring-2 ring-mist-50"
-            style={{ left: cellCentre(lit), width: `${100 / LEVELS}%` }}
+            style={{ left: cellCenter(lit), width: `${100 / LEVELS}%` }}
           />
           <SliderPrimitive.Thumb className="block h-7 w-1 opacity-0" />
         </SliderPrimitive.Root>
@@ -87,7 +87,7 @@ export function LightSlider(props: {
                 title={`${m.label}, light ${m.at}`}
 
                 className="absolute top-0 flex w-5 -translate-x-1/2 flex-col items-center gap-0.5"
-                style={{ left: cellCentre(m.at) }}
+                style={{ left: cellCenter(m.at) }}
               >
                 <span className="h-[3px] w-px bg-mist-600" />
                 {swatch ? (
@@ -397,7 +397,7 @@ export function SwatchStopSlider(props: {
   const art = useVanillaArt()
   const stops = props.stops
   const index = Math.min(stops.length - 1, Math.max(0, Math.round(props.index)))
-  const centre = (i: number): string => `${((i * 2 + 1) / (stops.length * 2)) * 100}%`
+  const center = (i: number): string => `${((i * 2 + 1) / (stops.length * 2)) * 100}%`
 
   return (
     <div className="flex items-start gap-3">
@@ -427,7 +427,7 @@ export function SwatchStopSlider(props: {
           <span
             aria-hidden
             className="pointer-events-none absolute top-1/2 h-7 -translate-x-1/2 -translate-y-1/2 rounded-[4px] bg-mist-50/20 shadow-raised ring-2 ring-mist-50"
-            style={{ left: centre(index), width: `${100 / stops.length}%` }}
+            style={{ left: center(index), width: `${100 / stops.length}%` }}
           />
           <SliderPrimitive.Thumb className="block h-7 w-1 opacity-0" />
         </SliderPrimitive.Root>
@@ -443,7 +443,7 @@ export function SwatchStopSlider(props: {
                 onClick={() => props.onChange(i)}
                 title={t.label}
                 className="absolute top-0 flex w-5 -translate-x-1/2 flex-col items-center gap-0.5"
-                style={{ left: centre(i) }}
+                style={{ left: center(i) }}
               >
                 <span className="h-[3px] w-px bg-mist-600" />
                 {swatch ? (

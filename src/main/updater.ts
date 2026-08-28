@@ -27,6 +27,8 @@ interface Release {
   prerelease: boolean
 
   html_url: string
+
+  body: string
   assets: ReleaseAsset[]
 }
 
@@ -245,6 +247,29 @@ export interface AvailableUpdate {
   page: string
 
   selfInstall: boolean
+
+  notes: string
+}
+
+export function noteSummary(body: string, limit = 200): string {
+  const line = (body ?? '')
+    .split(/\r?\n/)
+
+    .map((l) => l.trim())
+    .find((l) => l.length > 0 && !l.startsWith('#') && !l.startsWith('---') && !l.startsWith('!['))
+
+  if (!line) return ''
+
+  const plain = line
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\[(.+?)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_]/g, '')
+    .trim()
+
+  if (plain.length <= limit) return plain
+  const cut = plain.slice(0, limit)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[,.;:]$/, '')}…`
 }
 
 export async function findUpdate(): Promise<AvailableUpdate | null> {
@@ -263,14 +288,16 @@ export async function findUpdate(): Promise<AvailableUpdate | null> {
 
   const page = release.html_url
 
+  const notes = noteSummary(release.body)
+
   if (!canSelfUpdate(kind)) {
-    return { kind, version, url: page, size: 0, current: '', page, selfInstall: false }
+    return { kind, version, url: page, size: 0, current: '', page, selfInstall: false, notes }
   }
 
   const asset = assetFor(kind, release.assets, process.arch)
   if (!asset) {
 
-    return { kind, version, url: page, size: 0, current: '', page, selfInstall: false }
+    return { kind, version, url: page, size: 0, current: '', page, selfInstall: false, notes }
   }
 
   return {
@@ -280,7 +307,8 @@ export async function findUpdate(): Promise<AvailableUpdate | null> {
     size: asset.size,
     current: target,
     page,
-    selfInstall: true
+    selfInstall: true,
+    notes
   }
 }
 
@@ -372,7 +400,8 @@ export function announceOfferedUpdate(win: BrowserWindow): void {
     version: offered.version,
     total: offered.size,
     page: offered.page,
-    selfInstall: offered.selfInstall
+    selfInstall: offered.selfInstall,
+    notes: offered.notes
   })
 }
 
@@ -391,7 +420,8 @@ export function watchForUpdates(win: BrowserWindow): void {
         version: update.version,
         total: update.size,
         page: update.page,
-        selfInstall: update.selfInstall
+        selfInstall: update.selfInstall,
+        notes: update.notes
       })
     } catch {
 
