@@ -105,6 +105,16 @@ const api: ArtemisApi = {
       ipcRenderer.on(IPC.BootPhase, listener)
       return () => ipcRenderer.removeListener(IPC.BootPhase, listener)
     }
+  },
+  session: {
+    onYieldRequested: (cb) => {
+
+      const listener = (): void => {
+        void cb().finally(() => ipcRenderer.send(IPC.SessionYielded))
+      }
+      ipcRenderer.on(IPC.SessionYield, listener)
+      return () => ipcRenderer.removeListener(IPC.SessionYield, listener)
+    }
   }
 }
 

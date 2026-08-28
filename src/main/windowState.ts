@@ -1,5 +1,6 @@
 import { screen, type BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync } from 'fs'
+import { writeFileSync } from 'fs'
+import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { projectsRoot } from './ipc/project'
 
@@ -66,7 +67,7 @@ function fittedToScreen(
   }
 }
 
-export function loadWindowState(defaults: WindowDefaults): WindowState {
+export async function loadWindowState(defaults: WindowDefaults): Promise<WindowState> {
 
   const room = screen.getPrimaryDisplay().workArea
   const fitted = fittedToScreen(defaults.width, defaults.height, room, defaults)
@@ -75,7 +76,7 @@ export function loadWindowState(defaults: WindowDefaults): WindowState {
 
   let saved: Partial<WindowState>
   try {
-    saved = JSON.parse(readFileSync(stateFile(), 'utf-8')) as Partial<WindowState>
+    saved = JSON.parse(await readFile(stateFile(), 'utf-8')) as Partial<WindowState>
   } catch {
 
     return fresh
@@ -98,28 +99,40 @@ export function loadWindowState(defaults: WindowDefaults): WindowState {
   return state
 }
 
+function snapshot(win: BrowserWindow): WindowState | null {
+  if (win.isDestroyed() || win.isMinimized()) return null
+  const bounds = win.getNormalBounds()
+  return {
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
+    maximized: win.isMaximized()
+  }
+}
+
+export function flushWindowState(win: BrowserWindow): void {
+  if (isDev()) return
+  const state = snapshot(win)
+  if (!state) return
+  try {
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8')
+  } catch {
+
+  }
+}
+
 export function rememberWindowState(win: BrowserWindow): void {
   if (isDev()) return
 
   let timer: NodeJS.Timeout | null = null
 
   const write = (): void => {
-    if (win.isDestroyed()) return
+    const state = snapshot(win)
+    if (!state) return
+    void writeFile(stateFile(), JSON.stringify(state, null, 2), 'utf-8').catch(() => {
 
-    if (win.isMinimized()) return
-    const bounds = win.getNormalBounds()
-    const state: WindowState = {
-      width: bounds.width,
-      height: bounds.height,
-      x: bounds.x,
-      y: bounds.y,
-      maximized: win.isMaximized()
-    }
-    try {
-      writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8')
-    } catch {
-
-    }
+    })
   }
 
   const settle = (): void => {
@@ -134,6 +147,6 @@ export function rememberWindowState(win: BrowserWindow): void {
 
   win.on('close', () => {
     if (timer) clearTimeout(timer)
-    write()
+    flushWindowState(win)
   })
 }

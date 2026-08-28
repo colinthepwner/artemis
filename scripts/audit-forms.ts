@@ -1849,9 +1849,33 @@ function theBootGuardIsArmedFirst(): void {
   check('the launch is not bound to ready-to-show alone',
     main.includes('beginSession') && main.includes('READY_TO_SHOW_GRACE_MS'),
     'ready-to-show can go missing, and everything hung off it')
-  check('and a second launch insists on a window rather than exiting quietly',
-    /second-instance[\s\S]{0,900}isVisible\(\)/.test(main),
-    'this is what a stuck first instance looks like from outside')
+
+  const single = readFileSync(join(process.cwd(), 'src/main/singleInstance.ts'), 'utf-8')
+  check('losing the lock is not the end of a launch',
+    !/requestSingleInstanceLock[\s\S]{0,200}app\.exit\(0\)/.test(single),
+    'exiting on a lost lock is the bug: the holder may be one nobody can see')
+  check('a launch that loses the lock asks for it again rather than giving up',
+    (single.match(/requestSingleInstanceLock/g) ?? []).length >= 2 && single.includes('POLL_MS'))
+  check('the copy being replaced is told to save first',
+    /\.\s*yield\(\)/.test(single) && main.includes('IPC.SessionYield'),
+    'a takeover that skips this throws away whatever was open')
+  check('and the renderer answers that with a real save',
+    readFileSync(join(process.cwd(), 'src/renderer/src/App.tsx'), 'utf-8')
+      .includes('onYieldRequested'),
+    'nothing reaches disk if the page never hears the request')
+  check('and is killed if it will not answer, since it cannot be reasoned with',
+    single.includes('kill(') && single.includes('YIELD_GRACE_MS'))
+  check('one that is already past answering is told apart before the lock is touched',
+    single.includes('responsive(') && single.includes('BEAT_STALE_MS'),
+    'requestSingleInstanceLock blocks for twenty seconds on a holder that never replies')
+  check('so a launch reports it is alive on a timer, not just that it exists',
+    single.includes('setInterval') && single.includes('beat'),
+    'a pid says the process is listed, not that its event loop is running')
+  check('the kill goes by recorded pid, never by executable name',
+    single.includes('process.kill') && !/taskkill|\/IM\b/.test(single),
+    'a name sweep would also kill the portable stub the running app lives inside')
+  check('and main wires the takeover up rather than declaring it',
+    main.includes('claimSingleInstance') && main.includes('serveTakeovers'))
 }
 
 function everyPaneArrivesTheSameWay(): void {

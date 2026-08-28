@@ -1,15 +1,17 @@
 import { app, shell } from 'electron'
-import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { mkdir, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { desktopPlatform } from '../shared/platform'
 import type { PermissionIssue } from '../shared/ipc'
 
-function writeProbe(dir: string): { ok: true } | { ok: false; code: string; message: string } {
+async function writeProbe(
+  dir: string
+): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
   const probe = join(dir, '.artemis-write-probe')
   try {
-    mkdirSync(dir, { recursive: true })
-    writeFileSync(probe, 'artemis', 'utf-8')
-    rmSync(probe, { force: true })
+    await mkdir(dir, { recursive: true })
+    await writeFile(probe, 'artemis', 'utf-8')
+    await rm(probe, { force: true })
     return { ok: true }
   } catch (err) {
     const e = err as NodeJS.ErrnoException
@@ -21,12 +23,12 @@ function projectsDir(): string {
   return join(app.getPath('documents'), 'ArtemisForBTA')
 }
 
-export function checkPermissions(): PermissionIssue[] {
+export async function checkPermissions(): Promise<PermissionIssue[]> {
   const issues: PermissionIssue[] = []
   const p = desktopPlatform(process.platform)
 
   const projects = projectsDir()
-  const write = writeProbe(projects)
+  const write = await writeProbe(projects)
   if (!write.ok) {
     if (p === 'darwin') {
       issues.push({
@@ -85,7 +87,7 @@ export function checkPermissions(): PermissionIssue[] {
   }
 
   const data = app.getPath('userData')
-  const dataWrite = writeProbe(data)
+  const dataWrite = await writeProbe(data)
   if (!dataWrite.ok) {
     issues.push({
       id: 'appdata',

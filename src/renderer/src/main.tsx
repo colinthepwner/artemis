@@ -76,6 +76,8 @@ if (!window.artemis) {
     },
 
     boot: { phase: async () => 'ready', onPhase: () => () => {} },
+
+    session: { onYieldRequested: () => () => {} },
     vanilla: { art: async () => ({ blocks: {}, items: {}, tops: {} }) }
   }
 }

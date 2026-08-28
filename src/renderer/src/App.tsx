@@ -72,6 +72,18 @@ export default function App(): JSX.Element {
   }, [])
 
   useEffect(() => {
+
+    const bridge = window.artemis.session
+    if (!bridge || typeof bridge.onYieldRequested !== 'function') return
+
+    return bridge.onYieldRequested(async () => {
+      const store = useProjectStore.getState()
+      if (!store.project) return
+      await store.saveProject()
+    })
+  }, [])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault()

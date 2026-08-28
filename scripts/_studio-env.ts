@@ -143,6 +143,10 @@ const api: ArtemisApi = {
     phase: async () => 'ready' as BootPhase,
     onPhase: (cb) => subscribe('boot.phase', cb as unknown as (v: never) => void)
   },
+
+  session: {
+    onYieldRequested: (cb) => subscribe('session.yield', cb as unknown as (v: never) => void)
+  },
   presence: { update: () => record('presence.update') },
   vanilla: {
 

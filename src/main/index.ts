@@ -1,4 +1,11 @@
-import { app, BrowserWindow, dialog, shell, type BrowserWindowConstructorOptions } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell,
+  type BrowserWindowConstructorOptions
+} from 'electron'
 import { UI_SCALE } from '../shared/ui'
 import {
   MAC_TRAFFIC_LIGHT_POSITION,
@@ -20,7 +27,8 @@ import {
   watchForUpdates
 } from './updater'
 import { registerVanillaIpc } from './vanillaTextures'
-import { loadWindowState, rememberWindowState } from './windowState'
+import { flushWindowState, loadWindowState, rememberWindowState } from './windowState'
+import { claimSingleInstance, serveTakeovers } from './singleInstance'
 import { registerPresenceIpc } from './discordPresence'
 import { BOOT_WIDTH, BOOT_HEIGHT, registerBootIpc, runBootSequence } from './boot'
 import {
@@ -50,30 +58,23 @@ function deliverPendingOpen(): void {
   mainWindow.webContents.send(IPC.ProjectOpenRequested, path)
 }
 
-if (app.isPackaged) {
-  if (!app.requestSingleInstanceLock()) {
-
-    app.exit(0)
-  } else {
-
-    app.on('second-instance', (_event, argv) => {
-      const path = projectPathFromArgv(argv)
-      if (path) pendingOpen = path
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        if (mainWindow.isMinimized()) mainWindow.restore()
-        if (!mainWindow.isVisible()) {
-          console.error('[window] a second launch found the first one still invisible; showing it')
-          mainWindow.center()
-          mainWindow.show()
-        }
-        mainWindow.focus()
-      } else {
-        console.error('[window] a second launch found no window at all; building one')
-        createWindow()
-      }
-      deliverPendingOpen()
+function saveAndRelease(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      resolve()
+      return
+    }
+    ipcMain.once(IPC.SessionYielded, () => {
+      if (mainWindow && !mainWindow.isDestroyed()) flushWindowState(mainWindow)
+      resolve()
     })
-  }
+    mainWindow.webContents.send(IPC.SessionYield)
+  })
+}
+
+function noteOpenRequest(path: string): void {
+  pendingOpen = path
+  deliverPendingOpen()
 }
 
 function chromeOptions(): BrowserWindowConstructorOptions {
@@ -254,7 +255,21 @@ function startupFailed(err: unknown): void {
   app.exit(1)
 }
 
-app.whenReady().then(() => {
+async function start(): Promise<void> {
+
+  if (app.isPackaged) {
+    const { proceed, locked } = await claimSingleInstance()
+
+    if (!proceed) {
+      app.exit(0)
+      return
+    }
+
+    if (locked) serveTakeovers({ yield: saveAndRelease, openFile: noteOpenRequest })
+  }
+
+  await app.whenReady()
+
   registerProjectIpc()
   registerExportIpc()
   registerTestIpc()
@@ -268,9 +283,9 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
+}
 
-.catch(startupFailed)
+void start().catch(startupFailed)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

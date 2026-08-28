@@ -65,7 +65,11 @@ export const IPC = {
 
   BootPhase: 'boot:phase',
 
-  BootGetPhase: 'boot:get-phase'
+  BootGetPhase: 'boot:get-phase',
+
+  SessionYield: 'session:yield',
+
+  SessionYielded: 'session:yielded'
 } as const
 
 export type BootPhase = 'boot' | 'expanding' | 'ready'
@@ -273,6 +277,10 @@ export interface ArtemisApi {
 
     phase(): Promise<BootPhase>
     onPhase(cb: (phase: BootPhase) => void): () => void
+  }
+  session: {
+
+    onYieldRequested(cb: () => Promise<void>): () => void
   }
   presence: {
 

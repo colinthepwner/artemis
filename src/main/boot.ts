@@ -1,5 +1,5 @@
 import { ipcMain, screen, type BrowserWindow } from 'electron'
-import { readFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { IPC, type BootPhase } from '../shared/ipc'
 import { prefsFile } from './ipc/project'
 import type { WindowState } from './windowState'
@@ -21,9 +21,9 @@ function setPhase(win: BrowserWindow, next: BootPhase): void {
   if (!win.isDestroyed()) win.webContents.send(IPC.BootPhase, next)
 }
 
-function reduceMotion(): boolean {
+async function reduceMotion(): Promise<boolean> {
   try {
-    const prefs = JSON.parse(readFileSync(prefsFile(), 'utf-8')) as Record<string, unknown>
+    const prefs = JSON.parse(await readFile(prefsFile(), 'utf-8')) as Record<string, unknown>
     return prefs['reduceAnimations'] === true
   } catch {
     return false
@@ -31,6 +31,10 @@ function reduceMotion(): boolean {
 }
 
 const easeOut = (t: number): number => 1 - Math.pow(1 - t, 3)
+
+function defaultsFor(minSize: { width: number; height: number }): WindowState {
+  return { width: minSize.width, height: minSize.height, maximized: false }
+}
 
 function animateBounds(
   win: BrowserWindow,
@@ -92,20 +96,25 @@ function targetBounds(win: BrowserWindow, saved: WindowState): {
 
 export async function runBootSequence(
   win: BrowserWindow,
-  saved: WindowState,
+
+  savedState: Promise<WindowState>,
   minSize: { width: number; height: number },
   check: Promise<boolean>
 ): Promise<boolean> {
   let restarting = false
+  let saved: WindowState
   try {
-    const [willRestart] = await Promise.all([
+    const [willRestart, state] = await Promise.all([
       check,
+      savedState,
       new Promise<false>((r) => setTimeout(() => r(false), MIN_SPLASH_MS))
     ])
     restarting = willRestart === true
+    saved = state
   } catch (err) {
 
     console.error('[boot] update check failed:', err)
+    saved = await savedState.catch(() => defaultsFor(minSize))
   }
 
   if (win.isDestroyed() || restarting) return false
@@ -116,7 +125,7 @@ export async function runBootSequence(
 
     await new Promise((r) => setTimeout(r, 170))
     const to = targetBounds(win, saved)
-    if (reduceMotion()) win.setBounds(to)
+    if (await reduceMotion()) win.setBounds(to)
     else await animateBounds(win, to, EXPAND_MS)
   } catch (err) {
     console.error('[boot] expansion failed:', err)

@@ -4,8 +4,8 @@ import { checkPermissions, openPermissionSettings } from '../permissions'
 import { MIN_JAVA, chooseJdk, currentJdk, installJdk, probeJdk, scanForJdks } from '../jdk'
 
 export function registerSetupIpc(win: BrowserWindow): void {
-  ipcMain.handle(IPC.SetupStatus, (): SetupStatus => {
-    const permissions = checkPermissions()
+  ipcMain.handle(IPC.SetupStatus, async (): Promise<SetupStatus> => {
+    const permissions = await checkPermissions()
     return {
       permissions,
 
