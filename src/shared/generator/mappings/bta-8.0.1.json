@@ -43,6 +43,7 @@
     "HalpLibe": "turniplabs.halplibe.HalpLibe",
     "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
     "Item": "net.minecraft.core.item.Item",
+    "ItemFood": "net.minecraft.core.item.ItemFood",
     "ItemTags": "net.minecraft.core.item.tag.ItemTags",
     "LookupFuelFurnace": "net.minecraft.core.crafting.LookupFuelFurnace",
     "Player": "net.minecraft.core.entity.player.Player",
@@ -765,5 +766,9 @@
   "fuel": {
     "$comment": "Burn time in a furnace, as ticks. LookupFuelFurnace.instance.addFuelEntry(int itemId, int ticks) off javap on net.minecraft.core.crafting.LookupFuelFurnace in the 8.0.1 client jar; the class is in core.crafting rather than core.lookup, which is where the name suggests. It takes an item ID rather than an item, and IDs are handed out at registration, so this belongs in afterGameStart with everything else that has to touch a registered thing rather than describe one. For scale, vanilla coal is 1600 ticks, which is eight items smelted.",
     "addEntry": "LookupFuelFurnace.instance.addFuelEntry(ModItems.{{FIELD}}.id, {{ticks}});"
+  },
+  "food": {
+    "$comment": "Something the player eats. ItemFood(String key, String namespaceId, int id, int healAmount, int ticksPerHeal, boolean isWolfsFavoriteMeat, int maxStackSize), with the four after the id read off the constructor's bytecode in the 8.0.1 client jar rather than guessed from their types: four ints and a boolean in a row is exactly the signature nobody can check by eye. healAmount is half-drumsticks, so vanilla bread is 5. NOTE isWolfsFavoriteMeat, which is where BTA keeps the wolf's favourite: there is no WOLF_FAVOURITE_ITEM tag, and people go looking for one. The stack size is a constructor argument here rather than a builder call, so ItemBuilder.setStackSize is not used for food.",
+    "build": "\t{{creative}}\n\t.build(new ItemFood(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{healAmount}}, {{eatTicks}}, {{wolfMeat}}, {{stackSize}}));"
   }
 }

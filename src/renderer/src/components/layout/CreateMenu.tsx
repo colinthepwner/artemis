@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { Drumstick, Pickaxe, Shield, X, type LucideIcon } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useCloseOnEscape } from '@/components/ui/dismissDistant'
@@ -10,6 +10,11 @@ import type { ElementKind } from '@shared/project'
 interface Entry {
   kind: ElementKind
   desc: string
+
+  label?: string
+  icon?: LucideIcon
+  props?: Record<string, unknown>
+  name?: string
 }
 
 const TERRAIN: Entry[] = [
@@ -26,8 +31,35 @@ const WORLD: Entry[] = [
   { kind: 'dimension', desc: 'A world of your biomes, behind a portal' }
 ]
 
+const ITEMS: Entry[] = [
+  { kind: 'item', desc: 'A gem, a drop, a trinket', name: 'new_material' },
+  {
+    kind: 'item',
+    label: 'Tool',
+    icon: Pickaxe,
+    desc: 'One tool with numbers of its own',
+    name: 'new_tool',
+    props: { itemType: 'tool', piece: 'pickaxe', stackSize: 1, category: 'misc' }
+  },
+  {
+    kind: 'item',
+    label: 'Armor',
+    icon: Shield,
+    desc: 'One piece of armor, with its own protection',
+    name: 'new_armor',
+    props: { itemType: 'armor', piece: 'helmet', stackSize: 1, category: 'misc' }
+  },
+  {
+    kind: 'item',
+    label: 'Food',
+    icon: Drumstick,
+    desc: 'Something the player eats',
+    name: 'new_food',
+    props: { itemType: 'food', stackSize: 16, category: 'food' }
+  }
+]
+
 const SINGLES: { title: string; entry: Entry }[] = [
-  { title: 'Items', entry: { kind: 'item', desc: 'A material, a drop, a trinket' } },
   { title: 'Gear', entry: { kind: 'gearset', desc: 'Tools and armor, nine pieces from one set of numbers' } },
   { title: 'Crafting', entry: { kind: 'recipe', desc: 'Shaped, shapeless or furnace' } },
   { title: 'Entities', entry: { kind: 'mob', desc: 'A living entity with spawns & drops' } }
@@ -38,9 +70,9 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
   const openEditor = useAppStore((s) => s.openEditor)
   const createElement = useProjectStore((s) => s.createElement)
 
-  const create = (kind: ElementKind): void => {
-    navigate(kind)
-    const id = createElement(kind)
+  const create = (entry: Entry): void => {
+    navigate(entry.kind)
+    const id = createElement(entry.kind, { props: entry.props, name: entry.name })
     openEditor(id)
     onClose()
   }
@@ -96,7 +128,7 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
           <SectionLabel>Blocks & Terrain</SectionLabel>
           <div className="grid grid-cols-4 gap-2">
             {TERRAIN.map((entry) => (
-              <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry.kind)} />
+              <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry)} />
             ))}
           </div>
 
@@ -104,17 +136,26 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
             <SectionLabel>World</SectionLabel>
             <div className="grid grid-cols-4 gap-2">
               {WORLD.map((entry) => (
-                <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry.kind)} />
+                <CreateCard key={entry.kind} entry={entry} onClick={() => create(entry)} />
               ))}
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-4 gap-2">
+          <div className="mt-5">
+            <SectionLabel>Items</SectionLabel>
+            <div className="grid grid-cols-4 gap-2">
+              {ITEMS.map((entry) => (
+                <CreateCard key={entry.label ?? entry.kind} entry={entry} onClick={() => create(entry)} />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
             {SINGLES.map(({ title, entry }) => (
 
               <div key={entry.kind} className="grid grid-rows-[auto_1fr]">
                 <SectionLabel>{title}</SectionLabel>
-                <CreateCard entry={entry} onClick={() => create(entry.kind)} />
+                <CreateCard entry={entry} onClick={() => create(entry)} />
               </div>
             ))}
           </div>
@@ -135,12 +176,13 @@ function SectionLabel({ children }: { children: React.ReactNode }): JSX.Element 
 }
 
 function CreateCard({ entry, onClick }: { entry: Entry; onClick: () => void }): JSX.Element {
-  const Icon = KIND_ICONS[entry.kind]
+
+  const Icon = entry.icon ?? KIND_ICONS[entry.kind]
   const accent = KIND_COLORS[entry.kind]
   return (
     <button
 
-      data-tour={`create-${entry.kind}`}
+      data-tour={`create-${entry.label ? entry.label.toLowerCase() : entry.kind}`}
       onClick={onClick}
       className="group relative flex h-full w-full flex-col items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-800/60 px-3 py-4 text-center transition duration-150 hover:z-10 hover:border-gold-500/40 hover:bg-ink-750 active:scale-[0.98]"
     >
@@ -153,7 +195,9 @@ function CreateCard({ entry, onClick }: { entry: Entry; onClick: () => void }): 
       >
         <Icon size={19} strokeWidth={1.75} style={{ color: accent }} />
       </div>
-      <div className="text-[13px] font-medium text-mist-100">{KIND_LABELS[entry.kind].label}</div>
+      <div className="text-[13px] font-medium text-mist-100">
+        {entry.label ?? KIND_LABELS[entry.kind].label}
+      </div>
       <div className="text-2xs leading-snug text-mist-500">{entry.desc}</div>
     </button>
   )

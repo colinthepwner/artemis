@@ -6,9 +6,9 @@ import { useAppStore } from '@/store/appStore'
 import type { ElementFormProps } from './registry'
 import { FormShell, TextureStrip, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
 import { Field, NumberInput, Select, Switch, SwitchList } from '@/components/ui/controls'
-import { ITEM_DEFAULTS, type ItemProps, type AnySetProps } from '@shared/generator/props'
+import { ITEM_DEFAULTS, itemTypeOf, type ItemProps, type AnySetProps } from '@shared/generator/props'
 import { useProjectStore } from '@/store/projectStore'
-import { kitFamily, TOOL_KINDS } from '@shared/generator/family'
+import { kitFamily, TOOL_KINDS, ARMOR_KINDS } from '@shared/generator/family'
 import { elementRegistryEntries } from '@shared/generator/registry'
 import { getMapping } from '@shared/generator/mappings'
 import { titleCase } from '@shared/generator/templates/block'
@@ -53,6 +53,8 @@ function ItemFormInner({
     [mapping]
   )
 
+  const kindOfItem = itemTypeOf(p)
+  const isFood = kindOfItem === 'food'
   const isPiece = Boolean(p.piece)
   const pieceIsTool = isPiece && (TOOL_KINDS as readonly string[]).includes(p.piece as string)
 
@@ -71,9 +73,25 @@ function ItemFormInner({
           content: (
             <>
               <p className="text-2xs leading-relaxed text-mist-600">
-                This started as part of a gear set and became its own item when you edited it. It
-                keeps its own numbers now, and nothing else in the mod changes them.
+                {p.itemType
+                  ? 'One piece with numbers of its own, rather than one of nine cut from the same set. Nothing else in the mod changes them.'
+                  : 'This started as part of a gear set and became its own item when you edited it. It keeps its own numbers now, and nothing else in the mod changes them.'}
               </p>
+              {
+
+}
+              {p.itemType && (
+                <Field label={pieceIsTool ? 'Tool' : 'Piece'}>
+                  <Select
+                    value={p.piece ?? (pieceIsTool ? 'pickaxe' : 'helmet')}
+                    onChange={(v) => patch('piece', v as ItemProps['piece'])}
+                    options={(pieceIsTool ? TOOL_KINDS : ARMOR_KINDS).map((k) => ({
+                      value: k,
+                      label: titleCase(k)
+                    }))}
+                  />
+                </Field>
+              )}
               {pieceIsTool ? (
                 <ToolStatFields set={set} patchSet={patchSet} />
               ) : (
@@ -115,6 +133,37 @@ function ItemFormInner({
                   max={4096}
                 />
               </Field>
+              {isFood && (
+                <>
+                  <Field
+                    label="Restores"
+                    hint="Half drumsticks. Vanilla bread is 5, steak is 8."
+                  >
+                    <NumberInput
+                      value={p.healAmount ?? 0}
+                      onChange={(v) => patch('healAmount', Math.max(0, Math.round(v)))}
+                      min={0}
+                      max={40}
+                    />
+                  </Field>
+                  <Field label="Eating Time" hint="Ticks spent eating it. Most food is 32.">
+                    <NumberInput
+                      value={p.eatTicks ?? 32}
+                      onChange={(v) => patch('eatTicks', Math.max(1, Math.round(v)))}
+                      min={1}
+                      max={200}
+                    />
+                  </Field>
+                  <div className="col-span-2">
+                    <Switch
+                      checked={p.wolfMeat ?? false}
+                      onChange={(v) => patch('wolfMeat', v)}
+                      label="A wolf will take it"
+                      hint="BTA keeps this on the food itself. There is no wolf-favourite item tag, which is where people go looking."
+                    />
+                  </div>
+                </>
+              )}
               <Field
                 label="Burn Time"
                 hint="Ticks it burns in a furnace. 0 for something that is not a fuel. Coal is 1600, which smelts eight."

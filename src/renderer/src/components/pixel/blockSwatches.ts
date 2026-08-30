@@ -32,6 +32,8 @@ export interface SwatchSpec {
 
   tint?: string
 
+  mask?: 'fence'
+
   smooth?: boolean
 
   grid?: number
@@ -183,8 +185,16 @@ export const SWATCHES: Record<string, SwatchSpec> = {
   growsTrees: { field: 'SAPLING_OAK', draw: 'flower', flat: true, scale: 100, tint: '#4a7a34' },
   growsSugarCane: { field: 'SUGARCANE', draw: 'flower', flat: true, scale: 100, tint: '#8fc65b' },
   growsCacti: { field: 'CACTUS', tint: '#4f7a3a' },
-  plantableInJar: { field: 'JAR_GLASS', tint: '#9fc6d8' },
-  fencesConnect: { draw: 'fence', tint: '#9f844d', flat: true, scale: 100 },
+
+  plantableInJar: { field: 'JAR_GLASS', item: true, flat: true, tint: '#9fc6d8' },
+
+  fencesConnect: {
+    field: 'FENCE_PLANKS_OAK',
+    mask: 'fence',
+    tint: '#9f844d',
+    flat: true,
+    scale: 100
+  },
   notInCreativeMenu: {
     field: 'GLASS',
     stripField: 'GLASS_JOINED_X',
@@ -295,10 +305,10 @@ function fenceGrid(color: string): Grid {
     }
   }
 
-  fill(2, 4, 1, 15)
-  fill(11, 13, 1, 15)
-  fill(2, 13, 4, 6)
-  fill(2, 13, 9, 11)
+  fill(0, 15, 4, 6)
+  fill(0, 15, 9, 11)
+  fill(3, 5, 1, 15)
+  fill(10, 12, 1, 15)
   return grid
 }
 
@@ -372,7 +382,46 @@ interface BakeOptions {
   flowRight?: boolean
 
   closeRim?: boolean
+
+  mask?: 'fence'
 }
+
+const FENCE_FACES: string[] = [
+  '...................babbbaccccccc',
+  '..................aaaabbcccccccc',
+  '................aaaaaacbcccccccc',
+  '..............aaaaaacccbcccccc..',
+  '.....aaaaa..aaaaaacccccbcccccc..',
+  '...aaaaaaaaaaaaacccccccbcccccc..',
+  '..aaaaaaaaaaaccccccccccbcccccc..',
+  '..bbaaaaaaacccccccccccbbcccccca.',
+  '..bbbbaaacccccccccccbbbbcccccccc',
+  '..aaabbcccccccccccabbbbbcccccccc',
+  'aaaaacbbcccccccc...bbbbbcccccccc',
+  'bbbaccbbcccccc....aaaabbcccccccc',
+  'bbbcccbbccccc....aaaaacbcccccccc',
+  'bbbcccbbccccc..aaaaacccbccccccc.',
+  'bbbcccbbcccccaaaaacccccbcccccc..',
+  '.bbcccbbcccccaaacccccccbcccccc..',
+  '..bcbbbbcccccacccccccccbcccccc..',
+  '..bbbbbbcccccccccccccccbcccccc..',
+  '..bbbbbbcccccccccccccbbbcccccc..',
+  '..babbbbcccccccccccbbbbbcccccc..',
+  '.aaaaabbccccccccc..bbbbbcccccc..',
+  'bbaaccbbccccccc....bbbbbcccccc..',
+  'bbbcccbbccccc......bbbbbcccccc..',
+  'bbbcccbbccccc......bbbbbcccccc..',
+  'bbbcccbbccccc......bbbbbcccccc..',
+  'bbbcccbbccccc......bbbbbcccccc..',
+  '.abccbbbccccc.......abbbcccca...',
+  '..bbbbbbccccc.........abcca.....',
+  '..bbbbbbccccc...................',
+  '..bbbbbbccccc...................',
+  '..bbbbbbccccc...................',
+  '..bbbbbbccccc...................',
+]
+
+const FACE_SHADE: Record<string, number> = { a: 1, b: 0.78, c: 0.6, d: 0.5 }
 
 function bakedTexture(texture: string, opts: BakeOptions): string {
   const key = [
@@ -380,6 +429,7 @@ function bakedTexture(texture: string, opts: BakeOptions): string {
     opts.grid ?? 1,
     opts.flowRight ? 'r' : '-',
     opts.closeRim ? 'rim' : '-',
+    opts.mask ?? '-',
     texture
   ].join(' ')
   const done = tinted.get(key)
@@ -389,7 +439,8 @@ function bakedTexture(texture: string, opts: BakeOptions): string {
     const img = new Image()
     img.onload = () => {
       baking.delete(key)
-      const side = Math.min(img.width, img.height) / (opts.grid ?? 1)
+
+      const side = opts.mask ? 32 : Math.min(img.width, img.height) / (opts.grid ?? 1)
       const canvas = document.createElement('canvas')
       canvas.width = side
       canvas.height = side
@@ -400,8 +451,32 @@ function bakedTexture(texture: string, opts: BakeOptions): string {
         ctx.translate(0, side)
         ctx.rotate(-Math.PI / 2)
       }
-      ctx.drawImage(img, 0, 0, side, side, 0, 0, side, side)
+
+      ctx.imageSmoothingEnabled = false
+
+      const src = opts.mask ? Math.min(img.width, img.height) : side
+      ctx.drawImage(img, 0, 0, src, src, 0, 0, side, side)
       ctx.setTransform(1, 0, 0, 1, 0, 0)
+      if (opts.mask === 'fence') {
+        const data = ctx.getImageData(0, 0, side, side)
+        const px = data.data
+        for (let y = 0; y < side; y++) {
+          for (let x = 0; x < side; x++) {
+
+            const face = FENCE_FACES[Math.floor((y * 32) / side)]?.[Math.floor((x * 32) / side)]
+            const i = (y * side + x) * 4
+            const shade = face ? FACE_SHADE[face] : undefined
+            if (shade === undefined) {
+              px[i + 3] = 0
+              continue
+            }
+            px[i] = Math.round(px[i] * shade)
+            px[i + 1] = Math.round(px[i + 1] * shade)
+            px[i + 2] = Math.round(px[i + 2] * shade)
+          }
+        }
+        ctx.putImageData(data, 0, 0)
+      }
       const tint = opts.tint
       if (tint || opts.closeRim) {
         const data = ctx.getImageData(0, 0, side, side)
@@ -549,10 +624,16 @@ export function swatchFor(key: string, art: VanillaArt): Swatch | undefined {
 
   const size = real ? pngSize(real) : null
   const needsBake =
-    !!real && (spec.colorized || spec.grid !== undefined || spec.flowRight || !size || size.h !== size.w)
+    !!real &&
+    (spec.colorized ||
+      spec.grid !== undefined ||
+      spec.flowRight ||
+      spec.mask !== undefined ||
+      !size ||
+      size.h !== size.w)
   const texture = real
     ? needsBake
-      ? bakedTexture(real, { grid: spec.grid, flowRight: spec.flowRight })
+      ? bakedTexture(real, { grid: spec.grid, flowRight: spec.flowRight, mask: spec.mask })
       : real
     : fallbackTexture(key, spec)
   if (!texture) return undefined

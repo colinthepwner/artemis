@@ -197,6 +197,7 @@ export interface ArtemisApi {
   }
   app: {
     platform: NodeJS.Platform
+
     version: string
 
     isDev: boolean

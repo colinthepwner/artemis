@@ -14,6 +14,8 @@ export interface BtaMapping {
 
   fuel: { addEntry: string }
 
+  food: { build: string }
+
   harvestLevel: { put: string; import: string }
 
   registration: {

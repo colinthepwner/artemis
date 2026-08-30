@@ -282,6 +282,12 @@ function WelcomeHero(): JSX.Element {
       {recents.error && (
         <p className="mt-3 text-center text-2xs text-ember-400">{recents.error}</p>
       )}
+
+      {
+}
+      <p className="mt-4 text-center font-mono text-2xs text-mist-700">
+        Artemis v{window.artemis.app.version}
+      </p>
     </motion.div>
   )
 }

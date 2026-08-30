@@ -1,5 +1,5 @@
 import type { ArtemisElement } from '../../project'
-import { ITEM_DEFAULTS, type BlockUseRule, type ItemProps } from '../props'
+import { ITEM_DEFAULTS, itemTypeOf, type BlockUseRule, type ItemProps } from '../props'
 import { render, JavaWriter } from '../template'
 import { toPascalCase } from '../../project'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
@@ -103,8 +103,10 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   const chain: string[] = []
 
   const durability = Math.max(0, Math.round(p.durability ?? 0))
+
+  const isFood = itemTypeOf(p) === 'food'
   const stackSize = durability > 0 ? 1 : Math.max(1, Math.min(64, p.stackSize))
-  if (stackSize !== 64 && ib.methods['stackSize']) {
+  if (!isFood && stackSize !== 64 && ib.methods['stackSize']) {
     chain.push('	' + render(ib.methods['stackSize'], { value: stackSize }))
   }
   if (durability > 0 && ib.methods['maxDamage']) {
@@ -129,11 +131,15 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
     [
       render(ib.decl, { FIELD }),
       ...chain,
-      render(use ? ib.buildCustom : ib.build, {
+      render(isFood ? ctx.mapping.food.build : use ? ib.buildCustom : ib.build, {
         displayName,
         registryName: el.name,
         modId: ctx.meta.modId,
         className: use?.className ?? '',
+        healAmount: Math.max(0, Math.round(p.healAmount ?? 0)),
+        eatTicks: Math.max(1, Math.round(p.eatTicks ?? 32)),
+        wolfMeat: p.wolfMeat ? 'true' : 'false',
+        stackSize,
         creative: ctx.creativeCall(p.category)
       })
     ].join('\n')

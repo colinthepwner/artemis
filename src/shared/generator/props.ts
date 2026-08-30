@@ -1,4 +1,4 @@
-import type { ToolKind, ArmorKind } from './family'
+import { TOOL_KINDS, ARMOR_KINDS, type ToolKind, type ArmorKind } from './family'
 
 export interface BlockProps {
   displayName: string
@@ -69,7 +69,15 @@ export interface ItemProps {
 
   stackSize: number
 
+  itemType?: 'material' | 'tool' | 'armor' | 'food'
+
   category: string
+
+  healAmount: number
+
+  eatTicks: number
+
+  wolfMeat: boolean
 
   durability: number
 
@@ -85,6 +93,13 @@ export interface ItemProps {
   set: AnySetProps
 
   piece?: ToolKind | ArmorKind
+}
+
+export function itemTypeOf(p: Partial<ItemProps>): 'material' | 'tool' | 'armor' | 'food' {
+  if (p.itemType) return p.itemType
+  if (p.piece && (TOOL_KINDS as readonly string[]).includes(p.piece)) return 'tool'
+  if (p.piece && (ARMOR_KINDS as readonly string[]).includes(p.piece)) return 'armor'
+  return 'material'
 }
 
 export interface AnySetProps {
@@ -127,6 +142,9 @@ export const ITEM_DEFAULTS: ItemProps = {
   displayName: '',
   stackSize: 64,
   category: 'material',
+  healAmount: 4,
+  eatTicks: 32,
+  wolfMeat: false,
   durability: 0,
   tags: [],
   burnTime: 0,

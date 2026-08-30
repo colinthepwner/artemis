@@ -43,6 +43,8 @@ app.setName('Artemis')
 
 process.env['ARTEMIS_IS_DEV'] = app.isPackaged ? '0' : '1'
 
+process.env['ARTEMIS_VERSION'] = app.getVersion()
+
 if (process.platform === 'win32') app.setAppUserModelId('com.colin.artemis')
 
 let mainWindow: BrowserWindow | null = null

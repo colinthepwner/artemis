@@ -17,11 +17,11 @@ const api: ArtemisApi = {
   },
   app: {
     platform: process.platform,
-    version: process.env['npm_package_version'] ?? '0.1.0'
-    ,
 
     isDev: process.env['ARTEMIS_IS_DEV'] === '1',
-    skipOnboarding: process.env['ARTEMIS_SKIP_ONBOARDING'] === '1'
+    skipOnboarding: process.env['ARTEMIS_SKIP_ONBOARDING'] === '1',
+
+    version: process.env['ARTEMIS_VERSION'] ?? ''
   },
   setup: {
     status: () => ipcRenderer.invoke(IPC.SetupStatus),

@@ -62,7 +62,10 @@ interface ProjectState {
 
   addElement: (kind: ElementKind, name: string, properties: Record<string, unknown>) => string
 
-  createElement: (kind: ElementKind) => string
+  createElement: (
+    kind: ElementKind,
+    opts?: { props?: Record<string, unknown>; name?: string }
+  ) => string
 
   duplicateElement: (id: string) => string | null
 
@@ -258,12 +261,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     }),
 
-  createElement: (kind) => {
-    const existing = get().project?.elements.filter((e) => e.kind === kind) ?? []
-    const taken = new Set(existing.map((e) => e.name))
-    let name = `new_${kind}`
-    for (let i = 2; taken.has(name); i++) name = `new_${kind}_${i}`
-    return get().addElement(kind, name, structuredClone(KIND_DEFAULTS[kind]))
+  createElement: (kind, opts) => {
+
+    const taken = new Set(get().project?.elements.map((e) => e.name) ?? [])
+    const base = opts?.name ?? `new_${kind}`
+    let name = base
+    for (let i = 2; taken.has(name); i++) name = `${base}_${i}`
+    return get().addElement(kind, name, {
+      ...structuredClone(KIND_DEFAULTS[kind]),
+      ...(opts?.props ?? {})
+    })
   },
 
   promoteGenerated: (ownerId, registryName) => {

@@ -119,6 +119,8 @@ const EXTRA_BLOCK_TEXTURES: Record<string, string> = {
 }
 
 const EXTRA_ITEM_TEXTURES: Record<string, string> = {
+
+  JAR_GLASS: 'jar.png',
   BUCKET_IRON: 'bucket_iron/empty.png',
   BUCKET_STEEL: 'bucket_steel/empty.png',
 
