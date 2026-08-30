@@ -444,6 +444,14 @@ function theJavaFloor(): void {
     url === '${MIN_JAVA}',
     `the url asks for ${url ?? 'nothing this could find'}`
   )
+
+  const advice = readFileSync(join(process.cwd(), 'src/main/gradle.ts'), 'utf-8')
+  const line = advice.match(/A JDK \(([^)]*)\) is not/)?.[1] ?? ''
+  check(
+    'and what it tells somebody to install is that release too',
+    line.includes('${MIN_JAVA}') && !/\d/.test(line),
+    line === '' ? 'could not find the advice line' : line
+  )
 }
 
 async function theSetupScreens(): Promise<void> {

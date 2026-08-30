@@ -6,7 +6,7 @@ import { join } from 'path'
 import { app } from 'electron'
 import { extractAll } from './zip'
 import { download } from './net'
-import { currentJdk, jdkEnv } from './jdk'
+import { currentJdk, jdkEnv, MIN_JAVA } from './jdk'
 import { desktopPlatform, gradleBinName, gradleWrapperName } from '../shared/platform'
 
 export const DEFAULT_GRADLE_VERSION = '9.3.1'
@@ -59,7 +59,8 @@ export function javaMissingAdvice(): string[] {
   const p = desktopPlatform(process.platform)
   const lines = [
     'No Java was found, and Gradle is a Java program, so nothing can build yet.',
-    'Gradle itself is provided automatically. A JDK (17 or newer) is not.'
+
+    `Gradle itself is provided automatically. A JDK (${MIN_JAVA} or newer) is not.`
   ]
   if (p === 'darwin') {
     lines.push('  brew install --cask temurin', '  or download it from https://adoptium.net')
