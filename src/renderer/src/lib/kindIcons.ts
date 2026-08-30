@@ -4,6 +4,7 @@ import {
   Diamond,
   Droplets,
   Gem,
+  Swords,
   Globe,
   Sprout,
   TreePine,
@@ -17,6 +18,7 @@ import type { ElementKind } from '@shared/project'
 export const KIND_ICONS: Record<ElementKind, LucideIcon> = {
   block: Box,
   item: Diamond,
+  gearset: Swords,
   liquid: Droplets,
   ore: Gem,
   plant: Sprout,
@@ -31,6 +33,7 @@ export const KIND_ICONS: Record<ElementKind, LucideIcon> = {
 export const KIND_COLORS: Record<ElementKind, string> = {
   block: '#d5a868',
   item: '#6fc7e8',
+  gearset: '#c9a227',
   liquid: '#6f8fee',
   ore: '#e57fd2',
   plant: '#82ca70',

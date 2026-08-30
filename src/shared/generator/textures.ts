@@ -63,7 +63,7 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
       break
   }
 
-  if (el.kind === 'item') {
+  if (el.kind === 'gearset') {
     const family = kitFamily(el)!
     for (const name of [...family.tools, ...family.armor]) item(name, titleCase(name))
   }

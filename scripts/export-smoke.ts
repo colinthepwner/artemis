@@ -5,6 +5,7 @@ import { exportWorkspace } from '../src/main/export/exporter'
 import { createEmptyProject, type ArtemisElement, type ElementKind } from '../src/shared/project'
 import {
   BLOCK_DEFAULTS,
+  GEARSET_DEFAULTS,
   ITEM_DEFAULTS,
   ORE_DEFAULTS,
   PLANT_DEFAULTS,
@@ -49,12 +50,9 @@ const addDetaching = (
   })
 }
 
-add('item', 'ruby', {
-  ...ITEM_DEFAULTS,
-  displayName: 'Ruby',
-  generateSet: true,
-  set: { ...ITEM_DEFAULTS.set }
-})
+add('item', 'ruby', { ...ITEM_DEFAULTS, displayName: 'Ruby' })
+
+add('gearset', 'ruby', { ...GEARSET_DEFAULTS, displayName: 'Ruby' })
 add('item', 'ash_pile', {
   ...ITEM_DEFAULTS,
   displayName: 'Ash Pile',
@@ -62,23 +60,22 @@ add('item', 'ash_pile', {
   category: 'misc'
 })
 
+add('item', 'onyx', { ...ITEM_DEFAULTS, displayName: 'Onyx' })
 addDetaching(
-  'item',
+  'gearset',
   'onyx',
-  { ...ITEM_DEFAULTS, displayName: 'Onyx', generateSet: true, set: { ...ITEM_DEFAULTS.set } },
+  { ...GEARSET_DEFAULTS, displayName: 'Onyx' },
   ['onyx_pickaxe', 'onyx_helmet']
 )
 add('item', 'onyx_pickaxe', {
   ...ITEM_DEFAULTS,
   displayName: 'Onyx Pickaxe',
-  generateSet: false,
   piece: 'pickaxe',
   set: { ...ITEM_DEFAULTS.set, durability: 1024, efficiency: 12, miningLevel: 3, damage: 6 }
 })
 add('item', 'onyx_helmet', {
   ...ITEM_DEFAULTS,
   displayName: 'Onyx Helmet',
-  generateSet: false,
   piece: 'helmet',
   set: { ...ITEM_DEFAULTS.set, armorDurability: 900, totalProtection: 0.4 }
 })

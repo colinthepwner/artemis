@@ -153,6 +153,7 @@ const short = (v: unknown): string => {
 const FORM_FILE: Record<ElementKind, string> = {
   block: 'BlockForm.tsx',
   item: 'ItemForm.tsx',
+  gearset: 'GearSetForm.tsx',
   liquid: 'LiquidForm.tsx',
   ore: 'OreForm.tsx',
   plant: 'PlantForm.tsx',

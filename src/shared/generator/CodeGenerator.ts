@@ -7,6 +7,7 @@ import { JavaWriter, render, indent } from './template'
 import { emitBlock } from './templates/block'
 import { emitDimension } from './templates/dimension'
 import { emitItem } from './templates/item'
+import { emitGearSet } from './templates/gearset'
 import { emitLiquid } from './templates/liquid'
 import { emitOre } from './templates/ore'
 import { emitPlant } from './templates/plant'
@@ -100,6 +101,7 @@ type Emitter = (el: ArtemisElement, ctx: EmitContext) => EmitContribution
 const EMITTERS: Record<string, Emitter> = {
   block: emitBlock,
   item: emitItem,
+  gearset: emitGearSet,
   liquid: emitLiquid,
   ore: emitOre,
   plant: emitPlant,

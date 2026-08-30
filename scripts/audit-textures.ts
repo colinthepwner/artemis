@@ -34,7 +34,7 @@ import {
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
 import { TOOL_KINDS, ARMOR_KINDS, kitFamily } from '../src/shared/generator/family'
 import { textureSlotsFor } from '../src/shared/generator/textures'
-import { ITEM_DEFAULTS } from '../src/shared/generator/props'
+import { GEARSET_DEFAULTS, ITEM_DEFAULTS } from '../src/shared/generator/props'
 import { harness } from './_harness'
 
 const audit = harness()
@@ -491,12 +491,14 @@ async function main(): Promise<void> {
 
   {
     const store = useProjectStore
+
     const freshKit = (name = 'ruby'): { itemId: string } => {
       store.getState().newProject('Kit Test', 'kittest')
-      const itemId = store.getState().addElement('item', name, {
-        ...ITEM_DEFAULTS,
-        generateSet: true,
-        set: { ...(ITEM_DEFAULTS as { set?: object }).set, tools: true, armor: true }
+      store.getState().addElement('item', name, { ...ITEM_DEFAULTS })
+      const itemId = store.getState().addElement('gearset', name, {
+        ...GEARSET_DEFAULTS,
+        tools: true,
+        armor: true
       })
       return { itemId }
     }
@@ -508,13 +510,13 @@ async function main(): Promise<void> {
       check('the fixture kit is the full nine pieces', family.tools.length + family.armor.length === 9)
 
       const result = await generateKitTextures(itemId)
-      check('every piece plus the base was covered', result.pieces === 10, JSON.stringify(result))
+      check('every one of the nine pieces was covered', result.pieces === 9, JSON.stringify(result))
       check('with nothing left over', result.created + result.updated + result.reused + result.kept === result.pieces)
       check('and no painted source means the default accent', result.accent === DEFAULT_KIT_ACCENT)
 
       const live = store.getState().project!
 
-      const wanted = [`item/${family.base}`, ...[...family.tools, ...family.armor].map((n) => `item/${n}`)]
+      const wanted = [...family.tools, ...family.armor].map((n) => `item/${n}`)
       for (const key of wanted) {
         const id = live.textureAssignments[key]
         const tex = id ? live.textures.find((t) => t.id === id) : undefined
@@ -536,14 +538,22 @@ async function main(): Promise<void> {
         `${live.textures.length} textures for ${wanted.length} slots`
       )
 
+      check(
+        'and the material it is named after is left alone',
+        !live.textureAssignments[`item/${family.base}`],
+        `item/${family.base} was assigned ${String(live.textureAssignments[`item/${family.base}`])}`
+      )
+
       const distinct = new Set(live.textures.map((t) => t.data))
       check('every piece is a different picture', distinct.size === live.textures.length)
 
-      const paintable = textureSlotsFor(live).filter((s) => s.paintable)
+      const paintable = textureSlotsFor(live).filter(
+        (sl) => sl.paintable && sl.elementId === itemId
+      )
       check(
-        'no paintable slot is left unpainted',
-        paintable.every((s) => !!live.textureAssignments[s.key]),
-        paintable.filter((s) => !live.textureAssignments[s.key]).map((s) => s.key).join(' ')
+        'no paintable slot of the set is left unpainted',
+        paintable.length === 9 && paintable.every((sl) => !!live.textureAssignments[sl.key]),
+        paintable.filter((sl) => !live.textureAssignments[sl.key]).map((sl) => sl.key).join(' ')
       )
     }
 
@@ -583,13 +593,11 @@ async function main(): Promise<void> {
         live.textures.find((t) => t.id === mine.id)!.data === mineData
       )
       check('and it kept its name', live.textures.find((t) => t.id === mine.id)!.name === 'my_special_axe')
+
       check(
-        'the base item is protected from a regenerate',
-        re.kept >= 1 && live.textures.find((t) => t.name === 'ruby')!.data === (await (async () => {
-          const g = TEXTURE_PRESETS.find((p) => p.id === 'gem')!.generate(DEFAULT_KIT_ACCENT)
-          return gridToDataUrl(g)
-        })()),
-        'the base doubles as the color source, so rebuilding it under the modder is wrong'
+        'a regenerate never reaches the material',
+        !live.textures.some((t) => t.name === 'ruby'),
+        live.textures.map((t) => t.name).join(', ')
       )
     }
 
@@ -612,7 +620,8 @@ async function main(): Promise<void> {
       check('the piece promoted', !!promotedId)
       const r = await generateKitTextures(itemId)
       const live = store.getState().project!
-      check('the kit no longer counts the promoted piece', r.pieces === 9, JSON.stringify(r))
+
+      check('the set no longer counts the promoted piece', r.pieces === 8, JSON.stringify(r))
       check(
         'and did not paint it',
         !live.textures.some((t) => t.name === 'ruby_pickaxe'),

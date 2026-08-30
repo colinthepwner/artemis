@@ -27,7 +27,8 @@ const WORLD: Entry[] = [
 ]
 
 const SINGLES: { title: string; entry: Entry }[] = [
-  { title: 'Items', entry: { kind: 'item', desc: 'A material or drop, optional gear set' } },
+  { title: 'Items', entry: { kind: 'item', desc: 'A material, a drop, a trinket' } },
+  { title: 'Gear', entry: { kind: 'gearset', desc: 'Tools and armor, nine pieces from one set of numbers' } },
   { title: 'Crafting', entry: { kind: 'recipe', desc: 'Shaped, shapeless or furnace' } },
   { title: 'Entities', entry: { kind: 'mob', desc: 'A living entity with spawns & drops' } }
 ]
@@ -108,7 +109,7 @@ export function CreateMenu({ onClose }: { onClose: () => void }): JSX.Element {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-4 gap-2">
             {SINGLES.map(({ title, entry }) => (
 
               <div key={entry.kind} className="grid grid-rows-[auto_1fr]">

@@ -3,6 +3,7 @@ import { LATEST_BTA } from './generator/mappings'
 export const ELEMENT_KINDS = [
   'block',
   'item',
+  'gearset',
   'liquid',
   'ore',
   'plant',

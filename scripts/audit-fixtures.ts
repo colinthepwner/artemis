@@ -113,11 +113,13 @@ export const SCENARIOS: Scenario[] = [
     name: 'kit with a promoted piece',
     build: () => {
       const { project, add } = mk('kitmod')
+
+      add('item', 'ruby', { displayName: 'Ruby' })
       project.elements.push({
         id: `d${seq++}`,
-        kind: 'item',
+        kind: 'gearset',
         name: 'ruby',
-        properties: { ...KIND_DEFAULTS.item, displayName: 'Ruby', generateSet: true },
+        properties: { ...KIND_DEFAULTS.gearset, displayName: 'Ruby' },
         detached: ['ruby_pickaxe'],
         createdAt: '2026-08-27T00:00:00Z',
         updatedAt: '2026-08-27T00:00:00Z'
@@ -174,7 +176,8 @@ export const SCENARIOS: Scenario[] = [
       add('liquid', 'brine', { displayName: 'Brine', materialKind: 'water' })
       add('item', 'peat', { displayName: 'Peat', stackSize: 32, category: 'material' })
 
-      add('item', 'bog_iron', { displayName: 'Bog Iron', generateSet: true })
+      add('item', 'bog_iron', { displayName: 'Bog Iron' })
+      add('gearset', 'bog_iron', { displayName: 'Bog Iron' })
       add('block', 'bog_mud', {
         displayName: 'Bog Mud',
         material: 'clay',
@@ -350,12 +353,11 @@ export const SCENARIOS: Scenario[] = [
 
       project.elements.push({
         id: `d${seq++}`,
-        kind: 'item',
+        kind: 'gearset',
         name: 'hollow_steel',
         properties: {
-          ...KIND_DEFAULTS.item,
-          displayName: 'Hollow Steel',
-          generateSet: true
+          ...KIND_DEFAULTS.gearset,
+          displayName: 'Hollow Steel'
         },
         detached: ['hollow_steel_pickaxe'],
         createdAt: '2026-08-27T00:00:00Z',
@@ -686,7 +688,8 @@ export const SCENARIOS: Scenario[] = [
     name: 'kitchen sink',
     build: () => {
       const { project, add } = mk('sinkmod')
-      add('item', 'ruby', { displayName: 'Ruby', generateSet: true })
+      add('item', 'ruby', { displayName: 'Ruby' })
+      add('gearset', 'ruby', { displayName: 'Ruby' })
       add('item', 'ash', { displayName: 'Ash', stackSize: 16, category: 'misc' })
 
       add('item', 'chisel', {
@@ -887,21 +890,19 @@ export const SCENARIOS: Scenario[] = [
       const title = (s: string): string => s[0].toUpperCase() + s.slice(1)
       const reach = (door: string): string => `${door}_reach`
 
-      add('item', 'starsteel', {
+      add('item', 'starsteel', { displayName: 'Starsteel' })
+      add('gearset', 'starsteel', {
         displayName: 'Starsteel',
-        generateSet: true,
-        set: {
-          tools: true,
-          armor: true,
-          durability: 900,
-          efficiency: 9,
-          miningLevel: 3,
-          damage: 5,
-          armorDurability: 700,
-          totalProtection: 0.3,
-          blastProtection: 0.35,
-          fireProtection: 0.25
-        }
+        tools: true,
+        armor: true,
+        durability: 900,
+        efficiency: 9,
+        miningLevel: 3,
+        damage: 5,
+        armorDurability: 700,
+        totalProtection: 0.3,
+        blastProtection: 0.35,
+        fireProtection: 0.25
       })
       add('item', 'ember_dust', { displayName: 'Ember Dust', stackSize: 32, category: 'misc' })
       add('block', 'starsteel_ore', {

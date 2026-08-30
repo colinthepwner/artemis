@@ -1,5 +1,5 @@
 import type { ArtemisElement } from '../project'
-import type { AnySetProps, ItemProps } from './props'
+import type { GearSetProps } from './props'
 
 export const TOOL_KINDS = ['sword', 'pickaxe', 'axe', 'shovel', 'hoe'] as const
 export const ARMOR_KINDS = ['helmet', 'chestplate', 'leggings', 'boots'] as const
@@ -24,10 +24,8 @@ export interface KitPiece {
 }
 
 export function kitPieces(el: ArtemisElement): KitPiece[] {
-  if (el.kind !== 'item') return []
-  const p = el.properties as Partial<ItemProps>
-  if (!p.generateSet) return []
-  const set: Partial<AnySetProps> = p.set ?? {}
+  if (el.kind !== 'gearset') return []
+  const set = el.properties as Partial<GearSetProps>
   const gone = new Set(el.detached ?? [])
   const out: KitPiece[] = []
   if (set.tools !== false) {
@@ -40,7 +38,7 @@ export function kitPieces(el: ArtemisElement): KitPiece[] {
 }
 
 export function kitFamily(el: ArtemisElement): KitFamily | null {
-  if (el.kind !== 'item') return null
+  if (el.kind !== 'gearset') return null
   const pieces = kitPieces(el)
   return {
     base: el.name,

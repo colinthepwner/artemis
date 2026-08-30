@@ -95,6 +95,10 @@ export interface AnySetProps {
   fireProtection: number
 }
 
+export interface GearSetProps extends AnySetProps {
+  displayName: string
+}
+
 export const ANYSET_DEFAULTS: AnySetProps = {
   tools: true,
   armor: true,
@@ -106,6 +110,11 @@ export const ANYSET_DEFAULTS: AnySetProps = {
   totalProtection: 0.25,
   blastProtection: 0.3,
   fireProtection: 0.2
+}
+
+export const GEARSET_DEFAULTS: GearSetProps = {
+  displayName: '',
+  ...ANYSET_DEFAULTS
 }
 
 export const ITEM_DEFAULTS: ItemProps = {
@@ -358,6 +367,7 @@ export const BIOME_DEFAULTS: BiomeProps = {
 export const KIND_DEFAULTS: Record<string, Record<string, unknown>> = {
   block: BLOCK_DEFAULTS as unknown as Record<string, unknown>,
   item: ITEM_DEFAULTS as unknown as Record<string, unknown>,
+  gearset: GEARSET_DEFAULTS as unknown as Record<string, unknown>,
   liquid: LIQUID_DEFAULTS as unknown as Record<string, unknown>,
   ore: ORE_DEFAULTS as unknown as Record<string, unknown>,
   plant: PLANT_DEFAULTS as unknown as Record<string, unknown>,

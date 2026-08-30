@@ -84,9 +84,7 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
         const itemProps: Partial<Omit<ItemProps, 'set'>> & Record<string, unknown> = {
           displayName: titleCase(base),
           stackSize: 64,
-          category: 'material',
-          generateSet: p.generateSet ?? false,
-          set: p.set ?? {}
+          category: 'material'
         }
         out.push({
           id: crypto.randomUUID(),
@@ -96,6 +94,17 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
           createdAt: el.createdAt,
           updatedAt: el.updatedAt
         })
+
+        if (p.generateSet) {
+          out.push({
+            id: crypto.randomUUID(),
+            kind: 'gearset',
+            name: base,
+            properties: { displayName: titleCase(base), ...(p.set ?? {}) },
+            createdAt: el.createdAt,
+            updatedAt: el.updatedAt
+          })
+        }
       }
 
       const oreProps: Partial<OreProps> & Record<string, unknown> = {
@@ -108,6 +117,27 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
         biomes: p.biomes ?? []
       }
       out.push({ ...el, name: freeName(`${el.name}_veins`), properties: oreProps })
+      continue
+    }
+
+    if (el.kind === 'item' && (el.properties as Partial<ItemProps>).generateSet) {
+      const p = el.properties as Partial<ItemProps>
+      const set: Partial<AnySetProps> = p.set ?? {}
+      const { generateSet: _gone, set: _alsoGone, ...keep } = p
+      out.push({ ...el, detached: undefined, properties: keep as Record<string, unknown> })
+      out.push({
+        id: crypto.randomUUID(),
+        kind: 'gearset',
+
+        name: el.name,
+        properties: {
+          displayName: (p.displayName as string) || titleCase(el.name),
+          ...set
+        },
+        detached: el.detached,
+        createdAt: el.createdAt,
+        updatedAt: el.updatedAt
+      })
       continue
     }
 

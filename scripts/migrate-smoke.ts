@@ -118,7 +118,10 @@ const plant = p.elements.find((e) => e.kind === 'plant') ?? fail('no plant')
 
 if (block.properties['drops'] !== 'item' || block.properties['dropItem'] !== 'ruby')
   fail('block does not drop the item')
-if (item.properties['generateSet'] !== true) fail('kit did not move to the item')
+
+const gear = p.elements.find((e) => e.kind === 'gearset' && e.name === 'ruby') ?? fail('no gear set')
+if (item.properties['generateSet'] !== undefined) fail('the item kept the old kit switch')
+if (gear.properties['durability'] !== 100) fail('the set did not take the old kit numbers')
 if (veins.properties['blockRef'] !== 'ruby_ore') fail('veins do not point at the block')
 if (JSON.stringify(plant.properties['growsOn']) !== JSON.stringify(['block:MOSS_STONE']))
   fail(`plant ground wrong: ${JSON.stringify(plant.properties['growsOn'])}`)

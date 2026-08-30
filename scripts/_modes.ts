@@ -48,15 +48,19 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
 
     'six-face texture': { displayName: 'Test Block', textureMode: 'perFace' }
   },
+
+  gearset: {
+    'tools and armor': { displayName: 'Test Set', tools: true, armor: true },
+    'tools only': { displayName: 'Test Set', tools: true, armor: false },
+    'armor only': { displayName: 'Test Set', tools: false, armor: true }
+  },
   item: {
-    'plain material': { displayName: 'Test Item', generateSet: false },
-    'generates a kit': { displayName: 'Test Item', generateSet: true },
-    'promoted kit piece': { displayName: 'Test Item', generateSet: false, piece: 'pickaxe' },
-    'promoted armor piece': { displayName: 'Test Item', generateSet: false, piece: 'helmet' },
+    'plain material': { displayName: 'Test Item' },
+    'promoted kit piece': { displayName: 'Test Item', piece: 'pickaxe' },
+    'promoted armor piece': { displayName: 'Test Item', piece: 'helmet' },
 
     'right-click rules': {
       displayName: 'Test Chisel',
-      generateSet: false,
       blockUseCost: 1,
       blockUses: [
         { target: 'block:STONE', becomes: 'block:STONE_CARVED', drops: '', dropCount: 1 },

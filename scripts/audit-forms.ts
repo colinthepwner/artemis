@@ -303,9 +303,9 @@ function promotedPieces(): void {
     return
   }
   seed(kit.build())
-  const owner = live().elements.find((e) => e.properties['generateSet'] === true)
+  const owner = live().elements.find((e) => e.kind === 'gearset')
   if (!owner) {
-    check('the kit fixture has an element that generates a set', false)
+    check('the kit fixture has a gear set in it', false)
     return
   }
 
@@ -314,7 +314,7 @@ function promotedPieces(): void {
     ['helmet', 'Armor Stats', 'Tool Stats']
   ] as const) {
     seed(kit.build())
-    const own = live().elements.find((e) => e.properties['generateSet'] === true)
+    const own = live().elements.find((e) => e.kind === 'gearset')
     if (!own) continue
     const id = useProjectStore.getState().promoteGenerated(own.id, `${own.name}_${piece}`)
     check(`${piece}: the sidebar can promote it`, typeof id === 'string', String(id))
@@ -522,27 +522,15 @@ function reviewSlideNoticesTheFix(): void {
 }
 
 function theKitSwitchDeliversNinePieces(): void {
-  console.log('\n[kit] the Tools & Armor switch')
-  seed(buildProject('item', MODES.item['plain material']))
-  const item = live().elements.find((e) => e.kind === 'item' && e.name.startsWith('subject_'))
-  if (!item) {
-    check('the item fixture builds', false)
+  console.log('\n[kit] a gear set and its nine pieces')
+  seed(buildProject('gearset', MODES.gearset['tools and armor']))
+  const set = live().elements.find((e) => e.kind === 'gearset')
+  if (!set) {
+    check('the gear set fixture builds', false)
     return
   }
-  const form = openForm('item', item.id)
-  const titles = form.stepTitles()
-  check('a plain material offers the kit step', titles.includes('Tools & Armor'), titles.join(', '))
-  if (!titles.includes('Tools & Armor')) return
-  form.goTo('Tools & Armor')
 
-  const before = elementRegistryEntries(live().elements.find((e) => e.id === item.id)!).length
-  const sw = form.find((n) => n.props.role === 'switch')
-  check('the kit step has a switch', Boolean(sw))
-  if (!sw) return
-  form.click(sw)
-
-  const after = live().elements.find((e) => e.id === item.id)!
-  const entries = elementRegistryEntries(after).map((e) => e.registryName)
+  const entries = elementRegistryEntries(set).map((e) => e.registryName)
   const expected = [
     'sword',
     'pickaxe',
@@ -553,31 +541,57 @@ function theKitSwitchDeliversNinePieces(): void {
     'chestplate',
     'leggings',
     'boots'
-  ].map((piece) => `${after.name}_${piece}`)
+  ].map((piece) => `${set.name}_${piece}`)
   const missing = expected.filter((n) => !entries.includes(n))
   check(
-    'switching the kit on registers all nine pieces the hint names',
+    'a gear set registers all nine pieces it is named for',
     missing.length === 0,
-    `before ${before}, after ${entries.length}; missing ${missing.join(', ')}`
+    `got ${entries.length}; missing ${missing.join(', ')}`
   )
+  check('the pieces are named once each', new Set(entries).size === entries.length, entries.join(', '))
+
   check(
-    'the pieces are named once each',
-    new Set(entries).size === entries.length,
+    'and nothing under its own bare name, so it can sit beside its material',
+    !entries.includes(set.name),
     entries.join(', ')
   )
 
-  const sw2 = form.find((n) => n.props.role === 'switch')
-  if (sw2) {
-    form.click(sw2)
-    const off = elementRegistryEntries(live().elements.find((e) => e.id === item.id)!).map(
+  const form = openForm('gearset', set.id)
+  const titles = form.stepTitles()
+  check(
+    'the set has slides for its pieces, both sets of numbers and its art',
+    ['Pieces', 'Tool Stats', 'Armor Stats', 'Textures'].every((t) => titles.includes(t)),
+    titles.join(', ')
+  )
+
+  form.goTo('Pieces')
+  const switches = form.findAll((n) => n.props.role === 'switch')
+  check('the pieces slide has a switch for each half', switches.length >= 2, String(switches.length))
+  if (switches.length >= 2) {
+    form.click(switches[1])
+    const off = elementRegistryEntries(live().elements.find((e) => e.id === set.id)!).map(
       (e) => e.registryName
     )
+    const armor = ['helmet', 'chestplate', 'leggings', 'boots'].map((k) => `${set.name}_${k}`)
+    const tools = ['sword', 'pickaxe', 'axe', 'shovel', 'hoe'].map((k) => `${set.name}_${k}`)
     check(
-      'switching it back off takes the nine pieces away',
-      expected.every((n) => !off.includes(n)),
+      'switching the armor off takes those four away and leaves the tools',
+      armor.every((n) => !off.includes(n)) && tools.every((n) => off.includes(n)),
       off.join(', ')
     )
   }
+
+  const formSrc = readFileSync(
+    join(process.cwd(), 'src/renderer/src/sections/forms/GearSetForm.tsx'),
+    'utf-8'
+  )
+  const pieceSwitches = formSrc.match(/<Switch[\s\S]{0,300}?\/>/g) ?? []
+  check(
+    'and no switch paints anything, so somebody drawing their own starts empty',
+    pieceSwitches.length >= 2 &&
+      pieceSwitches.every((sw) => !/generateKitTextures|generate\(/.test(sw)),
+    `${pieceSwitches.length} switches`
+  )
   form.unmount()
 }
 
@@ -696,8 +710,8 @@ const treeRows = (root: ProbeRoot): string[] =>
 
 function theTreeNamesEverythingOnce(): void {
   console.log('\n[tree] the sidebar')
-  seed(buildProject('item', MODES.item['generates a kit']))
-  const owner = live().elements.find((e) => e.properties['generateSet'] === true)
+  seed(buildProject('gearset', MODES.gearset['tools and armor']))
+  const owner = live().elements.find((e) => e.kind === 'gearset')
   if (!owner) {
     check('the kit fixture has an owner', false)
     return
@@ -759,8 +773,8 @@ function theTreeNamesEverythingOnce(): void {
 
 function paintingAGhostRowPromotesIt(): void {
   console.log('\n[tree] painting a generated piece')
-  seed(buildProject('item', MODES.item['generates a kit']))
-  const owner = live().elements.find((e) => e.properties['generateSet'] === true)
+  seed(buildProject('gearset', MODES.gearset['tools and armor']))
+  const owner = live().elements.find((e) => e.kind === 'gearset')
   if (!owner) return
   useAppStore.setState({ textureEditor: null })
 

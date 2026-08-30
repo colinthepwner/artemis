@@ -131,7 +131,8 @@ console.log('readiness: colliding registry names')
 {
   const { project, add } = mk('collidemod')
 
-  add('item', 'ruby', { displayName: 'Ruby', generateSet: true })
+  add('item', 'ruby', { displayName: 'Ruby' })
+  add('gearset', 'ruby', { displayName: 'Ruby' })
   add('item', 'ruby_pickaxe', { displayName: 'Hand Made Pickaxe' })
 
   const before = unfinishedIn(project)

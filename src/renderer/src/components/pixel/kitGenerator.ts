@@ -87,8 +87,6 @@ export async function generateKitTextures(
   const accent = options.accent ?? (await suggestKitAccent(elementId)) ?? DEFAULT_KIT_ACCENT
 
   const jobs: { name: string; preset: string; protect: boolean }[] = []
-
-  jobs.push({ name: family.base, preset: 'gem', protect: true })
   for (const tool of family.tools) {
     jobs.push({ name: tool, preset: tool.slice(family.base.length + 1), protect: false })
   }

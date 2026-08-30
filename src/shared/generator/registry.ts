@@ -28,13 +28,16 @@ export function elementRegistryEntries(el: ArtemisElement): RegistryEntry[] {
         elementId: el.id
       })
       break
-    case 'item': {
+    case 'item':
       out.push({
         registryName: el.name,
         displayName: displayNameOf(el, el.name),
         kind: 'item',
         elementId: el.id
       })
+      break
+    case 'gearset': {
+
       const family = kitFamily(el)!
       for (const name of [...family.tools, ...family.armor]) {
         out.push({ registryName: name, displayName: titleCase(name), kind: 'item', elementId: el.id })

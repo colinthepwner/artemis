@@ -3,6 +3,7 @@ import type { ArtemisElement, ElementKind } from '@shared/project'
 import { BlockForm } from './BlockForm'
 import { DimensionForm } from './DimensionForm'
 import { ItemForm } from './ItemForm'
+import { GearSetForm } from './GearSetForm'
 import { OreForm } from './OreForm'
 import { LiquidForm } from './LiquidForm'
 import { PlantForm } from './PlantForm'
@@ -22,6 +23,7 @@ export interface ElementFormProps {
 export const KIND_LABELS: Record<ElementKind, { label: string; labelPlural: string }> = {
   block: { label: 'Block', labelPlural: 'Blocks' },
   item: { label: 'Item', labelPlural: 'Items' },
+  gearset: { label: 'Gear Set', labelPlural: 'Gear Sets' },
   liquid: { label: 'Liquid', labelPlural: 'Liquids' },
   ore: { label: 'Ore Veins', labelPlural: 'Ore Veins' },
   plant: { label: 'Plant', labelPlural: 'Plants' },
@@ -36,6 +38,7 @@ export const KIND_LABELS: Record<ElementKind, { label: string; labelPlural: stri
 export const FORM_REGISTRY: Record<ElementKind, ComponentType<ElementFormProps>> = {
   block: BlockForm,
   item: ItemForm,
+  gearset: GearSetForm,
   ore: OreForm,
   liquid: LiquidForm,
   plant: PlantForm,
