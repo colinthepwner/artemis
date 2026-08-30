@@ -43,7 +43,8 @@ interface BlockFieldProps {
 
 const LAYOUT_OPTIONS = [
   { value: 'all', label: 'Same on all sides' },
-  { value: 'topBottomSides', label: 'Top / Bottom / Sides' }
+  { value: 'topBottomSides', label: 'Top / Bottom / Sides' },
+  { value: 'perFace', label: 'Every face its own' }
 ]
 
 export function TextureLayoutSelect({ p, patch }: BlockFieldProps): JSX.Element {

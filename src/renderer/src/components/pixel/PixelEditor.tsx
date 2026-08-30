@@ -8,6 +8,7 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
+  ArrowLeftRight,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -80,6 +81,15 @@ const CELL = 22
 const PAD = 28
 const EMPTY: Grid = Array(256).fill('')
 const MAX_LAYERS = 6
+
+const TRANSPARENT = ''
+
+const CHECKER = {
+  backgroundImage: 'repeating-conic-gradient(#31363e 0% 25%, #262b32 0% 50%)',
+  backgroundSize: '8px 8px'
+} as const
+
+const FX_IDLE_MS = 1500
 
 const SHAPE_TOOLS: Tool[] = ['line', 'rect']
 
@@ -267,7 +277,13 @@ function PixelEditor(): JSX.Element {
   const [layers, setLayers] = useState<Layer[]>(() => [makeLayer('Background')])
   const [activeId, setActiveId] = useState(() => layers[0].id)
   const [name, setName] = useState(existing?.name ?? suggestedName ?? '')
-  const [color, setColor] = useState('#7d7d7d')
+
+  const [primary, setPrimary] = useState('#7d7d7d')
+  const [secondary, setSecondary] = useState<string>(TRANSPARENT)
+  const swapColors = useCallback((): void => {
+    setPrimary(secondary)
+    setSecondary(primary)
+  }, [primary, secondary])
   const [accent, setAccent] = useState('#d85555')
   const [tool, setTool] = useState<Tool>('pencil')
   const [mirror, setMirror] = useState(false)
@@ -279,24 +295,22 @@ function PixelEditor(): JSX.Element {
   const [noise, setNoise] = useState(0)
   const NOISE_MAP = useMemo(() => Array.from({ length: 256 }, () => Math.random() - 0.5), [])
 
-  const [isHoveringNoise, setIsHoveringNoise] = useState(false)
-
-  const [isHoveringLight, setIsHoveringLight] = useState(false)
-
-  useEffect(() => {
-    if (noise === 0 || isHoveringNoise) return
-    const t = setTimeout(() => setNoise(0), 1000)
-    return () => clearTimeout(t)
-  }, [noise, isHoveringNoise])
-
-  useEffect(() => {
-    if (!fx.light.enabled || isHoveringLight) return
-    const t = setTimeout(
-      () => setFx((f) => ({ ...f, light: { ...f.light, enabled: false, strength: 0 } })),
-      1000
+  const [fxHeldBy, setFxHeldBy] = useState<string[]>([])
+  const holdFx = useCallback((who: string, held: boolean): void => {
+    setFxHeldBy((list) =>
+      held ? (list.includes(who) ? list : [...list, who]) : list.filter((w) => w !== who)
     )
+  }, [])
+
+  useEffect(() => {
+    if (fxHeldBy.length) return
+    if (noise === 0 && !fx.light.enabled) return
+    const t = setTimeout(() => {
+      setNoise(0)
+      setFx((f) => ({ ...f, light: { ...f.light, enabled: false, strength: 0 } }))
+    }, FX_IDLE_MS)
     return () => clearTimeout(t)
-  }, [fx.light.enabled, fx.light.strength, isHoveringLight])
+  }, [fxHeldBy, noise, fx.light.enabled, fx.light.strength])
   const [hover, setHover] = useState<number | null>(null)
   const [shapePreview, setShapePreview] = useState<number[] | null>(null)
   const [presetOpen, setPresetOpen] = useState(false)
@@ -304,7 +318,8 @@ function PixelEditor(): JSX.Element {
   const undoStack = useRef<Layer[][]>([])
   const redoStack = useRef<Layer[][]>([])
   const strokeActive = useRef(false)
-  const strokeErase = useRef(false)
+
+  const strokeInk = useRef<string>(TRANSPARENT)
   const strokeTouched = useRef<Set<number>>(new Set())
   const lastCell = useRef<number | null>(null)
   const shapeAnchor = useRef<number | null>(null)
@@ -444,12 +459,13 @@ function PixelEditor(): JSX.Element {
       if (e.key === 'ArrowRight') return (e.preventDefault(), transform((g) => shiftGrid(g, 1, 0)))
       if (e.key === 'Delete' || e.key === 'Backspace') return clearActive()
       const k = e.key.toLowerCase()
-      if (k === 'x') return setMirror((m) => !m)
+
+      if (k === 'x') return e.shiftKey ? swapColors() : setMirror((m) => !m)
       if (TOOL_KEYS[k]) return setTool(TOOL_KEYS[k])
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, close, transform, clearActive, presetOpen, stencilOpen])
+  }, [undo, redo, close, transform, clearActive, swapColors, presetOpen, stencilOpen])
 
   const withMirror = useCallback(
     (cells: number[]): number[] => {
@@ -461,7 +477,10 @@ function PixelEditor(): JSX.Element {
     [mirror]
   )
 
-  const paintCells = (cells: number[], erase: boolean): void => {
+  const inkFor = (rightButton: boolean): string =>
+    tool === 'eraser' ? TRANSPARENT : rightButton ? secondary : primary
+
+  const paintCells = (cells: number[]): void => {
     const expanded = withMirror(cells)
 
     if (ADJUST_TOOLS.includes(tool)) {
@@ -494,7 +513,7 @@ function PixelEditor(): JSX.Element {
       return
     }
 
-    const value = erase || tool === 'eraser' ? '' : color
+    const value = strokeInk.current
     setActiveGrid((g) => {
       let next: Grid | null = null
       for (const i of expanded) {
@@ -506,17 +525,17 @@ function PixelEditor(): JSX.Element {
     })
   }
 
-  const floodFill = (idx: number): void => {
+  const floodFill = (idx: number, value: string): void => {
     pushUndo()
     setActiveGrid((g) => {
       const target = g[idx]
-      if (target === color) return g
+      if (target === value) return g
       const next = [...g]
       const queue = [idx]
       while (queue.length) {
         const i = queue.pop()!
         if (next[i] !== target) continue
-        next[i] = color
+        next[i] = value
         const x = i % 16
         if (x > 0) queue.push(i - 1)
         if (x < 15) queue.push(i + 1)
@@ -539,22 +558,23 @@ function PixelEditor(): JSX.Element {
     const idx = cellFromEvent(e)
     if (idx === null) return
     e.currentTarget.setPointerCapture(e.pointerId)
+    const right = e.buttons === 2
 
     if (e.altKey || tool === 'eyedropper') {
-      const c = flat.grid[idx]
-      if (c) {
-        setColor(c)
-        if (tool === 'eyedropper') setTool('pencil')
-      }
+      const picked = flat.grid[idx] ?? TRANSPARENT
+      if (right) setSecondary(picked)
+      else setPrimary(picked)
+      if (tool === 'eyedropper') setTool('pencil')
       return
     }
 
     if (!active.visible) patchLayer(active.id, { visible: true })
     if (tool === 'fill') {
-      if (e.buttons !== 2) floodFill(idx)
+
+      floodFill(idx, inkFor(right))
       return
     }
-    strokeErase.current = e.buttons === 2
+    strokeInk.current = inkFor(right)
     if (SHAPE_TOOLS.includes(tool)) {
       shapeAnchor.current = idx
       shapeCellsRef.current = withMirror([idx])
@@ -565,7 +585,7 @@ function PixelEditor(): JSX.Element {
     strokeTouched.current = new Set()
     lastCell.current = idx
     pushUndo()
-    paintCells([idx], strokeErase.current)
+    paintCells([idx])
   }
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -585,7 +605,7 @@ function PixelEditor(): JSX.Element {
 
     const cells = lastCell.current !== null ? lineCells(lastCell.current, idx) : [idx]
     lastCell.current = idx
-    paintCells(cells, strokeErase.current)
+    paintCells(cells)
   }
 
   const onPointerUp = (): void => {
@@ -595,7 +615,7 @@ function PixelEditor(): JSX.Element {
       setShapePreview(null)
       if (cells.length) {
         pushUndo()
-        const value = strokeErase.current ? '' : color
+        const value = strokeInk.current
         setActiveGrid((g) => {
           const next = [...g]
           for (const i of cells) next[i] = value
@@ -740,7 +760,8 @@ function PixelEditor(): JSX.Element {
     ctx.putImageData(img, 0, 0)
 
     if (shapePreview) {
-      ctx.fillStyle = strokeErase.current ? 'rgba(255,255,255,0.55)' : color
+
+      ctx.fillStyle = strokeInk.current || 'rgba(255,255,255,0.55)'
       for (const i of shapePreview) ctx.fillRect(i % 16, Math.floor(i / 16), 1, 1)
     }
 
@@ -756,7 +777,7 @@ function PixelEditor(): JSX.Element {
       else pctx.drawImage(canvasRef.current, 0, 0, el.width, el.height)
     }
 
-  }, [displayed, composite, shapePreview, color, previewAsCube])
+  }, [displayed, composite, shapePreview, previewAsCube])
 
   const usedColors = useMemo(() => {
     const freq = new Map<string, number>()
@@ -777,7 +798,7 @@ function PixelEditor(): JSX.Element {
   const onLightDown = (e: React.PointerEvent): void => {
     e.stopPropagation()
     draggingLight.current = true
-    setIsHoveringLight(true)
+    holdFx('light-drag', true)
     const move = (ev: PointerEvent): void => {
       if (!draggingLight.current) return
       const angle = angleFromEvent(ev)
@@ -786,7 +807,7 @@ function PixelEditor(): JSX.Element {
     const up = (): void => {
       draggingLight.current = false
 
-      setIsHoveringLight(false)
+      holdFx('light-drag', false)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }
@@ -999,32 +1020,48 @@ function PixelEditor(): JSX.Element {
           <div className="flex w-[260px] flex-col gap-3">
             {}
             <Panel>
-              <div className="mb-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <label
-                    className="relative h-8 w-10 shrink-0 cursor-default overflow-hidden rounded-md shadow-panel"
-                    style={{ background: color }}
-                    title="Current color, click for the full picker"
-                  >
-                    <input
-                      type="color"
-                      value={color}
-                      className="absolute inset-0 h-full w-full opacity-0"
-                      onChange={(e) => setColor(e.target.value)}
+              <div className="mb-2.5 flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1.5">
+                  {
+
+}
+                  <div className="relative h-[34px] w-[42px] shrink-0">
+                    <ColorSlot
+                      value={secondary}
+                      onChange={setSecondary}
+                      title="Second color, right click paints with this one"
+                      className="absolute bottom-0 right-0 h-[22px] w-[26px]"
                     />
-                  </label>
+                    <ColorSlot
+                      value={primary}
+                      onChange={setPrimary}
+                      title="Main color, left click paints with this one"
+                      className="absolute left-0 top-0 h-[22px] w-[26px] ring-1 ring-ink-950/70"
+                    />
+                  </div>
+                  <button
+                    onClick={swapColors}
+                    title="Swap the two colors (Shift+X)"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+                  >
+                    <ArrowLeftRight size={13} />
+                  </button>
+                  {
+
+}
                   <input
-                    className="input-base w-[84px] py-1 text-center font-mono text-2xs"
-                    value={color}
+                    className="input-base w-[72px] py-1 text-center font-mono text-2xs"
+                    value={primary}
+                    placeholder="none"
                     onChange={(e) => {
                       const v = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
-                      if (/^#[0-9a-fA-F]{6}$/.test(v)) setColor(v.toLowerCase())
+                      if (/^#[0-9a-fA-F]{6}$/.test(v)) setPrimary(v.toLowerCase())
                     }}
                     onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <button
-                  title="Pick color (I), or Alt-click"
+                  title="Pick color (I), or Alt-click. Right click samples into the second slot"
                   onClick={() => setTool('eyedropper')}
                   className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
@@ -1037,15 +1074,27 @@ function PixelEditor(): JSX.Element {
                 </button>
               </div>
               <div className="grid grid-cols-8 gap-1.5">
+                {
+
+}
+                <Swatch
+                  color={TRANSPARENT}
+                  primary={primary}
+                  secondary={secondary}
+                  onPick={setPrimary}
+                  onPickSecond={setSecondary}
+                  className="h-6 rounded-[4px]"
+                  title="Transparent. Right click to keep it on the second button"
+                />
                 {PIXEL_PALETTE.map((c) => (
-                  <button
+                  <Swatch
                     key={c}
-                    onClick={() => setColor(c)}
-                    className={cn(
-                      'relative h-6 rounded-[4px] transition-transform hover:z-10 hover:scale-110',
-                      color === c && 'z-10 ring-1 ring-gold-400'
-                    )}
-                    style={{ background: c }}
+                    color={c}
+                    primary={primary}
+                    secondary={secondary}
+                    onPick={setPrimary}
+                    onPickSecond={setSecondary}
+                    className="h-6 rounded-[4px]"
                   />
                 ))}
               </div>
@@ -1056,8 +1105,8 @@ function PixelEditor(): JSX.Element {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex items-center gap-1">
                   <ToolButton icon={Pencil} active={tool === 'pencil'} onClick={() => setTool('pencil')} label="Pencil (B)" />
-                  <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E), or right-drag" />
-                  <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F)" />
+                  <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E). Right-drag paints the second color, transparent by default" />
+                  <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F). Right click fills with the second color" />
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -1090,13 +1139,11 @@ function PixelEditor(): JSX.Element {
               </div>
             </Panel>
 
-            {}
-            <Panel>
-              <div
-                className="flex items-center gap-3"
-                onPointerEnter={() => setIsHoveringNoise(true)}
-                onPointerLeave={() => setIsHoveringNoise(false)}
-              >
+            {
+
+}
+            <Panel onHold={(h) => holdFx('fx-panel', h)}>
+              <div className="flex items-center gap-3">
                 <span className="flex w-16 shrink-0 items-center gap-1.5 text-2xs uppercase tracking-wider text-mist-500">
                   <Sparkles size={11} /> Noise
                 </span>
@@ -1104,16 +1151,16 @@ function PixelEditor(): JSX.Element {
 
 }
                 <div className="min-w-0 flex-1">
-                  <SliderRow value={noise} onChange={setNoise} />
+                  <SliderRow
+                    value={noise}
+                    onChange={setNoise}
+                    onHold={(h) => holdFx('noise-slider', h)}
+                  />
                 </div>
                 <BakeButton disabled={noise === 0} onClick={applyNoise} />
               </div>
 
-              <div
-                className="mt-2.5 flex items-center gap-3 border-t border-white/[0.04] pt-2.5"
-                onPointerEnter={() => setIsHoveringLight(true)}
-                onPointerLeave={() => setIsHoveringLight(false)}
-              >
+              <div className="mt-2.5 flex items-center gap-3 border-t border-white/[0.04] pt-2.5">
                 <button
                   onClick={() => setFx((f) => ({ ...f, light: { ...f.light, enabled: !f.light.enabled } }))}
                   title="Directional lighting. Drag the glowing ball around the canvas."
@@ -1128,6 +1175,7 @@ function PixelEditor(): JSX.Element {
                   <SliderRow
                     value={fx.light.strength}
                     onChange={(v) => setFx((f) => ({ ...f, light: { ...f.light, strength: v, enabled: true } }))}
+                    onHold={(h) => holdFx('light-slider', h)}
                   />
                 </div>
                 <BakeButton disabled={!fx.light.enabled} onClick={bakeLight} />
@@ -1163,7 +1211,7 @@ function PixelEditor(): JSX.Element {
                   <LightBall
                     angle={fx.light.angle}
                     onPointerDown={onLightDown}
-                    onHover={setIsHoveringLight}
+                    onHover={(over) => holdFx('light-ball', over)}
                   />
                 </>
               )}
@@ -1236,15 +1284,14 @@ function PixelEditor(): JSX.Element {
                 />
               )}
               {usedColors.slice(0, 10).map((c) => (
-                <button
+                <Swatch
                   key={c}
-                  onClick={() => setColor(c)}
-                  title={c}
-                  className={cn(
-                    'relative h-5 w-5 rounded-[3px] transition-transform hover:z-10 hover:scale-125',
-                    color === c && 'z-10 ring-1 ring-gold-400'
-                  )}
-                  style={{ background: c }}
+                  color={c}
+                  primary={primary}
+                  secondary={secondary}
+                  onPick={setPrimary}
+                  onPickSecond={setSecondary}
+                  className="h-5 w-5 rounded-[3px]"
                 />
               ))}
             </div>
@@ -1608,8 +1655,78 @@ function ContextMenuItem(props: { label: string, icon: LucideIcon, disabled?: bo
   )
 }
 
-function Panel({ children }: { children: React.ReactNode }): JSX.Element {
-  return <div className="rounded-lg bg-ink-900/50 p-3 shadow-panel">{children}</div>
+function Panel(props: {
+  children: React.ReactNode
+
+  onHold?: (held: boolean) => void
+}): JSX.Element {
+  return (
+    <div
+      className="rounded-lg bg-ink-900/50 p-3 shadow-panel"
+      onPointerEnter={props.onHold && (() => props.onHold?.(true))}
+      onPointerLeave={props.onHold && (() => props.onHold?.(false))}
+    >
+      {props.children}
+    </div>
+  )
+}
+
+function ColorSlot(props: {
+  value: string
+  onChange: (v: string) => void
+  title: string
+  className?: string
+}): JSX.Element {
+  const empty = props.value === TRANSPARENT
+  return (
+    <label
+      className={cn(
+        'cursor-default overflow-hidden rounded-md shadow-panel',
+        props.className
+      )}
+      style={empty ? CHECKER : { background: props.value }}
+      title={empty ? `${props.title} (transparent)` : `${props.title} (${props.value})`}
+    >
+      <input
+        type="color"
+        value={empty ? '#000000' : props.value}
+        className="h-full w-full opacity-0"
+        onChange={(e) => props.onChange(e.target.value)}
+      />
+    </label>
+  )
+}
+
+function Swatch(props: {
+  color: string
+  primary: string
+  secondary: string
+  onPick: (c: string) => void
+  onPickSecond: (c: string) => void
+  className?: string
+  title?: string
+}): JSX.Element {
+  const empty = props.color === TRANSPARENT
+  const isPrimary = props.primary === props.color
+  const isSecondary = props.secondary === props.color
+  return (
+    <button
+      onClick={() => props.onPick(props.color)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        props.onPickSecond(props.color)
+      }}
+      title={props.title ?? `${props.color}. Right click for the second slot`}
+      className={cn(
+        'relative w-full transition-transform hover:z-10 hover:scale-110',
+
+        isPrimary && 'z-10 ring-1 ring-gold-400',
+        !isPrimary && isSecondary && 'z-10 ring-1 ring-dashed ring-mist-300',
+        props.className
+      )}
+      style={empty ? CHECKER : { background: props.color }}
+    />
+  )
 }
 
 function Divider(): JSX.Element {
@@ -1665,7 +1782,25 @@ function LayerSlider(props: {
   )
 }
 
-function SliderRow(props: { value: number; onChange: (v: number) => void }): JSX.Element {
+function SliderRow(props: {
+  value: number
+  onChange: (v: number) => void
+
+  onHold?: (held: boolean) => void
+}): JSX.Element {
+  const { onHold } = props
+
+  const grab = (): void => {
+    if (!onHold) return
+    onHold(true)
+    const release = (): void => {
+      onHold(false)
+      window.removeEventListener('pointerup', release)
+      window.removeEventListener('pointercancel', release)
+    }
+    window.addEventListener('pointerup', release)
+    window.addEventListener('pointercancel', release)
+  }
   return (
     <div className="flex items-center gap-2">
       <input
@@ -1674,6 +1809,7 @@ function SliderRow(props: { value: number; onChange: (v: number) => void }): JSX
         max={100}
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
+        onPointerDown={grab}
         className="fx-slider min-w-0 flex-1"
       />
       <span className="w-7 shrink-0 text-right font-mono text-2xs text-mist-500">{props.value}</span>

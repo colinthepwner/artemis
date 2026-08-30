@@ -44,7 +44,9 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
     },
     'drops itself': { displayName: 'Test Block', drops: 'self' },
     'drops nothing': { displayName: 'Test Block', drops: 'nothing' },
-    'three-face texture': { displayName: 'Test Block', textureMode: 'topBottomSides' }
+    'three-face texture': { displayName: 'Test Block', textureMode: 'topBottomSides' },
+
+    'six-face texture': { displayName: 'Test Block', textureMode: 'perFace' }
   },
   item: {
     'plain material': { displayName: 'Test Item', generateSet: false },

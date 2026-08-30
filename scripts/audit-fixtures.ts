@@ -689,6 +689,8 @@ export const SCENARIOS: Scenario[] = [
       add('item', 'ruby', { displayName: 'Ruby', generateSet: true })
       add('item', 'ash', { displayName: 'Ash', stackSize: 16, category: 'misc' })
       add('block', 'marble', { displayName: 'Marble' })
+
+      add('block', 'kiln', { displayName: 'Kiln', textureMode: 'perFace' })
       add('block', 'ruby_ore', { displayName: 'Ruby Ore', drops: 'item', dropItem: 'ruby' })
       add('liquid', 'tar', { displayName: 'Tar', materialKind: 'lava' })
       add('ore', 'ruby_veins', { blockRef: 'ruby_ore', biomes: ['ashen'] })

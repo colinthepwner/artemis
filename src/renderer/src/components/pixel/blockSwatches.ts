@@ -129,6 +129,8 @@ export const SWATCHES: Record<string, SwatchSpec> = {
 
   topBottomSides: { field: 'LOG_OAK', withTop: true, preset: 'log_side', tint: '#6b5637' },
 
+  perFace: { field: 'FURNACE_STONE_IDLE', withTop: true, preset: 'cobble', tint: '#6f6f6f' },
+
   flower: {
     field: 'FLOWER_RED',
     draw: 'flower',

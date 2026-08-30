@@ -8,7 +8,7 @@ export interface BlockProps {
   resistance: number
   luminance: number
   tags: string[]
-  textureMode: 'all' | 'topBottomSides'
+  textureMode: 'all' | 'topBottomSides' | 'perFace'
 
   drops: 'default' | 'self' | 'nothing' | 'item'
 

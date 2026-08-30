@@ -23,7 +23,7 @@ export interface GeneratedFile {
   language: 'java' | 'json' | 'gradle' | 'properties' | 'text'
 }
 
-export type BlockModelMode = 'all' | 'topBottomSides' | 'cross' | 'fluid'
+export type BlockModelMode = 'all' | 'topBottomSides' | 'perFace' | 'cross' | 'fluid'
 
 export interface EmitContribution {
   blockDecls?: string[]
@@ -114,6 +114,7 @@ const EMITTERS: Record<string, Emitter> = {
 const MODEL_TEMPLATE_FOR: Record<BlockModelMode, string> = {
   all: 'blockAll',
   topBottomSides: 'blockTopBottomSides',
+  perFace: 'blockPerFace',
   cross: 'blockCross',
   fluid: 'blockFluid'
 }

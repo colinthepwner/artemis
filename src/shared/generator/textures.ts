@@ -27,7 +27,15 @@ export function textureSlotsForElement(el: ArtemisElement): TextureSlot[] {
     case 'block':
     case 'liquid':
     case 'plant':
-      if (p['textureMode'] === 'topBottomSides') {
+      if (p['textureMode'] === 'perFace') {
+
+        block(`${el.name}_top`, 'Top')
+        block(`${el.name}_bottom`, 'Bottom')
+        block(`${el.name}_north`, 'North')
+        block(`${el.name}_east`, 'East')
+        block(`${el.name}_south`, 'South')
+        block(`${el.name}_west`, 'West')
+      } else if (p['textureMode'] === 'topBottomSides') {
         block(`${el.name}_top`, 'Top')
         block(`${el.name}_bottom`, 'Bottom')
         block(`${el.name}_side`, 'Side')
