@@ -112,21 +112,37 @@ export interface DropLogic {
   file: { relPath: string; writer: JavaWriter }
 }
 
-export function dropLogic(
+export function blockLogic(
   registryName: string,
   material: string,
-  dropStack: ((writer: JavaWriter) => string) | null,
+  wants: {
+
+    dropStack?: ((writer: JavaWriter) => string) | null
+    emitsRedstone?: boolean
+  },
   ctx: EmitContext
-): DropLogic {
+): DropLogic | null {
+  const hasDrop = wants.dropStack !== undefined
+  if (!hasDrop && !wants.emitsRedstone) return null
+
   const className = `BlockLogic${toPascalCase(registryName)}`
   const w = new JavaWriter(`${ctx.pkg}.block`, ctx.mapping.imports)
-  w.use('Block', 'BlockLogic', 'Material', 'ItemStack', 'World', 'EnumDropCause', 'TileEntity')
+  w.use('Block', 'BlockLogic', 'Material')
 
-  const body = dropStack
-    ? render(ctx.mapping.drops.bodyItem, { dropStack: dropStack(w) })
-    : ctx.mapping.drops.bodyNothing
+  const methods: string[] = []
+  if (hasDrop) {
+    w.use('ItemStack', 'World', 'EnumDropCause', 'TileEntity')
+    const body = wants.dropStack
+      ? render(ctx.mapping.drops.bodyItem, { dropStack: wants.dropStack(w) })
+      : ctx.mapping.drops.bodyNothing
+    methods.push(render(ctx.mapping.blockLogic.dropMethod, { body }))
+  }
+  if (wants.emitsRedstone) {
+    w.use('WorldSource', 'TilePosc', 'Side')
+    methods.push(ctx.mapping.blockLogic.signalMethods)
+  }
 
-  w.block(render(ctx.mapping.drops.logicClass, { className, body }))
+  w.block(render(ctx.mapping.blockLogic.classTemplate, { className, methods: methods.join('') }))
 
   return {
     logic: render(ctx.mapping.blockBuilder.logicCustom, { logicClass: className, material }),
@@ -147,17 +163,22 @@ export function emitBlock(el: ArtemisElement, ctx: EmitContext): EmitContributio
   const p = { ...BLOCK_DEFAULTS, ...(el.properties as Partial<BlockProps>) }
   const material = ctx.mapping.materials[p.material] ?? ctx.mapping.materials['stone']
 
-  const custom =
-    p.drops === 'nothing'
-      ? dropLogic(el.name, material, null, ctx)
-      : p.drops === 'item' && p.dropItem.trim()
-        ? dropLogic(
-            el.name,
-            material,
-            (w) => ctx.stackExprN(p.dropItem, dropCountJava(p.dropCountMin, p.dropCountMax), w),
-            ctx
-          )
-        : null
+  const custom = blockLogic(
+    el.name,
+    material,
+    {
+      ...(p.drops === 'nothing'
+        ? { dropStack: null }
+        : p.drops === 'item' && p.dropItem.trim()
+          ? {
+              dropStack: (w: JavaWriter) =>
+                ctx.stackExprN(p.dropItem, dropCountJava(p.dropCountMin, p.dropCountMax), w)
+            }
+          : {}),
+      emitsRedstone: p.emitsRedstone
+    },
+    ctx
+  )
 
   const decl = blockDecl(el.name, p, ctx, {
     logic: custom?.logic,

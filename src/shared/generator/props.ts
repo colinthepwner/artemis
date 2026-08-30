@@ -20,6 +20,8 @@ export interface BlockProps {
   harvestLevel: number
 
   creativeCategory: string
+
+  emitsRedstone: boolean
   notInCreativeMenu: boolean
 }
 
@@ -38,6 +40,7 @@ export const BLOCK_DEFAULTS: BlockProps = {
   dropCountMax: 1,
   harvestLevel: 0,
   creativeCategory: 'block',
+  emitsRedstone: false,
   notInCreativeMenu: false
 }
 

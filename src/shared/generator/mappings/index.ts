@@ -52,6 +52,8 @@ export interface BtaMapping {
     drops: string
     cost: string
   }
+
+  blockLogic: { classTemplate: string; dropMethod: string; signalMethods: string }
   drops: {
     logicClass: string
     bodyNothing: string

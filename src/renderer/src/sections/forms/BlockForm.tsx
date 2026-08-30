@@ -151,6 +151,15 @@ export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
       {
 
 }
+      <Switch
+        checked={p.emitsRedstone ?? false}
+        onChange={(v) => patch('emitsRedstone', v)}
+        label="Powers redstone"
+        hint="Like a block of redstone: it powers whatever is next to it, at full strength. BTA has no in-between, so there is no dial."
+      />
+      {
+
+}
       <Field label="Creative Shelf" hint="Which page of the creative menu it appears on.">
         <Select
           value={p.creativeCategory ?? 'block'}

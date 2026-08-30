@@ -652,8 +652,7 @@
     "entity": "dispatcher.assignRenderer({{entityClass}}.class, new {{rendererClass}}());"
   },
   "drops": {
-    "$comment": "BlockBuilder has no drop method in halplibe 6.1.4 and BlockLogic.getBreakResult is the only hook, so a block that drops anything other than itself needs its own BlockLogic. Default behavior, for reference: null on IMPROPER_TOOL, otherwise one of the block itself. Returning null means no drop at all.",
-    "logicClass": "public class {{className}} extends BlockLogic {\n\n\tpublic {{className}}(Block<?> block, Material material) {\n\t\tsuper(block, material);\n\t}\n\n\t@Override\n\tpublic ItemStack[] getBreakResult(World world, EnumDropCause cause, int meta, TileEntity tileEntity) {\n{{body}}\n\t}\n}",
+    "$comment": "BlockBuilder has no drop method in halplibe 6.1.4 and BlockLogic.getBreakResult is the only hook, so a block that drops anything other than itself needs its own BlockLogic. The class itself is in blockLogic above, because drops stopped being the only reason to want one. Default behavior, for reference: null on IMPROPER_TOOL, otherwise one of the block itself. Returning null means no drop at all.",
     "bodyNothing": "\t\treturn null;",
     "bodyItem": "\t\tswitch (cause) {\n\t\t\tcase SILK_TOUCH:\n\t\t\tcase PICK_BLOCK:\n\t\t\t\t// picked up whole, so hand back the block rather than what it yields\n\t\t\t\treturn new ItemStack[] { new ItemStack(this.block) };\n\t\t\tcase IMPROPER_TOOL:\n\t\t\t\treturn null;\n\t\t\tdefault:\n\t\t\t\treturn new ItemStack[] { {{dropStack}} };\n\t\t}",
     "$shearsComment": "The tall-grass rule, read off BlockLogicTallGrass in the 8.0.1 jar: shears harvest as SILK_TOUCH, so a shears-only plant answers SILK_TOUCH and PICK_BLOCK with the drop and everything else with nothing.",
@@ -770,5 +769,11 @@
   "food": {
     "$comment": "Something the player eats. ItemFood(String key, String namespaceId, int id, int healAmount, int ticksPerHeal, boolean isWolfsFavoriteMeat, int maxStackSize), with the four after the id read off the constructor's bytecode in the 8.0.1 client jar rather than guessed from their types: four ints and a boolean in a row is exactly the signature nobody can check by eye. healAmount is half-drumsticks, so vanilla bread is 5. NOTE isWolfsFavoriteMeat, which is where BTA keeps the wolf's favourite: there is no WOLF_FAVOURITE_ITEM tag, and people go looking for one. The stack size is a constructor argument here rather than a builder call, so ItemBuilder.setStackSize is not used for food.",
     "build": "\t{{creative}}\n\t.build(new ItemFood(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID(), {{healAmount}}, {{eatTicks}}, {{wolfMeat}}, {{stackSize}}));"
+  },
+  "blockLogic": {
+    "$comment": "A block's own BlockLogic, which is the only way to override anything about how a block behaves: halplibe's BlockBuilder has no method for any of this. The class used to live in drops.logicClass and be shaped around exactly one override, because custom drops were the only reason to want one. It is a shell and a list of methods now, so a block that needs two gets one class with both rather than a second class it cannot have. Signatures off javap on net.minecraft.core.block.BlockLogic in the 8.0.1 client jar: isSignalSource() says the block can emit at all, and isEmittingSignal(WorldSource, TilePosc, Side) answers per face. Both are booleans, so a block emits at full strength or not; there is no strength argument to carry.",
+    "classTemplate": "public class {{className}} extends BlockLogic {\n\n\tpublic {{className}}(Block<?> block, Material material) {\n\t\tsuper(block, material);\n\t}\n{{methods}}}",
+    "dropMethod": "\n\t@Override\n\tpublic ItemStack[] getBreakResult(World world, EnumDropCause cause, int meta, TileEntity tileEntity) {\n{{body}}\n\t}\n",
+    "signalMethods": "\n\t@Override\n\tpublic boolean isSignalSource() {\n\t\treturn true;\n\t}\n\n\t@Override\n\tpublic boolean isEmittingSignal(WorldSource world, TilePosc pos, Side side) {\n\t\treturn true;\n\t}\n"
   }
 }

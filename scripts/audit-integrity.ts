@@ -163,6 +163,29 @@ console.log('a piece detached from a set with nothing owning it')
   check('and repairing it twice is the same as once', stable(twice) === stable(holed))
 }
 
+console.log('a block that powers redstone')
+
+{
+  const wired = mk('redmod')
+  wired.add('block', 'spark', { displayName: 'Spark', emitsRedstone: true, drops: 'nothing' })
+  wired.add('block', 'plain', { displayName: 'Plain' })
+  const files = new CodeGenerator(wired.project).generate()
+  const logic = files.filter((f) => f.path.includes('BlockLogic'))
+  check('a block that powers redstone gets a logic class', logic.length === 1, String(logic.length))
+  const src = logic[0]?.content ?? ''
+  check('with the signal overrides in it', /isSignalSource/.test(src) && /isEmittingSignal/.test(src), src.slice(0, 200))
+  check(
+    'and its drop override in the SAME class, because it can only have one',
+    /getBreakResult/.test(src),
+    src.slice(0, 300)
+  )
+  check(
+    'a block that wants neither gets no logic class at all',
+    !files.some((f) => f.path.includes('BlockLogicPlain')),
+    files.map((f) => f.path).join(', ')
+  )
+}
+
 console.log('an item that wears out')
 
 {

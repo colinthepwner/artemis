@@ -46,7 +46,14 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
     'drops nothing': { displayName: 'Test Block', drops: 'nothing' },
     'three-face texture': { displayName: 'Test Block', textureMode: 'topBottomSides' },
 
-    'six-face texture': { displayName: 'Test Block', textureMode: 'perFace' }
+    'six-face texture': { displayName: 'Test Block', textureMode: 'perFace' },
+
+    'powers redstone': { displayName: 'Test Block', emitsRedstone: true },
+    'powers redstone and drops nothing': {
+      displayName: 'Test Block',
+      emitsRedstone: true,
+      drops: 'nothing'
+    }
   },
 
   gearset: {
