@@ -273,6 +273,8 @@ interface Layer {
   hue: number
   saturation: number
   brightness: number
+
+  emissive: boolean
   grid: Grid
 }
 
@@ -284,6 +286,7 @@ const makeLayer = (name: string, grid: Grid = EMPTY): Layer => ({
   hue: 0,
   saturation: 0,
   brightness: 0,
+  emissive: false,
   grid
 })
 
@@ -422,7 +425,9 @@ function PixelEditor(): JSX.Element {
           opacity: l.opacity,
           hue: l.hue,
           saturation: l.saturation,
-          brightness: l.brightness
+          brightness: l.brightness,
+
+          emissive: l.emissive ?? false
         }))
         settle(restored)
         setLayers(restored)
@@ -1107,15 +1112,24 @@ function PixelEditor(): JSX.Element {
       hue: l.hue,
       saturation: l.saturation,
       brightness: l.brightness,
+      emissive: l.emissive,
       data: gridToDataUrl(l.grid)
     }))
 
+    const glowing = saveStack.filter((l) => l.emissive && l.visible)
+    const emissive = glowing.length
+      ? (() => {
+          const lit = compositeLayers(glowing)
+          return rgbaToDataUrl(lit.grid, lit.alpha)
+        })()
+      : undefined
+
     const saveName = resolvedName ?? finalName
     if (textureId) {
-      updateTexture(textureId, { name: saveName, data, layers: savedLayers })
+      updateTexture(textureId, { name: saveName, data, layers: savedLayers, emissive })
       if (assignSlotAfter) assignTexture(assignSlotAfter, textureId)
     } else {
-      const id = addTexture(saveName, data, savingKind, savedLayers)
+      const id = addTexture(saveName, data, savingKind, savedLayers, emissive)
       if (assignSlotAfter) assignTexture(assignSlotAfter, id)
     }
 
@@ -1780,6 +1794,26 @@ function LayerRow(props: {
             className="rounded p-1 text-mist-500 transition-colors hover:text-mist-200"
           >
             {l.visible ? <Eye size={12} /> : <EyeOff size={12} className="text-mist-600" />}
+          </button>
+          {
+
+}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              props.onPatch({ emissive: !l.emissive })
+            }}
+            title={
+              l.emissive
+                ? 'This layer glows in the dark. Click to stop it.'
+                : 'Make this layer glow in the dark'
+            }
+            className={cn(
+              'rounded p-1 transition-colors',
+              l.emissive ? 'text-gold-400 hover:text-gold-300' : 'text-mist-600 hover:text-mist-300'
+            )}
+          >
+            <Sun size={12} />
           </button>
           {editing ? (
             <input

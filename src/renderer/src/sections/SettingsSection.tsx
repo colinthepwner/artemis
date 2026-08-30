@@ -1,6 +1,8 @@
 import { useProjectStore } from '@/store/projectStore'
-import { Save } from 'lucide-react'
+import { Plus, Save, Trash2 } from 'lucide-react'
 import { ModIconField } from '@/components/pixel/ModIconField'
+import { Select } from '@/components/ui/controls'
+import type { ModDependency } from '@shared/project'
 
 export function SettingsSection(): JSX.Element | null {
   const project = useProjectStore((s) => s.project)
@@ -60,6 +62,11 @@ export function SettingsSection(): JSX.Element | null {
           />
         </div>
 
+        <DependencyList
+          value={project.meta.dependencies ?? []}
+          onChange={(dependencies) => updateMeta({ dependencies })}
+        />
+
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={() => void saveProject()}
@@ -76,6 +83,66 @@ export function SettingsSection(): JSX.Element | null {
           )}
         </div>
       </div>
+      </div>
+    </div>
+  )
+}
+
+function DependencyList(props: {
+  value: ModDependency[]
+  onChange: (v: ModDependency[]) => void
+}): JSX.Element {
+  const { value, onChange } = props
+  const patch = (i: number, p: Partial<ModDependency>): void =>
+    onChange(value.map((d, n) => (n === i ? { ...d, ...p } : d)))
+
+  return (
+    <div>
+      <label className="label-base">Other Mods</label>
+      <p className="mb-2 text-2xs leading-relaxed text-mist-600">
+        Mods this one wants beside it. Optional ones are only recommended, so your mod still
+        loads without them. Declaring one here does not let you write code against it.
+      </p>
+      <div className="space-y-2">
+        {value.map((dep, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className="input-base min-w-0 flex-1 font-mono text-2xs"
+              placeholder="modid"
+              value={dep.modId}
+              onChange={(e) => patch(i, { modId: e.target.value.trim() })}
+            />
+            <input
+              className="input-base w-24 shrink-0 font-mono text-2xs"
+              placeholder="*"
+              value={dep.version}
+              onChange={(e) => patch(i, { version: e.target.value })}
+            />
+            <span className="w-28 shrink-0">
+            <Select
+              value={dep.optional ? 'optional' : 'needed'}
+              onChange={(v) => patch(i, { optional: v === 'optional' })}
+              options={[
+                { value: 'needed', label: 'Needed' },
+                { value: 'optional', label: 'Optional' }
+              ]}
+            />
+            </span>
+            <button
+              onClick={() => onChange(value.filter((_, n) => n !== i))}
+              title="Remove"
+              className="shrink-0 rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ember-500/15 hover:text-ember-400"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={() => onChange([...value, { modId: '', version: '*', optional: true }])}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-ink-750 py-2 text-2xs text-mist-300 transition-colors hover:bg-ink-700"
+        >
+          <Plus size={13} /> Add a mod
+        </button>
       </div>
     </div>
   )

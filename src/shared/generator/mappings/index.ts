@@ -10,6 +10,10 @@ export interface BtaMapping {
   sounds: Record<string, string>
   blockTags: Record<string, string>
 
+  itemTags: Record<string, string>
+
+  fuel: { addEntry: string }
+
   harvestLevel: { put: string; import: string }
 
   registration: {
@@ -177,7 +181,8 @@ export interface BtaMapping {
 
     events: Record<string, string>
   }
-  fabricModJson: Record<string, unknown>
+
+  fabricModJson: Record<string, unknown> & { depends: Record<string, string> }
   gradle: {
     javaVersion: number
 

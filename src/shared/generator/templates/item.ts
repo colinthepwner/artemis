@@ -111,6 +111,17 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
     chain.push('	' + render(ib.methods['maxDamage'], { value: durability }))
   }
 
+  const itemTags = (p.tags ?? []).map((t) => ctx.mapping.itemTags[t]).filter(Boolean)
+  if (itemTags.length && ib.methods['tags']) {
+    chain.push('	' + render(ib.methods['tags'], { value: [...new Set(itemTags)].join(', ') }))
+  }
+
+  const afterStart: string[] = []
+  const burnTime = Math.max(0, Math.round(p.burnTime ?? 0))
+  if (burnTime > 0) {
+    afterStart.push(render(ctx.mapping.fuel.addEntry, { FIELD, ticks: burnTime }))
+  }
+
   const rules = usableRules(p.blockUses)
   const use = rules.length ? itemUseClass(el.name, rules, p.blockUseCost ?? 0, ctx) : null
 
@@ -128,5 +139,5 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
     ].join('\n')
   )
 
-  return { itemDecls, langLines, itemModels, files: use ? [use.file] : [] }
+  return { itemDecls, langLines, itemModels, afterStart, files: use ? [use.file] : [] }
 }

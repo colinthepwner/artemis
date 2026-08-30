@@ -77,11 +77,13 @@ interface ProjectState {
     name: string,
     data: string,
     kind: 'block' | 'item',
-    layers?: TextureLayer[]
+    layers?: TextureLayer[],
+
+    emissive?: string
   ) => string
   updateTexture: (
     id: string,
-    patch: { name?: string; data?: string; layers?: TextureLayer[] }
+    patch: { name?: string; data?: string; layers?: TextureLayer[]; emissive?: string }
   ) => void
   removeTexture: (id: string) => void
 
@@ -345,7 +347,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return { project: { ...s.project, codeOverrides: overrides }, dirty: true }
     }),
 
-  addTexture: (name, data, kind, layers) => {
+  addTexture: (name, data, kind, layers, emissive) => {
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     set((s) =>
@@ -355,7 +357,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               ...s.project,
               textures: [
                 ...s.project.textures,
-                { id, name, data, kind, layers, createdAt: now, updatedAt: now }
+                { id, name, data, kind, layers, emissive, createdAt: now, updatedAt: now }
               ]
             },
             dirty: true

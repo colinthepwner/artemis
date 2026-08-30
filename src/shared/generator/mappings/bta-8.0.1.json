@@ -43,6 +43,8 @@
     "HalpLibe": "turniplabs.halplibe.HalpLibe",
     "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
     "Item": "net.minecraft.core.item.Item",
+    "ItemTags": "net.minecraft.core.item.tag.ItemTags",
+    "LookupFuelFurnace": "net.minecraft.core.crafting.LookupFuelFurnace",
     "Player": "net.minecraft.core.entity.player.Player",
     "ItemArmor": "net.minecraft.core.item.ItemArmor",
     "ItemBlock": "net.minecraft.core.item.block.ItemBlock",
@@ -251,7 +253,8 @@
     "buildCustom": "\t{{creative}}\n\t.build(new {{className}}(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID()));",
     "methods": {
       "stackSize": ".setStackSize({{value}})",
-      "maxDamage": ".setMaxDamage({{value}})"
+      "maxDamage": ".setMaxDamage({{value}})",
+      "tags": ".setTags({{value}})"
     }
   },
   "toolMaterial": {
@@ -746,5 +749,21 @@
     "becomes": "\t\t\tworld.setBlockType(pos, {{block}});\n",
     "drops": "\t\t\tworld.dropItem(pos, {{stack}});\n",
     "cost": "\t\t\tstack.damageItem({{amount}}, player);\n"
+  },
+  "itemTags": {
+    "$comment": "UI toggle key -> ItemTags constant, read off javap on net.minecraft.core.item.tag.ItemTags in the 8.0.1 client jar. BTA declares ten and this is nine of them: NOT_IN_CREATIVE_MENU is left out because it gets a switch of its own, the way it does on a block, rather than sitting in the list twice. WORTH KNOWING, because people ask: there is no WOLF_FAVOURITE_ITEM or SHEEP_FAVOURITE_ITEM in 8.0.1. Chickens and cows are the two animals with a favourite ITEM; sheep and pigs have a favourite BLOCK, which is a different tag on a different class. The form enumerates whatever is in this table, so adding one is a line here.",
+    "preventCreativeMining": "ItemTags.PREVENT_CREATIVE_MINING",
+    "isSilkTouch": "ItemTags.IS_SILK_TOUCH",
+    "preventLeftClickInteractions": "ItemTags.PREVENT_LEFT_CLICK_INTERACTIONS",
+    "chickensFavouriteItem": "ItemTags.CHICKENS_FAVOURITE_ITEM",
+    "cowsFavouriteItem": "ItemTags.COWS_FAVOURITE_ITEM",
+    "isFireProof": "ItemTags.IS_FIRE_PROOF",
+    "isBlastProof": "ItemTags.IS_BLAST_PROOF",
+    "isIndestructible": "ItemTags.IS_INDESTRUCTIBLE",
+    "isPersistent": "ItemTags.IS_PERSISTENT"
+  },
+  "fuel": {
+    "$comment": "Burn time in a furnace, as ticks. LookupFuelFurnace.instance.addFuelEntry(int itemId, int ticks) off javap on net.minecraft.core.crafting.LookupFuelFurnace in the 8.0.1 client jar; the class is in core.crafting rather than core.lookup, which is where the name suggests. It takes an item ID rather than an item, and IDs are handed out at registration, so this belongs in afterGameStart with everything else that has to touch a registered thing rather than describe one. For scale, vanilla coal is 1600 ticks, which is eight items smelted.",
+    "addEntry": "LookupFuelFurnace.instance.addFuelEntry(ModItems.{{FIELD}}.id, {{ticks}});"
   }
 }

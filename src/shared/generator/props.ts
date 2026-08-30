@@ -73,6 +73,10 @@ export interface ItemProps {
 
   durability: number
 
+  tags: string[]
+
+  burnTime: number
+
   blockUses: BlockUseRule[]
 
   blockUseCost: number
@@ -124,6 +128,8 @@ export const ITEM_DEFAULTS: ItemProps = {
   stackSize: 64,
   category: 'material',
   durability: 0,
+  tags: [],
+  burnTime: 0,
   blockUses: [],
   blockUseCost: 0,
   generateSet: false,

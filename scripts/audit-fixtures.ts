@@ -688,6 +688,11 @@ export const SCENARIOS: Scenario[] = [
     name: 'kitchen sink',
     build: () => {
       const { project, add } = mk('sinkmod')
+
+      project.meta.dependencies = [
+        { modId: 'someothermod', version: '>=1.2.0', optional: false },
+        { modId: 'prettymod', version: '*', optional: true }
+      ]
       add('item', 'ruby', { displayName: 'Ruby' })
       add('gearset', 'ruby', { displayName: 'Ruby' })
       add('item', 'ash', { displayName: 'Ash', stackSize: 16, category: 'misc' })

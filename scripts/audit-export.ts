@@ -71,10 +71,25 @@ async function halplibeResolves(root: string): Promise<void> {
 function paint(project: ArtemisProject): void {
   project.textures = [
     { id: 'flat', name: 'checker', data: PX, createdAt: '2026-08-27', updatedAt: '2026-08-27' },
+
+    {
+      id: 'glow',
+      name: 'glowing',
+      data: PX,
+      emissive: PX,
+      createdAt: '2026-08-27',
+      updatedAt: '2026-08-27'
+    },
     { id: 'skin', name: 'skin', data: SKIN, createdAt: '2026-08-27', updatedAt: '2026-08-27' }
   ]
+  let first = true
   for (const slot of textureSlotsFor(project)) {
-    project.textureAssignments[slot.key] = slot.paintable ? 'flat' : 'skin'
+    if (!slot.paintable) {
+      project.textureAssignments[slot.key] = 'skin'
+      continue
+    }
+    project.textureAssignments[slot.key] = first ? 'glow' : 'flat'
+    first = false
   }
 }
 
@@ -292,7 +307,23 @@ async function main(): Promise<void> {
     const written = tree
       .filter((f) => f.startsWith(`src/main/resources/assets/${modId}/textures/`) && f.endsWith('.png'))
       .map((f) => f.slice(`src/main/resources/assets/${modId}/textures/`.length, -'.png'.length))
-    const orphans = written.filter((path) => !namedPaths.has(path))
+
+    const glowing = written.filter((path) => path.endsWith('.emiss'))
+    check(
+      'a texture with a glowing layer writes the second png beside it',
+      glowing.length === 1 && written.includes(glowing[0].slice(0, -'.emiss'.length)),
+      glowing.join(', ') || 'no emissive file was written'
+    )
+    check(
+      'and a texture without one writes no second file',
+      glowing.length < written.length / 2,
+      `${glowing.length} glowing of ${written.length}`
+    )
+
+    const orphans = written.filter((path) => {
+      if (path.endsWith('.emiss')) return !namedPaths.has(path.slice(0, -'.emiss'.length))
+      return !namedPaths.has(path)
+    })
     check(
       `every texture written is one the code asks for (${written.length} written)`,
       orphans.length === 0,
@@ -332,9 +363,27 @@ async function main(): Promise<void> {
       description?: string
       entrypoints?: Record<string, unknown[]>
       mixins?: string[]
+      depends?: Record<string, string>
+      suggests?: Record<string, string>
       custom?: { credits?: string[] }
     }
     check('its id is the mod id', fmj.id === modId, String(fmj.id))
+
+    check(
+      'a needed mod goes in depends',
+      fmj.depends?.['someothermod'] === '>=1.2.0',
+      JSON.stringify(fmj.depends)
+    )
+    check(
+      'an optional one goes in suggests, so the mod still starts without it',
+      fmj.suggests?.['prettymod'] === '*' && !fmj.depends?.['prettymod'],
+      JSON.stringify(fmj.suggests)
+    )
+    check(
+      'and the scaffold still pins what the generated code needs',
+      fmj.depends?.['halplibe'] !== undefined && fmj.depends?.['fabricloader'] !== undefined,
+      JSON.stringify(fmj.depends)
+    )
     const entryCount = Object.values(fmj.entrypoints ?? {}).reduce((n, v) => n + v.length, 0)
     check(
       'it declares exactly one entrypoint',

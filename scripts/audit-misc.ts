@@ -498,6 +498,7 @@ console.log('the mapping, asked what nothing reads')
     materials: 'indexed by the material a block element names',
     sounds: 'indexed by the sound a block element names',
     blockTags: 'indexed by the tags a block element carries',
+    itemTags: 'indexed by the tags an item element carries, and enumerated for its switch list',
     harvestLevel: 'indexed by the tool a block element asks for',
     idRanges: 'read as a whole when the exporter allocates ids',
     fabricModJson: 'spread wholesale into fabric.mod.json, so every key is written'

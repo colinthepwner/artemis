@@ -29,6 +29,15 @@ export interface ArtemisElement<P = Record<string, unknown>> {
   updatedAt: string
 }
 
+export interface ModDependency {
+
+  modId: string
+
+  version: string
+
+  optional: boolean
+}
+
 export interface ProjectMeta {
   name: string
 
@@ -42,6 +51,8 @@ export interface ProjectMeta {
   obfuscate: boolean
 
   icon?: string
+
+  dependencies?: ModDependency[]
 }
 
 export interface TextureLayer {
@@ -53,6 +64,8 @@ export interface TextureLayer {
   saturation: number
   brightness: number
 
+  emissive?: boolean
+
   data: string
 }
 
@@ -63,6 +76,8 @@ export interface ProjectTexture {
   data: string
 
   layers?: TextureLayer[]
+
+  emissive?: string
 
   kind?: 'block' | 'item'
   createdAt: string

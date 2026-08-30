@@ -5,11 +5,13 @@ import type { ArtemisElement } from '@shared/project'
 import { useAppStore } from '@/store/appStore'
 import type { ElementFormProps } from './registry'
 import { FormShell, TextureStrip, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
-import { Field, NumberInput, Select, Switch } from '@/components/ui/controls'
+import { Field, NumberInput, Select, Switch, SwitchList } from '@/components/ui/controls'
 import { ITEM_DEFAULTS, type ItemProps, type AnySetProps } from '@shared/generator/props'
 import { useProjectStore } from '@/store/projectStore'
 import { kitFamily, TOOL_KINDS } from '@shared/generator/family'
 import { elementRegistryEntries } from '@shared/generator/registry'
+import { getMapping } from '@shared/generator/mappings'
+import { titleCase } from '@shared/generator/templates/block'
 import {
   DEFAULT_KIT_ACCENT,
   generateKitTextures,
@@ -40,6 +42,16 @@ function ItemFormInner({
   const set: AnySetProps = { ...ITEM_DEFAULTS.set, ...p.set }
   const patchSet = <K extends keyof AnySetProps>(key: K, value: AnySetProps[K]): void =>
     patch('set', { ...set, [key]: value })
+
+  const targetBta = useProjectStore((s) => s.project?.meta.targetBta ?? '8.0.1')
+  const mapping = getMapping(targetBta)
+  const itemTagOptions = useMemo(
+    () =>
+      Object.keys(mapping.itemTags)
+        .filter((k) => !k.startsWith('$'))
+        .map((k) => ({ value: k, label: titleCase(k.replace(/([A-Z])/g, '_$1').toLowerCase()) })),
+    [mapping]
+  )
 
   const isPiece = Boolean(p.piece)
   const pieceIsTool = isPiece && (TOOL_KINDS as readonly string[]).includes(p.piece as string)
@@ -103,6 +115,30 @@ function ItemFormInner({
                   max={4096}
                 />
               </Field>
+              <Field
+                label="Burn Time"
+                hint="Ticks it burns in a furnace. 0 for something that is not a fuel. Coal is 1600, which smelts eight."
+              >
+                <NumberInput
+                  value={p.burnTime ?? 0}
+                  onChange={(v) => patch('burnTime', Math.max(0, Math.round(v)))}
+                  min={0}
+                  max={100000}
+                  step={100}
+                />
+              </Field>
+              {
+
+}
+              <div className="col-span-2">
+                <Field label="Behavior" hint="Optional. Most items want none of these.">
+                  <SwitchList
+                    options={itemTagOptions}
+                    selected={p.tags ?? []}
+                    onChange={(v) => patch('tags', v)}
+                  />
+                </Field>
+              </div>
               <Field label="Creative Shelf">
                 <Select
                   value={p.category}

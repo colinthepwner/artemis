@@ -399,8 +399,19 @@ ${obfuscate ? obfuscationTask() : ''}`,
     .trim()
   const described = !oneLine || /[.!?]$/.test(oneLine) ? oneLine : `${oneLine}.`
 
+  const wanted = meta.dependencies ?? []
+  const asked = (optional: boolean): Record<string, string> =>
+    Object.fromEntries(
+      wanted
+        .filter((d) => d.optional === optional && d.modId.trim() !== '')
+        .map((d) => [d.modId.trim(), d.version.trim() || '*'])
+    )
+  const suggests = asked(true)
+
   const fmj = {
     ...mapping.fabricModJson,
+    depends: { ...asked(false), ...mapping.fabricModJson.depends },
+    ...(Object.keys(suggests).length ? { suggests } : {}),
     id: meta.modId,
     version: '${version}',
     name: meta.name,
@@ -456,6 +467,16 @@ ${obfuscate ? obfuscationTask() : ''}`,
         generated
       )
       written++
+
+      if (tex.emissive) {
+        const glow = tex.emissive.replace(/^data:image\/png;base64,/, '')
+        await writeBytes(
+          root,
+          `src/main/resources/assets/${meta.modId}/textures/${slot.path ?? slot.key}.emiss.png`,
+          Buffer.from(glow, 'base64'),
+          generated
+        )
+      }
     } else {
       missing.push(slot)
     }
