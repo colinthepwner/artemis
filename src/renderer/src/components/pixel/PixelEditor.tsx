@@ -105,6 +105,10 @@ export interface Marquee {
   dy: number
 }
 
+export function undoDropsTheCarry(m: Marquee | null): boolean {
+  return !!m?.lifted && (m.dx !== 0 || m.dy !== 0)
+}
+
 export function rectBetween(a: number, b: number): { left: number; top: number; w: number; h: number } {
   const [ax, ay] = xy(a)
   const [bx, by] = xy(b)
@@ -404,6 +408,12 @@ function PixelEditor(): JSX.Element {
 
   const moveFrom = useRef<{ cell: number; dx: number; dy: number } | null>(null)
 
+  const cancelMarquee = useCallback((): void => {
+    setMarquee(null)
+    marqueeAnchor.current = null
+    moveFrom.current = null
+  }, [])
+
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
   const activeGridRef = useRef<Grid>(active.grid)
@@ -467,18 +477,23 @@ function PixelEditor(): JSX.Element {
   }, [])
 
   const undo = useCallback(() => {
+    const floating = marqueeRef.current
+    cancelMarquee()
+    if (undoDropsTheCarry(floating)) return
     const prev = undoStack.current.pop()
     if (!prev) return
     redoStack.current.push(snapshot(layersRef.current))
     restore(prev)
-  }, [restore])
+  }, [restore, cancelMarquee])
 
   const redo = useCallback(() => {
+
+    cancelMarquee()
     const next = redoStack.current.pop()
     if (!next) return
     undoStack.current.push(snapshot(layersRef.current))
     restore(next)
-  }, [restore])
+  }, [restore, cancelMarquee])
 
   const activeLayerId = active.id
   const setActiveGrid = useCallback(
@@ -502,12 +517,6 @@ function PixelEditor(): JSX.Element {
     pushUndo()
     setActiveGrid((g) => withMarquee(g, m))
   }, [pushUndo, setActiveGrid])
-
-  const cancelMarquee = useCallback((): void => {
-    setMarquee(null)
-    marqueeAnchor.current = null
-    moveFrom.current = null
-  }, [])
 
   const nudgeMarquee = useCallback(
     (ddx: number, ddy: number): void => {
@@ -902,6 +911,13 @@ function PixelEditor(): JSX.Element {
     setLayers(next)
   }
 
+  const selectCursor =
+    tool !== 'select'
+      ? undefined
+      : marquee && hover !== null && insideMarquee(marquee, hover)
+        ? 'move'
+        : 'crosshair'
+
   const previewLayers = useMemo(() => {
 
     let out = layers
@@ -1292,48 +1308,52 @@ function PixelEditor(): JSX.Element {
               </div>
             </Panel>
 
-            {}
+            {
+
+}
             <Panel>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <div className="flex items-center gap-1">
+              <div className="space-y-1.5">
+                <ToolRow label="Paint">
                   <ToolButton icon={Pencil} active={tool === 'pencil'} onClick={() => setTool('pencil')} label="Pencil (B)" />
                   <ToolButton icon={Eraser} active={tool === 'eraser'} onClick={() => setTool('eraser')} label="Eraser (E). Right-drag paints the second color, transparent by default" />
                   <ToolButton icon={PaintBucket} active={tool === 'fill'} onClick={() => setTool('fill')} label="Fill (F). Right click fills with the second color" />
-                </div>
+                  <ToolButton icon={Slash} active={tool === 'line'} onClick={() => setTool('line')} label="Line (L), drag to draw" />
+                  <ToolButton icon={Square} active={tool === 'rect'} onClick={() => setTool('rect')} label="Rectangle (R), hold Shift for filled" />
+                </ToolRow>
 
-                <div className="flex items-center gap-1">
+                {
+
+}
+                <ToolRow label="Rework">
                   <ToolButton
                     icon={SquareDashed}
                     active={tool === 'select'}
                     onClick={() => setTool('select')}
                     label="Select (M). Drag a box, drag it again to move it, Enter to put it down"
                   />
-                  <ToolButton icon={Slash} active={tool === 'line'} onClick={() => setTool('line')} label="Line (L), drag to draw" />
-                  <ToolButton icon={Square} active={tool === 'rect'} onClick={() => setTool('rect')} label="Rectangle (R), hold Shift for filled" />
-                </div>
-
-                <div className="flex items-center gap-1">
                   <ToolButton icon={SunMedium} active={tool === 'lighten'} onClick={() => setTool('lighten')} label="Lighten (U)" />
                   <ToolButton icon={Moon} active={tool === 'darken'} onClick={() => setTool('darken')} label="Darken (D)" />
                   <ToolButton icon={Sparkles} active={tool === 'noise'} onClick={() => setTool('noise')} label="Noise brush (N)" />
                   <ToolButton icon={Droplet} active={tool === 'smooth'} onClick={() => setTool('smooth')} label="Smooth (S), blends a pixel with its neighbors" />
-                </div>
+                </ToolRow>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.04] pt-3">
-                <div className="flex items-center gap-1">
-                  <span className="mr-1 text-2xs text-mist-600">Layer</span>
+              <div className="mt-2.5 space-y-1.5 border-t border-white/[0.04] pt-2.5">
+                <ToolRow label="Layer">
                   <ToolButton icon={FlipHorizontal} onClick={() => transform(flipHGrid)} label="Flip horizontal" />
                   <ToolButton icon={FlipVertical} onClick={() => transform(flipVGrid)} label="Flip vertical" />
                   <ToolButton icon={RotateCw} onClick={() => transform(rotateGrid)} label="Rotate 90 degrees" />
-                </div>
+                </ToolRow>
 
-                <div className="flex items-center gap-1">
+                {
+
+}
+                <ToolRow label="Nudge">
                   <ToolButton icon={ArrowLeft} onClick={() => transform((g) => shiftGrid(g, -1, 0))} label="Nudge left" />
                   <ToolButton icon={ArrowUp} onClick={() => transform((g) => shiftGrid(g, 0, -1))} label="Nudge up" />
                   <ToolButton icon={ArrowDown} onClick={() => transform((g) => shiftGrid(g, 0, 1))} label="Nudge down" />
                   <ToolButton icon={ArrowRight} onClick={() => transform((g) => shiftGrid(g, 1, 0))} label="Nudge right" />
-                </div>
+                </ToolRow>
               </div>
             </Panel>
 
@@ -1417,6 +1437,8 @@ function PixelEditor(): JSX.Element {
                 data-tour="pixel-canvas"
                 className="pixel-cursor absolute overflow-hidden rounded-md shadow-panel"
                 style={{
+
+                  cursor: selectCursor,
                   left: PAD,
                   top: PAD,
                   width: CELL * 16,
@@ -1961,8 +1983,15 @@ function Swatch(props: {
   )
 }
 
-function Divider(): JSX.Element {
-  return <span className="mx-1 h-5 w-px bg-white/[0.07]" />
+function ToolRow(props: { label: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-16 shrink-0 text-2xs uppercase tracking-wider text-mist-500">
+        {props.label}
+      </span>
+      <div className="flex items-center gap-1">{props.children}</div>
+    </div>
+  )
 }
 
 function ToolButton(props: {

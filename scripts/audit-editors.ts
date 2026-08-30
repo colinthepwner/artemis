@@ -10,6 +10,7 @@ import {
   insideMarquee,
   liftFrom,
   withMarquee,
+  undoDropsTheCarry,
   type Marquee
 } from '../src/renderer/src/components/pixel/PixelEditor'
 import { HALF, keyOf } from '../src/renderer/src/components/workshop/voxel'
@@ -495,6 +496,20 @@ function theRectangularSelection(): void {
     'and nothing wraps around to the far side',
     offEdge[2 * 16 + 0] === '' && offEdge[1 * 16 + 0] === '',
     'a pixel came back on the other edge'
+  )
+
+  check(
+    'undoing a carried selection undoes the carry rather than the history',
+    undoDropsTheCarry({ ...sel, lifted, dx: 3, dy: 0 }) &&
+      undoDropsTheCarry({ ...sel, lifted, dx: 0, dy: -2 }),
+    'a moved selection did not claim the undo'
+  )
+  check(
+    'a selection that has not been carried leaves the history alone',
+    !undoDropsTheCarry({ ...sel, lifted, dx: 0, dy: 0 }) &&
+      !undoDropsTheCarry({ ...sel, lifted: null, dx: 4, dy: 4 }) &&
+      !undoDropsTheCarry(null),
+    'an unmoved selection swallowed an undo'
   )
 
   const carried: Marquee = { ...sel, lifted, dx: 5, dy: 3 }
