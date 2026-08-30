@@ -41,6 +41,21 @@ interface BlockFieldProps {
   patch: <K extends keyof BlockProps>(key: K, value: BlockProps[K]) => void
 }
 
+const SHELF_OPTIONS = [
+  { value: 'block', label: 'Placeables' },
+  { value: 'basics', label: 'Basics' },
+  { value: 'stone', label: 'Stone' },
+  { value: 'logs', label: 'Logs' },
+  { value: 'wood', label: 'Wood' },
+  { value: 'organic', label: 'Organic' },
+  { value: 'natural', label: 'Natural' },
+  { value: 'ore', label: 'Ore' },
+  { value: 'storage', label: 'Storage' },
+  { value: 'workbenches', label: 'Workbenches' },
+  { value: 'redstone', label: 'Redstone' },
+  { value: 'misc', label: 'Miscellaneous' }
+]
+
 const LAYOUT_OPTIONS = [
   { value: 'all', label: 'Same on all sides' },
   { value: 'topBottomSides', label: 'Top / Bottom / Sides' },
@@ -131,6 +146,16 @@ export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
           options={behaviorOptions}
           selected={p.tags.filter((t) => !isToolTag(t))}
           onChange={(v) => patch('tags', [...p.tags.filter(isToolTag), ...v])}
+        />
+      </Field>
+      {
+
+}
+      <Field label="Creative Shelf" hint="Which page of the creative menu it appears on.">
+        <Select
+          value={p.creativeCategory ?? 'block'}
+          onChange={(v) => patch('creativeCategory', v)}
+          options={SHELF_OPTIONS}
         />
       </Field>
       <Switch

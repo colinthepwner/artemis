@@ -44,7 +44,7 @@ export function registerSetupIpc(win: BrowserWindow): void {
       if (candidate.major < MIN_JAVA) {
         return {
           ok: false,
-          error: `That is Java ${candidate.version}. Artemis needs ${MIN_JAVA} or newer, because Gradle will not start on anything older.`
+          error: `That is Java ${candidate.version}. Artemis needs ${MIN_JAVA} or newer: the BTA build plugin refuses to run on anything older, and it says so several minutes into a build rather than now.`
         }
       }
       chooseJdk(home)

@@ -179,6 +179,11 @@ export const SWATCHES: Record<string, SwatchSpec> = {
   preventMobSpawns: { field: 'MOBSPAWNER', tint: '#3b3226' },
 
   growsFlowers: { field: 'FLOWER_RED', draw: 'flower', flat: true, scale: 100 },
+
+  growsTrees: { field: 'SAPLING_OAK', draw: 'flower', flat: true, scale: 100, tint: '#4a7a34' },
+  growsSugarCane: { field: 'SUGARCANE', draw: 'flower', flat: true, scale: 100, tint: '#8fc65b' },
+  growsCacti: { field: 'CACTUS', tint: '#4f7a3a' },
+  plantableInJar: { field: 'JAR_GLASS', tint: '#9fc6d8' },
   fencesConnect: { draw: 'fence', tint: '#9f844d', flat: true, scale: 100 },
   notInCreativeMenu: {
     field: 'GLASS',

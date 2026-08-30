@@ -81,7 +81,11 @@ export function blockDecl(
 
   chain.push(
     render(ctx.mapping.creative.call, {
-      category: ctx.mapping.creative.categories[options.creative ?? 'block']
+
+      category:
+        ctx.mapping.creative.categories[
+          options.creative ?? p.creativeCategory ?? 'block'
+        ] ?? ctx.mapping.creative.categories['block']
     })
   )
 

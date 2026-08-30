@@ -18,6 +18,8 @@ export interface BlockProps {
   dropCountMax: number
 
   harvestLevel: number
+
+  creativeCategory: string
   notInCreativeMenu: boolean
 }
 
@@ -35,6 +37,7 @@ export const BLOCK_DEFAULTS: BlockProps = {
   dropCountMin: 1,
   dropCountMax: 1,
   harvestLevel: 0,
+  creativeCategory: 'block',
   notInCreativeMenu: false
 }
 

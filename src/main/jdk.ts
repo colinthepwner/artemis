@@ -6,8 +6,11 @@ import { dirname, join } from 'path'
 import { adoptiumTarget, desktopPlatform, javaBinCandidates } from '../shared/platform'
 import { extractAll } from './zip'
 import { download } from './net'
+import { getMapping, SUPPORTED_BTA } from '../shared/generator/mappings'
 
-export const MIN_JAVA = 17
+export const MIN_JAVA = Math.max(
+  ...SUPPORTED_BTA.map((v) => getMapping(v).gradle.minHostJava)
+)
 
 export interface JdkCandidate {
 
@@ -214,7 +217,7 @@ export function jdkEnv(): NodeJS.ProcessEnv {
 function adoptiumUrl(): string {
   const { os, arch } = adoptiumTarget(process.platform, process.arch)
   return (
-    `https://api.adoptium.net/v3/binary/latest/21/ga/${os}/${arch}` +
+    `https://api.adoptium.net/v3/binary/latest/${MIN_JAVA}/ga/${os}/${arch}` +
     '/jdk/hotspot/normal/eclipse?project=jdk'
   )
 }

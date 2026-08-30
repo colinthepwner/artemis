@@ -168,6 +168,8 @@ export interface BtaMapping {
   gradle: {
     javaVersion: number
 
+    minHostJava: number
+
     gradleVersion: string
     loomPlugin: string
     loomVersion: string

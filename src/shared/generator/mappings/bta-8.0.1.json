@@ -164,7 +164,7 @@
     "sand": "BlockSounds.SAND"
   },
   "blockTags": {
-    "$comment": "UI toggle key -> BlockTags constant, verified against the BTA 8.0.1 client jar. Tool mineability doubles as the effective-tool system in BTA.",
+    "$comment": "UI toggle key -> BlockTags constant, verified against the BTA 8.0.1 client jar by javap on net.minecraft.core.block.tag.BlockTags. Tool mineability doubles as the effective-tool system in BTA. This is a CHOSEN subset, not the whole class: BTA declares 43 and the ones left out are either about worldgen internals (CAVES_CUT_THROUGH, CAVE_GEN_REPLACES_SURFACE, NETHER_SURFACE_BLOCK), about a specific vanilla creature or block, or a pair whose other half is already here. The form enumerates whatever is in this table, so adding one is a line here and nothing else.",
     "mineableByPickaxe": "BlockTags.MINEABLE_BY_PICKAXE",
     "mineableByAxe": "BlockTags.MINEABLE_BY_AXE",
     "mineableByShovel": "BlockTags.MINEABLE_BY_SHOVEL",
@@ -173,6 +173,10 @@
     "mineableByShears": "BlockTags.MINEABLE_BY_SHEARS",
     "brokenByFluids": "BlockTags.BROKEN_BY_FLUIDS",
     "growsFlowers": "BlockTags.GROWS_FLOWERS",
+    "growsTrees": "BlockTags.GROWS_TREES",
+    "growsSugarCane": "BlockTags.GROWS_SUGAR_CANE",
+    "growsCacti": "BlockTags.GROWS_CACTI",
+    "plantableInJar": "BlockTags.PLANTABLE_IN_JAR",
     "fencesConnect": "BlockTags.FENCES_CONNECT",
     "preventMobSpawns": "BlockTags.PREVENT_MOB_SPAWNS",
     "notInCreativeMenu": "BlockTags.NOT_IN_CREATIVE_MENU"
@@ -374,6 +378,8 @@
   "gradle": {
     "$comment": "Workspace scaffold, matched against Turnip-Labs/bta-example-mod on its 8.0 branch. BTA 8.x builds on UPSTREAM fabric-loom, not the old babric-loom fork, and pulls the game through customMinecraftMetadata rather than a maven coordinate. halplibe's release tag is resolved live at export and the maven version appends mavenSuffix.",
     "javaVersion": 17,
+    "$hostJavaComment": "TWO DIFFERENT JAVAS, and confusing them is what shipped a build nobody with Temurin 17 could run. javaVersion above is the toolchain the MOD is compiled with, which the foojay resolver provisions on its own and which nothing on the machine has to already have. minHostJava is the JVM GRADLE ITSELF RUNS IN, and fabric-loom 1.15.5 refuses to resolve below 21: 'Dependency requires at least JVM runtime version 21. This build uses a Java 17 JVM.', thrown while configuring the root project, before a line of the mod is compiled. So the floor for the JDK Artemis accepts is this number and not javaVersion.",
+    "minHostJava": 21,
     "gradleVersion": "9.3.1",
     "loomPlugin": "net.fabricmc.fabric-loom",
     "loomVersion": "1.15-SNAPSHOT",
@@ -710,6 +716,15 @@
     "call": ".setCreativeInventoryPlacement(new CreativeInventoryPlacement.Category(CreativeInventoryCategory.{{category}}))",
     "categories": {
       "block": "PLACEABLES",
+    "stone": "STONE",
+    "logs": "LOGS",
+    "wood": "WOOD",
+    "organic": "ORGANIC",
+    "natural": "NATURAL",
+    "storage": "STORAGE",
+    "workbenches": "WORKBENCHES",
+    "redstone": "REDSTONE",
+    "basics": "BASICS",
       "ore": "ORE",
       "oreDrop": "ORE_PRODUCTS",
       "plant": "NATURAL",

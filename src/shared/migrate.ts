@@ -64,6 +64,7 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
         tags: p.tags ?? ['mineableByPickaxe'],
         textureMode: p.textureMode ?? 'all',
         harvestLevel: p.harvestLevel ?? 0,
+        creativeCategory: (p.creativeCategory as string) ?? 'block',
         notInCreativeMenu: p.notInCreativeMenu ?? false,
         drops: dropsItem ? 'item' : 'default',
         dropItem: dropsItem ? base : '',

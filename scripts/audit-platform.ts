@@ -26,6 +26,7 @@ import { TitleBar } from '../src/renderer/src/components/titlebar/TitleBar'
 import { SetupScreen } from '../src/renderer/src/components/layout/SetupScreen'
 import { useAppStore } from '../src/renderer/src/store/appStore'
 import type { JdkCandidate, PermissionIssue } from '../src/shared/ipc'
+import { getMapping, SUPPORTED_BTA } from '../src/shared/generator/mappings'
 import { harness } from './_harness'
 
 const audit = harness()
@@ -419,6 +420,32 @@ async function settle(root: ProbeRoot): Promise<void> {
   }
 }
 
+function theJavaFloor(): void {
+  console.log('\n[java] the floor, which is the JVM gradle runs in')
+  for (const v of SUPPORTED_BTA) {
+    const g = getMapping(v).gradle
+    check(
+      `BTA ${v} says which JVM gradle needs, apart from the mod's own`,
+      typeof g.minHostJava === 'number' && g.minHostJava >= g.javaVersion,
+      `host ${g.minHostJava}, toolchain ${g.javaVersion}`
+    )
+  }
+
+  const src = readFileSync(join(process.cwd(), 'src/main/jdk.ts'), 'utf-8')
+  const floorLine = src.match(/export const MIN_JAVA =([\s\S]*?)\n\n/)?.[1] ?? ''
+  check(
+    'the floor is derived from the mappings rather than written out',
+    floorLine.includes('minHostJava') && !/=\s*\d+/.test(floorLine),
+    floorLine.trim().slice(0, 80)
+  )
+  const url = src.match(/api\.adoptium\.net\/v3\/binary\/latest\/([^/]+)\//)?.[1]
+  check(
+    'and the JDK it offers to install is that same release',
+    url === '${MIN_JAVA}',
+    `the url asks for ${url ?? 'nothing this could find'}`
+  )
+}
+
 async function theSetupScreens(): Promise<void> {
   console.log('\n[setup] the first run gates, driven through the bridge')
 
@@ -577,6 +604,7 @@ async function main(): Promise<void> {
   theExtractor()
   theUpdater()
   theTitleBar()
+  theJavaFloor()
   await theSetupScreens()
 
   console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
