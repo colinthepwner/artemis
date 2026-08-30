@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Compass, X } from 'lucide-react'
 import { useAppStore, type SectionId } from '@/store/appStore'
+import { useProjectStore } from '@/store/projectStore'
+import { LATEST_BTA } from '@shared/generator/mappings'
 import { TOUR_SPEED, useTypedText } from '@/components/ui/typing'
-import { TOURS, WELCOME_TOUR } from './steps'
+import { stepsFor, WELCOME_TOUR, type TourHands, type TourStep, type TourWorld } from './steps'
 
 const seenKey = (tour: string): string =>
   tour === WELCOME_TOUR ? 'artemis.tutorial.seen' : `artemis.tour.${tour}.seen`
+
+const OFFERED_PROJECT = { name: 'My First Mod', modId: 'my_first_mod' }
 
 const HALO = 6
 
@@ -16,6 +20,8 @@ const BUBBLE_W = 340
 const BUBBLE_H = 190
 
 const MARGIN = 16
+
+const GRACE_FRAMES = 12
 
 interface Rect {
   top: number
@@ -36,11 +42,14 @@ function useAnchorRect(anchor: string | undefined): Rect | null {
     let frame = 0
 
     let last = ''
+
+    let misses = 0
     const measure = (): void => {
       if (!live) return
       const el = document.querySelector(`[data-tour="${anchor}"]`)
       if (!el) {
-        if (last !== 'none') {
+        misses++
+        if (misses > GRACE_FRAMES && last !== 'none') {
           last = 'none'
           setRect(null)
         }
@@ -48,6 +57,7 @@ function useAnchorRect(anchor: string | undefined): Rect | null {
         const r = el.getBoundingClientRect()
 
         if (r.width > 0 && r.height > 0) {
+          misses = 0
           const key = `${r.top},${r.left},${r.width},${r.height}`
           if (key !== last) {
             last = key
@@ -120,6 +130,43 @@ function clearOfWindowControls(top: number, left: number): { top: number; left: 
   return { top: dropped, left }
 }
 
+function Curtain(props: { hole: Rect | null; onClick?: () => void }): JSX.Element | null {
+  const { hole, onClick } = props
+
+  const pane = 'pointer-events-auto absolute'
+  if (!hole) {
+    return onClick ? <div className={`${pane} inset-0`} onClick={onClick} /> : null
+  }
+  const bottom = hole.top + hole.height
+  const right = hole.left + hole.width
+  return (
+    <>
+      <div className={`${pane} left-0 right-0 top-0`} style={{ height: Math.max(0, hole.top) }} />
+      <div className={`${pane} bottom-0 left-0 right-0`} style={{ top: bottom }} />
+      <div
+        className={`${pane} left-0`}
+        style={{ top: hole.top, height: hole.height, width: Math.max(0, hole.left) }}
+      />
+      <div className={`${pane} right-0`} style={{ top: hole.top, height: hole.height, left: right }} />
+    </>
+  )
+}
+
+export function tourWorld(): TourWorld {
+  const app = useAppStore.getState()
+  const project = useProjectStore.getState().project
+
+  const newest = project?.elements.length ? project.elements[project.elements.length - 1] : null
+  return {
+    hasProject: project !== null,
+    heroMode: app.heroMode,
+    createMenuOpen: app.createMenuOpen,
+    elementCount: project?.elements.length ?? 0,
+    textureCount: project?.textures.length ?? 0,
+    newest: newest ? { id: newest.id, kind: newest.kind } : null
+  }
+}
+
 export function markTourSeen(tour: string): void {
   try {
     localStorage.setItem(seenKey(tour), '1')
@@ -154,12 +201,58 @@ export function Tutorial(): JSX.Element | null {
 
   const [offered, setOffered] = useState(false)
 
+  const hasProject = useProjectStore((s) => s.project !== null)
+
+  const elements = useProjectStore((s) => s.project?.elements)
+  const textureCount = useProjectStore((s) => s.project?.textures.length ?? 0)
+  const heroMode = useAppStore((s) => s.heroMode)
+  const createMenuOpen = useAppStore((s) => s.createMenuOpen)
+
+  const world = useMemo<TourWorld>(
+    () => tourWorld(),
+    [hasProject, heroMode, createMenuOpen, elements, textureCount]
+  )
+
+  const worldRef = useRef(world)
+  worldRef.current = world
+
+  const hands = useMemo<TourHands>(
+    () => ({
+      showSection: (section, editingId = null) =>
+        useAppStore.getState().showSection(section, editingId),
+      setHeroMode: (mode) => useAppStore.getState().setHeroMode(mode),
+      openCreateMenu: () => useAppStore.getState().openCreateMenu(),
+      closeCreateMenu: () => useAppStore.getState().closeCreateMenu(),
+      startExampleProject: () => {
+        const project = useProjectStore.getState()
+        if (project.project) return
+        project.newProject(OFFERED_PROJECT.name, OFFERED_PROJECT.modId, LATEST_BTA)
+
+        void useProjectStore.getState().saveProject()
+      },
+      createElement: (kind) => {
+        const id = useProjectStore.getState().createElement(kind)
+        useAppStore.getState().closeCreateMenu()
+        useAppStore.getState().showSection(kind, id)
+      }
+    }),
+    []
+  )
+
   useEffect(() => {
 
     if (offered || noticeOpen || bootPhase !== 'ready') return
     setOffered(true)
     if (tourIsDue(WELCOME_TOUR)) startTutorial(WELCOME_TOUR)
   }, [offered, noticeOpen, bootPhase, startTutorial])
+
+  const [plan, setPlan] = useState<{ tour: string; steps: TourStep[] } | null>(null)
+  if (open && tour && plan?.tour !== tour) {
+    setPlan({ tour, steps: stepsFor(tour, world) })
+    setIndex(0)
+    setRevealed(false)
+  }
+  if (!open && plan) setPlan(null)
 
   const [cameFrom, setCameFrom] = useState<{ section: SectionId; editingId: string | null } | null>(
     null
@@ -174,13 +267,18 @@ export function Tutorial(): JSX.Element | null {
     }
   }, [open])
 
-  const steps = (tour && TOURS[tour]) || []
+  const steps = plan?.steps ?? []
   const step = steps[Math.min(index, Math.max(0, steps.length - 1))]
 
   const wanted = step?.section
   useEffect(() => {
     if (open && wanted) showSection(wanted)
   }, [open, wanted, showSection])
+
+  useEffect(() => {
+    if (!open) return
+    steps[index]?.arrive?.(hands, worldRef.current)
+  }, [open, index, steps, hands])
 
   const last = index >= steps.length - 1
 
@@ -199,9 +297,24 @@ export function Tutorial(): JSX.Element | null {
     rate: TOUR_SPEED
   })
 
+  const gate = step?.gate ?? null
+  const gateOpen = !gate || gate.done(world)
+
+  const armed = useRef(false)
+  const armedFor = useRef('')
+  const armKey = `${tour ?? ''}:${index}`
+  if (armedFor.current !== armKey) {
+    armedFor.current = armKey
+    armed.current = !!gate && !gateOpen
+  }
+
   const advance = useCallback((): void => {
     if (!revealed && !done) {
       setRevealed(true)
+      return
+    }
+    if (gate && !gateOpen) {
+      gate.run(hands, worldRef.current)
       return
     }
     if (last) {
@@ -210,7 +323,18 @@ export function Tutorial(): JSX.Element | null {
     }
     setIndex((i) => i + 1)
     setRevealed(false)
-  }, [revealed, done, last, finish])
+  }, [revealed, done, gate, gateOpen, hands, last, finish])
+
+  useEffect(() => {
+    if (!open || !gateOpen || !armed.current) return
+    armed.current = false
+    if (last) {
+      finish()
+      return
+    }
+    setIndex((i) => i + 1)
+    setRevealed(false)
+  }, [open, gateOpen, last, finish])
 
   const back = useCallback((): void => {
     setIndex((i) => Math.max(0, i - 1))
@@ -221,11 +345,14 @@ export function Tutorial(): JSX.Element | null {
     if (!open) return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') finish()
+
       if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === ' ') {
+        if (isTyping(e.target)) return
         e.preventDefault()
         advance()
       }
       if (e.key === 'ArrowLeft') {
+        if (isTyping(e.target)) return
         e.preventDefault()
         back()
       }
@@ -238,6 +365,7 @@ export function Tutorial(): JSX.Element | null {
 
   const shown = revealed ? step.body : text
   const landed = revealed || done
+  const waiting = !!gate && !gateOpen
   const bubble = placeBubble(rect)
   const halo = rect
     ? {
@@ -248,8 +376,17 @@ export function Tutorial(): JSX.Element | null {
       }
     : null
 
+  const primary = !landed
+    ? 'Show it all'
+    : gate && !gateOpen
+      ? gate.offer
+      : last
+        ? 'Start building'
+        : 'Next'
+
   return (
-    <div className="fixed inset-0 z-[95]">
+
+    <div className="pointer-events-none fixed inset-0 z-[95]">
       {
 
 }
@@ -258,24 +395,34 @@ export function Tutorial(): JSX.Element | null {
           className="pointer-events-none absolute rounded-lg ring-2 ring-gold-400/70"
 
           initial={reduceAnimations ? false : { opacity: 0, ...halo }}
-          animate={{ opacity: 1, ...halo }}
-          transition={{ duration: reduceAnimations ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+
+          animate={{ opacity: waiting && !reduceAnimations ? [1, 0.4, 1] : 1, ...halo }}
+          transition={{
+            duration: reduceAnimations ? 0 : 0.22,
+            ease: [0.22, 1, 0.36, 1],
+            opacity: waiting && !reduceAnimations
+              ? { duration: 1.7, repeat: Infinity, ease: 'easeInOut' }
+              : { duration: reduceAnimations ? 0 : 0.22 }
+          }}
           style={{ boxShadow: '0 0 0 9999px rgba(6, 8, 11, 0.66)' }}
         />
-      ) : (
-        <div className="absolute inset-0" style={{ background: 'rgba(6, 8, 11, 0.66)' }} />
+      ) : waiting ? null : (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'rgba(6, 8, 11, 0.66)' }}
+        />
       )}
 
       {
 
 }
-      <div className="absolute inset-0" onClick={advance} />
+      <Curtain hole={waiting ? halo : null} onClick={waiting ? undefined : advance} />
 
       {
 
 }
       <motion.div
-        className="absolute left-0 top-0 flex flex-col rounded-xl bg-ink-850 p-4 shadow-raised"
+        className="pointer-events-auto absolute left-0 top-0 flex flex-col rounded-xl bg-ink-850 p-4 shadow-raised"
         style={{ width: BUBBLE_W, minHeight: BUBBLE_H }}
         initial={
           reduceAnimations ? false : { opacity: 0, scale: 0.96, x: bubble.left, y: bubble.top }
@@ -314,6 +461,7 @@ export function Tutorial(): JSX.Element | null {
         </p>
 
         {
+
 }
         <p
           className={`mt-2 text-2xs leading-relaxed text-gold-300/80 transition-opacity duration-200 ${
@@ -341,16 +489,31 @@ export function Tutorial(): JSX.Element | null {
               <ArrowLeft size={11} strokeWidth={2} /> Back
             </button>
           )}
+          {
+
+}
           <button
+            data-tour-action="primary"
             onClick={advance}
             autoFocus
-            className="ml-auto flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-[13px] font-medium text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.98]"
+            className={`ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-all active:scale-[0.98] ${
+              waiting
+                ? 'bg-ink-750 text-mist-200 hover:bg-ink-700'
+                : 'bg-gold-500 text-ink-950 hover:bg-gold-400'
+            }`}
           >
-            {last ? 'Start building' : landed ? 'Next' : 'Show it all'}
-            {!last && <ArrowRight size={13} strokeWidth={2.2} />}
+            {primary}
+            {!last && !waiting && <ArrowRight size={13} strokeWidth={2.2} />}
           </button>
         </div>
       </motion.div>
     </div>
   )
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el || typeof el.tagName !== 'string') return false
+  const tag = el.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable === true
 }

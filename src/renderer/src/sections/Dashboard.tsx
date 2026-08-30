@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { FolderOpen, Plus, Clock, X, Images, PackageOpen, FolderDown, ArrowLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, type HeroMode } from '@/store/appStore'
 import { useTypedText } from '@/components/ui/typing'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context'
@@ -215,12 +215,12 @@ function LogoHero(props: { mode: HeroMode; switches: number }): JSX.Element {
   )
 }
 
-type HeroMode = 'choose' | 'new' | 'existing'
-
 function WelcomeHero(): JSX.Element {
   const recents = useRecents()
   const openProject = useProjectStore((s) => s.openProject)
-  const [mode, setMode] = useState<HeroMode>('choose')
+  const mode = useAppStore((s) => s.heroMode)
+  const setMode = useAppStore((s) => s.setHeroMode)
+  useEffect(() => () => setMode('choose'), [setMode])
 
   const [switches, setSwitches] = useState(0)
 
@@ -294,6 +294,7 @@ function ChoosePanel(props: {
   return (
     <div data-tour="dashboard-doors" className="grid gap-3 sm:grid-cols-2">
       <HeroChoice
+        anchor="dashboard-new"
         icon={Plus}
         title="New Mod"
         desc="Start from an empty project."
@@ -301,6 +302,7 @@ function ChoosePanel(props: {
         primary
       />
       <HeroChoice
+        anchor="dashboard-existing"
         icon={FolderOpen}
         title="Existing Mod"
         desc={
@@ -320,10 +322,13 @@ function HeroChoice(props: {
   desc: string
   onClick: () => void
   primary?: boolean
+
+  anchor?: string
 }): JSX.Element {
   const Icon = props.icon
   return (
     <button
+      data-tour={props.anchor}
       onClick={props.onClick}
       className={cn(
 
@@ -388,7 +393,7 @@ function NewModPanel(props: { onBack: () => void }): JSX.Element {
   return (
     <div>
       <BackLink onBack={props.onBack} />
-      <div className="card space-y-4 p-5">
+      <div data-tour="newmod-form" className="card space-y-4 p-5">
         <div>
           <label className="label-base">Mod Name</label>
           <input

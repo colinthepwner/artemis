@@ -11,6 +11,8 @@ export type SectionId =
   | 'export'
   | 'settings'
 
+export type HeroMode = 'choose' | 'new' | 'existing'
+
 export interface TextureEditorState {
   textureId: string | null
   assignSlotAfter?: string
@@ -83,6 +85,8 @@ interface AppState {
   editingId: string | null
   inspectorOpen: boolean
   createMenuOpen: boolean
+
+  heroMode: HeroMode
   textureEditor: TextureEditorState | null
 
   workshopEditor: { elementId: string } | null
@@ -122,6 +126,7 @@ interface AppState {
   toggleInspector: () => void
   openCreateMenu: () => void
   closeCreateMenu: () => void
+  setHeroMode: (mode: HeroMode) => void
   openTextureEditor: (state: TextureEditorState) => void
   closeTextureEditor: () => void
   openWorkshopEditor: (elementId: string) => void
@@ -153,6 +158,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   inspectorOpen: false,
   createMenuOpen: false,
+  heroMode: 'choose',
   textureEditor: null,
   workshopEditor: null,
 
@@ -198,6 +204,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   openCreateMenu: () => set({ createMenuOpen: true }),
   closeCreateMenu: () => set({ createMenuOpen: false }),
+  setHeroMode: (heroMode) => set({ heroMode }),
 
   openTextureEditor: (textureEditor) =>
     set((s) => ({

@@ -138,6 +138,8 @@ function CreateCard({ entry, onClick }: { entry: Entry; onClick: () => void }): 
   const accent = KIND_COLORS[entry.kind]
   return (
     <button
+
+      data-tour={`create-${entry.kind}`}
       onClick={onClick}
       className="group relative flex h-full w-full flex-col items-center gap-2 rounded-lg border border-white/[0.05] bg-ink-800/60 px-3 py-4 text-center transition duration-150 hover:z-10 hover:border-gold-500/40 hover:bg-ink-750 active:scale-[0.98]"
     >

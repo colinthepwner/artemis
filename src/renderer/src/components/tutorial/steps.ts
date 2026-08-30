@@ -1,4 +1,38 @@
-import type { SectionId } from '@/store/appStore'
+import type { ElementKind } from '@shared/project'
+import type { HeroMode, SectionId } from '@/store/appStore'
+
+export interface TourWorld {
+  hasProject: boolean
+
+  heroMode: HeroMode
+  createMenuOpen: boolean
+
+  elementCount: number
+  textureCount: number
+
+  newest: { id: string; kind: ElementKind } | null
+}
+
+export interface TourHands {
+
+  showSection: (section: SectionId, editingId?: string | null) => void
+  setHeroMode: (mode: HeroMode) => void
+  openCreateMenu: () => void
+  closeCreateMenu: () => void
+
+  startExampleProject: () => void
+
+  createElement: (kind: ElementKind) => void
+}
+
+export interface TourGate {
+
+  done: (w: TourWorld) => boolean
+
+  offer: string
+
+  run: (h: TourHands, w: TourWorld) => void
+}
 
 export interface TourStep {
 
@@ -13,23 +47,53 @@ export interface TourStep {
   section?: SectionId
 
   anchor?: string
+
+  arrive?: (h: TourHands, w: TourWorld) => void
+
+  gate?: TourGate
+
+  when?: (w: TourWorld) => boolean
 }
+
+const noProject = (w: TourWorld): boolean => !w.hasProject
 
 const WELCOME: TourStep[] = [
   {
     id: 'welcome',
     title: 'A quick look around',
     section: 'dashboard',
-    body: 'About a minute of it. Skip whenever you want.',
-    made: 'You can open it again from the Artemis Settings menu.'
+    body: 'A walk through the app, and you make something real on the way.',
+    made: 'Skip whenever you want. It is in the Artemis Settings menu after that.'
   },
   {
     id: 'project',
     title: 'Start a project',
     section: 'dashboard',
-    anchor: 'dashboard-doors',
-    body: 'A project is one mod. Name it, pick a BTA version, and it saves as you work.',
-    made: 'Everything you make from here on lives inside it.'
+    anchor: 'dashboard-new',
+    body: 'A project is one mod. Open this door and we will fill it in together.',
+    made: 'Everything you make from here on lives inside it.',
+    when: noProject,
+
+    arrive: (h) => h.setHeroMode('choose'),
+    gate: {
+      done: (w) => w.heroMode === 'new',
+      offer: 'Open it for me',
+      run: (h) => h.setHeroMode('new')
+    }
+  },
+  {
+    id: 'name',
+    title: 'Name it',
+    section: 'dashboard',
+    anchor: 'newmod-form',
+    body: 'A name, an id in lowercase, and the release of the game it is built for.',
+    made: 'Create Project, and it writes itself to disk from then on.',
+    when: noProject,
+    gate: {
+      done: (w) => w.hasProject,
+      offer: 'Make one for me',
+      run: (h) => h.startExampleProject()
+    }
   },
   {
     id: 'create',
@@ -37,23 +101,45 @@ const WELCOME: TourStep[] = [
     section: 'dashboard',
     anchor: 'sidebar-create',
     body: 'Blocks, items, ores, mobs, biomes, trees, structures, recipes, liquids, dimensions.',
-    made: 'Pick one, fill in the form, and it is in your mod.'
+    made: 'Open it and pick one.',
+    gate: {
+      done: (w) => w.createMenuOpen,
+      offer: 'Open it for me',
+      run: (h) => h.openCreateMenu()
+    }
   },
   {
+
+    id: 'pick',
+    title: 'Pick a block',
+    anchor: 'create-block',
+    body: 'A solid block is the shortest road to something you can stand on in the game.',
+    made: 'Any of them works. What comes after is the same shape for all of them.',
+    gate: {
+
+      done: (w) => !w.createMenuOpen && w.elementCount > 0,
+      offer: 'Make one for me',
+      run: (h) => h.createElement('block')
+    }
+  },
+  {
+    id: 'wizard',
+    title: 'Filling it in',
+    anchor: 'wizard-rail',
+    body: 'Categories down the side, one screen at a time, and it keeps what you type.',
+    made: 'What it is made of, how hard it is to break, and what it drops when you do.',
+    arrive: (h, w) => {
+      h.closeCreateMenu()
+      if (w.newest) h.showSection(w.newest.kind, w.newest.id)
+    }
+  },
+  {
+
     id: 'content',
     title: 'Your mod so far',
-    section: 'dashboard',
     anchor: 'sidebar-content',
     body: 'Everything you make is listed here by kind. Click one to open it again.',
     made: 'An ore asks for a block. A recipe asks for an item. You pick them off this list.'
-  },
-  {
-    id: 'making',
-    title: 'Making one',
-    section: 'block',
-    anchor: 'section-new',
-    body: 'Every kind has a page like this one, and a form that asks what it should be.',
-    made: 'Name it, pick how hard it is to break and what it drops, and it exists.'
   },
   {
     id: 'gallery',
@@ -97,9 +183,9 @@ const WELCOME: TourStep[] = [
   },
   {
     id: 'finish',
-    title: 'Try this one first',
+    title: 'Try this next',
     section: 'dashboard',
-    body: 'Paint a texture, make a block from it, then an ore that puts that block underground.',
+    body: 'Paint a texture, hang it on the block you just made, then an ore that buries it.',
     made: 'Then a recipe that turns nine of them back into the block.'
   }
 ]
@@ -159,3 +245,7 @@ export const TOURS: Record<string, TourStep[]> = {
 }
 
 export const WELCOME_TOUR = 'welcome'
+
+export function stepsFor(tour: string, world: TourWorld): TourStep[] {
+  return (TOURS[tour] ?? []).filter((s) => !s.when || s.when(world))
+}

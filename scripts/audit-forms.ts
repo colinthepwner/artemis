@@ -6,7 +6,7 @@ import { renderProbe, nodeText, h, liveProject, type ProbeNode, type ProbeRoot }
 import { bridgeCalls, resetBridge, fakeStorage, emitBridge } from './_studio-env'
 import { SCENARIOS, scenario } from './audit-fixtures'
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
-import { useAppStore, type PendingWork } from '../src/renderer/src/store/appStore'
+import { useAppStore, type PendingWork, type SectionId } from '../src/renderer/src/store/appStore'
 import { useTestStore } from '../src/renderer/src/store/testStore'
 import { FORM_REGISTRY, KIND_LABELS } from '../src/renderer/src/sections/forms/registry'
 import { createEmptyProject, type ArtemisElement, type ArtemisProject, type ElementKind } from '../src/shared/project'
@@ -17,8 +17,8 @@ import { elementRegistryEntries } from '../src/shared/generator/registry'
 import { png16DataUrl } from './_canvas'
 import { Sidebar } from '../src/renderer/src/components/layout/Sidebar'
 import { TitleBar } from '../src/renderer/src/components/titlebar/TitleBar'
-import { Tutorial } from '../src/renderer/src/components/tutorial/Tutorial'
-import { TOURS, WELCOME_TOUR } from '../src/renderer/src/components/tutorial/steps'
+import { Tutorial, tourWorld } from '../src/renderer/src/components/tutorial/Tutorial'
+import { stepsFor, TOURS, WELCOME_TOUR } from '../src/renderer/src/components/tutorial/steps'
 const TOUR_STEPS = TOURS[WELCOME_TOUR]
 import { Dashboard } from '../src/renderer/src/sections/Dashboard'
 import { GallerySection } from '../src/renderer/src/sections/GallerySection'
@@ -28,6 +28,7 @@ import { SettingsSection } from '../src/renderer/src/sections/SettingsSection'
 import { ExportSection } from '../src/renderer/src/sections/ExportSection'
 import { ElementSection } from '../src/renderer/src/sections/ElementSection'
 import { UpdateBar } from '../src/renderer/src/components/layout/UpdateBar'
+import { CreateMenu } from '../src/renderer/src/components/layout/CreateMenu'
 import { PixelEditorOverlay } from '../src/renderer/src/components/pixel/PixelEditor'
 import { VoxelEditorOverlay } from '../src/renderer/src/components/workshop/VoxelEditor'
 import { kitPieces } from '../src/shared/generator/family'
@@ -1263,6 +1264,8 @@ function theTitleTypesWhereItCanBeSeen(): void {
   const WELL_PAST_THE_END = 20_000
   const WORDMARK = 'ARTEMIS'
 
+  useAppStore.setState({ heroMode: 'choose' })
+
   {
     const clock = fakeClock()
     useAppStore.setState({
@@ -1371,13 +1374,30 @@ function theGuidedTour(): void {
 
   const anchorsFor = (make: () => ReturnType<typeof h>): string[] => {
     const kept = useProjectStore.getState().project
+    const keptMode = useAppStore.getState().heroMode
     const found = anchorsOn(make)
     useProjectStore.setState({ project: null, filePath: null, dirty: false })
-    found.push(...anchorsOn(make))
+    for (const heroMode of ['choose', 'new', 'existing'] as const) {
+      useAppStore.setState({ heroMode })
+      found.push(...anchorsOn(make))
+    }
+    useAppStore.setState({ heroMode: keptMode })
     useProjectStore.setState({ project: kept, filePath: null, dirty: false })
     return found
   }
   const shell = new Set([...anchorsFor(() => h(Sidebar)), ...anchorsFor(() => h(TitleBar))])
+
+  const overlays = new Set(
+    (() => {
+      const found = anchorsOn(() => h(CreateMenu, { onClose: () => {} }))
+      const first = live().elements[0]
+      const keptEditing = useAppStore.getState().editingId
+      useAppStore.setState({ editingId: first.id })
+      found.push(...anchorsOn(() => h(ElementSection, { kind: first.kind })))
+      useAppStore.setState({ editingId: keptEditing })
+      return found
+    })()
+  )
 
   const TOOL_SURFACES: Record<string, () => ReturnType<typeof h>> = {
     pixel: () => {
@@ -1411,7 +1431,12 @@ function theGuidedTour(): void {
       const make = step.section
         ? SECTIONS.find(([n]) => n === step.section)?.[1]
         : undefined
-      const onPage = new Set([...shell, ...toolAnchors, ...(make ? anchorsFor(make) : [])])
+      const onPage = new Set([
+        ...shell,
+        ...overlays,
+        ...toolAnchors,
+        ...(make ? anchorsFor(make) : [])
+      ])
       check(
         `and what the ${name} tour's "${step.id}" points at is really there`,
         onPage.has(step.anchor),
@@ -1443,31 +1468,35 @@ function theGuidedTour(): void {
     useAppStore.getState().section
   )
 
-  const button = (label: string): ProbeNode | undefined =>
-    root.clickable().find((n) => nodeText(n).includes(label))
+  const forward = (r: ProbeRoot): ProbeNode | undefined =>
+    r.clickable().find((n) => n.props['data-tour-action'] === 'primary')
 
-  const visited: string[] = [useAppStore.getState().section]
-  let steps = 1
-  for (let guard = 0; guard < TOUR_STEPS.length * 3; guard++) {
-    const next = button('Next') ?? button('Start building')
-    if (!next) break
-    const wasLast = !!button('Start building')
-    root.click(next)
+  const plan = stepsFor(WELCOME_TOUR, tourWorld())
+
+  const seen: string[] = []
+  const stood: SectionId[] = []
+  for (let guard = 0; guard < plan.length * 3; guard++) {
+    const at = plan[seen.length]
+    if (!at) break
+    seen.push(root.text().includes(at.title) ? at.id : `${at.id}(missing)`)
+    stood.push(useAppStore.getState().section)
+    const go = forward(root)
+    if (!go) break
+    root.click(go)
     root.flush()
-    if (wasLast) break
-    steps++
-    visited.push(useAppStore.getState().section)
+    if (useAppStore.getState().activeTour === null) break
   }
   check(
-    'Next walks through every step and no further',
-    steps === TOUR_STEPS.length,
-    `stopped after ${steps} of ${TOUR_STEPS.length}`
+    'its button walks every step of it, in order, and stops',
+    seen.join('>') === plan.map((t) => t.id).join('>'),
+    seen.join(' > ')
   )
-  check(
-    'and every step opened its own page on the way',
-    visited.join('>') === TOUR_STEPS.map((t) => t.section).join('>'),
-    `${visited.join(' > ')}`
-  )
+  const misplaced = plan
+    .map((t, i) =>
+      t.section && stood[i] !== t.section ? `${t.id} wanted ${t.section}, stood on ${stood[i]}` : ''
+    )
+    .filter(Boolean)
+  check('and every step that names a page had opened it', misplaced.length === 0, misplaced.join('; '))
   check('and the last step closes it',
     useAppStore.getState().activeTour === null, String(useAppStore.getState().activeTour))
   check('and closing it is remembered', fakeStorage.get('artemis.tutorial.seen') === '1')
@@ -1482,6 +1511,89 @@ function theGuidedTour(): void {
     String(useAppStore.getState().editingId)
   )
   root.unmount()
+
+  useProjectStore.setState({ project: null, filePath: null, dirty: false })
+  useAppStore.setState({
+    activeTour: null,
+    heroMode: 'choose',
+    createMenuOpen: false,
+    section: 'dashboard',
+    editingId: null
+  })
+  fakeStorage.clear()
+  resetBridge()
+  {
+    const fresh = stepsFor(WELCOME_TOUR, tourWorld())
+    check(
+      'with nothing open, the tour starts by making a project',
+      fresh[1]?.id === 'project' && fresh[2]?.id === 'name',
+      fresh.map((t) => t.id).join(' > ')
+    )
+    check(
+      'and it drops those two for somebody who already has one',
+      fresh.length === TOUR_STEPS.length &&
+        plan.length === fresh.length - 2 &&
+        !plan.some((t) => t.id === 'project' || t.id === 'name'),
+      `${fresh.length} steps with nothing open, ${plan.length} with a mod already open`
+    )
+
+    const bubble = renderProbe(h(Tutorial))
+    const press = (): void => {
+      const go = forward(bubble)
+      if (go) {
+        bubble.click(go)
+        bubble.flush()
+      }
+    }
+    press()
+    check(
+      'it stops on the New Mod door rather than talking over it',
+      bubble.text().includes(fresh[1].title) && !useProjectStore.getState().project,
+      bubble.text().slice(0, 90)
+    )
+    press()
+    check(
+      'its button opens that door',
+      useAppStore.getState().heroMode === 'new',
+      useAppStore.getState().heroMode
+    )
+    check(
+      'and the door opening moves it on by itself',
+      bubble.text().includes(fresh[2].title),
+      bubble.text().slice(0, 90)
+    )
+    press()
+    const made = useProjectStore.getState().project
+    check('the next offer really makes a project', made !== null, String(made?.meta.modId))
+    check(
+      'and writes it out, so it is a file rather than a session',
+      bridgeCalls.some((c) => c.name === 'project.save'),
+      bridgeCalls.map((c) => c.name).join(', ')
+    )
+    check(
+      'and having one moves it on to the Create button',
+      bubble.text().includes(fresh[3].title),
+      bubble.text().slice(0, 90)
+    )
+
+    for (let guard = 0; guard < fresh.length * 3 && useAppStore.getState().activeTour; guard++) {
+      press()
+    }
+    check(
+      'and the same button carries it the whole way out',
+      useAppStore.getState().activeTour === null,
+      String(useAppStore.getState().activeTour)
+    )
+    check(
+      'having made the first block on the way',
+      useProjectStore.getState().project?.elements.some((e) => e.kind === 'block') === true,
+      (useProjectStore.getState().project?.elements ?? []).map((e) => e.kind).join(', ')
+    )
+    bubble.unmount()
+  }
+
+  seed(scenario('a mod from before the element rework').build())
+  useAppStore.setState({ section: 'dashboard', editingId: null, createMenuOpen: false })
 
   fakeStorage.clear()
   useAppStore.setState({ activeTour: null, section: 'gallery' })
@@ -1553,6 +1665,8 @@ function theGuidedTour(): void {
     useAppStore.getState().activeTour === null, String(useAppStore.getState().activeTour))
   second.unmount()
 
+  const untouched = JSON.stringify(useProjectStore.getState().project)
+  const quietFrom = bridgeCalls.length
   fakeStorage.clear()
   useAppStore.setState({ activeTour: null, section: 'export' })
   const third = renderProbe(h(Tutorial))
@@ -1573,11 +1687,20 @@ function theGuidedTour(): void {
   }
   third.unmount()
 
-  const before = JSON.stringify(useProjectStore.getState().project)
-  const loud = bridgeCalls.filter((c) => c.name !== 'prefs.save').map((c) => c.name)
-  check('the tour saves nothing, exports nothing and launches nothing', loud.length === 0,
+  check(
+    'and a tour that was skipped leaves the mod exactly as it was',
+    JSON.stringify(useProjectStore.getState().project) === untouched
+  )
+  check(
+    'and writes nothing at all on its way out',
+    bridgeCalls.slice(quietFrom).every((c) => c.name === 'prefs.save'),
+    bridgeCalls.slice(quietFrom).map((c) => c.name).join(', ')
+  )
+
+  const forbidden = ['export.workspace', 'test.start', 'project.saveAs']
+  const loud = bridgeCalls.filter((c) => forbidden.includes(c.name)).map((c) => c.name)
+  check('and it exports nothing, launches nothing and renames nothing', loud.length === 0,
     [...new Set(loud)].join(', '))
-  check('and it does not touch the mod', JSON.stringify(useProjectStore.getState().project) === before)
 
   fakeStorage.clear()
   useAppStore.setState({ activeTour: null, startupNoticeOpen: true })
@@ -1585,7 +1708,13 @@ function theGuidedTour(): void {
   check('it waits for the first-run notice',
     useAppStore.getState().activeTour === null, String(useAppStore.getState().activeTour))
   fourth.unmount()
-  useAppStore.setState({ startupNoticeOpen: false, reduceAnimations: false, section: 'dashboard' })
+  useAppStore.setState({
+    startupNoticeOpen: false,
+    reduceAnimations: false,
+    section: 'dashboard',
+
+    heroMode: 'choose'
+  })
 }
 
 function everySectionMounts(): void {

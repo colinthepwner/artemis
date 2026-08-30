@@ -162,7 +162,10 @@ export function FormShell(props: {
 
       <div className="flex min-h-0 flex-1">
         {}
-        <nav className="w-44 shrink-0 overflow-y-auto border-r border-white/[0.04] px-3 py-4">
+        <nav
+          data-tour="wizard-rail"
+          className="w-44 shrink-0 overflow-y-auto border-r border-white/[0.04] px-3 py-4"
+        >
           {
 }
           <GlideList active={step.id}>
