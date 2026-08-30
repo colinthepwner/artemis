@@ -144,6 +144,15 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
     out.push(el)
   }
 
+  const owned = new Set(out.map((e) => e.name))
+  for (const el of out) {
+    if (!el.detached?.length) continue
+    const kept = el.detached.filter((n) => owned.has(n))
+    if (kept.length !== el.detached.length) {
+      el.detached = kept.length ? kept : undefined
+    }
+  }
+
   project.elements = out
   migrateSpawns(project)
   migrateTreeFeature(project)

@@ -233,10 +233,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (!slotSet.has(key)) orphans.delete(texId)
       }
 
+      const freed = el?.name
+      const elements = s.project.elements
+        .filter((e) => e.id !== id)
+        .map((e) =>
+          freed && e.detached?.includes(freed)
+            ? { ...e, detached: e.detached.filter((n) => n !== freed) }
+            : e
+        )
+
       return {
         project: {
           ...s.project,
-          elements: s.project.elements.filter((e) => e.id !== id),
+          elements,
           textures: s.project.textures.filter((t) => !orphans.has(t.id)),
 
           textureAssignments: Object.fromEntries(

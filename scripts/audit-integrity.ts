@@ -3,6 +3,7 @@ import { createEmptyProject, type ArtemisProject, type ElementKind } from '../sr
 import { KIND_DEFAULTS } from '../src/shared/generator/props'
 import { unfinishedIn, autoFixProject } from '../src/shared/readiness'
 import { migrateProject } from '../src/shared/migrate'
+import { kitPieces } from '../src/shared/generator/family'
 import { normalize } from '../src/renderer/src/store/projectStore'
 import { SCENARIOS } from './audit-fixtures'
 import { pngDataUrl } from './_canvas'
@@ -124,6 +125,42 @@ console.log('readiness: dangling references are caught')
     }
   })())
   check('the fixed project declares nothing twice', duplicateDecls(fixed).length === 0, duplicateDecls(fixed).join('; '))
+}
+
+console.log('a piece detached from a set with nothing owning it')
+
+{
+  const at = '2026-08-30T00:00:00Z'
+  const holed = createEmptyProject('Holed', 'holedmod')
+  holed.elements.push(
+    { id: 'a', kind: 'item', name: 'new_item', properties: { ...KIND_DEFAULTS.item }, createdAt: at, updatedAt: at },
+    { id: 'b', kind: 'item', name: 'new_item_boots', properties: { ...KIND_DEFAULTS.item, piece: 'boots' }, createdAt: at, updatedAt: at },
+    {
+      id: 'c',
+      kind: 'gearset',
+      name: 'new_item',
+      properties: { ...KIND_DEFAULTS.gearset },
+      detached: ['new_item_boots', 'new_item_sword'],
+      createdAt: at,
+      updatedAt: at
+    }
+  )
+  migrateProject(holed)
+  const set = holed.elements.find((e) => e.kind === 'gearset')!
+  const made = kitPieces(set).map((k) => k.name)
+  check(
+    'a piece detached with nothing owning it is handed back to the set',
+    made.includes('new_item_sword'),
+    made.join(', ')
+  )
+  check(
+    'and one that really was promoted stays promoted, so it is not declared twice',
+    !made.includes('new_item_boots') && made.length === 8,
+    `${made.length} pieces: ${made.join(', ')}`
+  )
+  const twice = clone(holed)
+  migrateProject(twice)
+  check('and repairing it twice is the same as once', stable(twice) === stable(holed))
 }
 
 console.log('an item that wears out')
