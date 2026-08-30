@@ -4,7 +4,14 @@ import { renderProbe, nodeText, h, liveProject, type ProbeNode, type ProbeRoot }
 import { useProjectStore } from '../src/renderer/src/store/projectStore'
 import { useAppStore } from '../src/renderer/src/store/appStore'
 import { VoxelEditorOverlay } from '../src/renderer/src/components/workshop/VoxelEditor'
-import { PixelEditorOverlay } from '../src/renderer/src/components/pixel/PixelEditor'
+import {
+  PixelEditorOverlay,
+  rectBetween,
+  insideMarquee,
+  liftFrom,
+  withMarquee,
+  type Marquee
+} from '../src/renderer/src/components/pixel/PixelEditor'
 import { HALF, keyOf } from '../src/renderer/src/components/workshop/voxel'
 import { createEmptyProject, type ArtemisProject } from '../src/shared/project'
 import { KIND_DEFAULTS, type BuildVariant } from '../src/shared/generator/props'
@@ -422,11 +429,93 @@ async function savingLandsInTheSlotItWasAimedAt(): Promise<void> {
   root.unmount()
 }
 
+function theRectangularSelection(): void {
+  console.log('\n[pixel] the rectangular selection')
+
+  const downRight = rectBetween(2 * 16 + 3, 5 * 16 + 7)
+  const upLeft = rectBetween(5 * 16 + 7, 2 * 16 + 3)
+  check(
+    'a rectangle is the same one dragged from either corner',
+    JSON.stringify(downRight) === JSON.stringify(upLeft),
+    `${JSON.stringify(downRight)} vs ${JSON.stringify(upLeft)}`
+  )
+  check(
+    'and it covers both corners rather than the gap between them',
+    downRight.left === 3 && downRight.top === 2 && downRight.w === 5 && downRight.h === 4,
+    JSON.stringify(downRight)
+  )
+
+  const grid = Array(256).fill('') as string[]
+  grid[1 * 16 + 1] = '#ff0000'
+  grid[1 * 16 + 2] = '#00ff00'
+  grid[2 * 16 + 1] = '#0000ff'
+  grid[2 * 16 + 2] = '#ffffff'
+
+  const sel: Marquee = { left: 1, top: 1, w: 2, h: 2, lifted: null, dx: 0, dy: 0 }
+  const lifted = liftFrom(grid, sel)
+  check(
+    'lifting takes the pixels under the selection, in reading order',
+    lifted.join(',') === '#ff0000,#00ff00,#0000ff,#ffffff',
+    lifted.join(',')
+  )
+
+  const unmoved = withMarquee(grid, { ...sel, lifted })
+  check(
+    'putting it straight back down changes nothing at all',
+    unmoved.join('|') === grid.join('|')
+  )
+
+  const moved = withMarquee(grid, { ...sel, lifted, dx: 5, dy: 3 })
+  check(
+    'moving it empties where it came from',
+    [1 * 16 + 1, 1 * 16 + 2, 2 * 16 + 1, 2 * 16 + 2].every((i) => moved[i] === ''),
+    'something was left behind'
+  )
+  check(
+    'and lands the whole block where it was taken to',
+    moved[4 * 16 + 6] === '#ff0000' &&
+      moved[4 * 16 + 7] === '#00ff00' &&
+      moved[5 * 16 + 6] === '#0000ff' &&
+      moved[5 * 16 + 7] === '#ffffff',
+    'the block did not arrive intact'
+  )
+  check(
+    'and touches nothing else on the layer',
+    moved.filter((c) => c !== '').length === 4,
+    `${moved.filter((c) => c !== '').length} painted cells, expected 4`
+  )
+
+  const offEdge = withMarquee(grid, { ...sel, lifted, dx: 14, dy: 0 })
+  check(
+    'a block dragged off the edge loses what went over it',
+    offEdge[1 * 16 + 15] === '#ff0000' && offEdge.filter((c) => c !== '').length === 2,
+    `${offEdge.filter((c) => c !== '').length} painted cells, expected 2`
+  )
+  check(
+    'and nothing wraps around to the far side',
+    offEdge[2 * 16 + 0] === '' && offEdge[1 * 16 + 0] === '',
+    'a pixel came back on the other edge'
+  )
+
+  const carried: Marquee = { ...sel, lifted, dx: 5, dy: 3 }
+  check(
+    'a moved selection is grabbed where it now sits',
+    insideMarquee(carried, 4 * 16 + 6) && insideMarquee(carried, 5 * 16 + 7),
+    'the moved selection could not be picked up again'
+  )
+  check(
+    'and no longer where it was drawn',
+    !insideMarquee(carried, 1 * 16 + 1),
+    'the empty source still answers to a grab'
+  )
+}
+
 async function main(): Promise<void> {
   placingAndErasing()
   undoAndRedo()
   theStackIsPerVariant()
   theEyedropper()
+  theRectangularSelection()
   buildingATreeSwitchesItToBuilt()
   await theLayerStack()
   await savingLandsInTheSlotItWasAimedAt()

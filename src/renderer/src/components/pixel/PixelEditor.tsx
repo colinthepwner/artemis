@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  SquareDashed,
   Droplet,
   Eraser,
   Eye,
@@ -71,6 +72,7 @@ type Tool =
   | 'fill'
   | 'line'
   | 'rect'
+  | 'select'
   | 'eyedropper'
   | 'lighten'
   | 'darken'
@@ -90,6 +92,71 @@ const CHECKER = {
 } as const
 
 const FX_IDLE_MS = 1500
+
+export interface Marquee {
+  left: number
+  top: number
+  w: number
+  h: number
+
+  lifted: string[] | null
+
+  dx: number
+  dy: number
+}
+
+export function rectBetween(a: number, b: number): { left: number; top: number; w: number; h: number } {
+  const [ax, ay] = xy(a)
+  const [bx, by] = xy(b)
+  return {
+    left: Math.min(ax, bx),
+    top: Math.min(ay, by),
+    w: Math.abs(ax - bx) + 1,
+    h: Math.abs(ay - by) + 1
+  }
+}
+
+export function insideMarquee(m: Marquee, idx: number): boolean {
+  const [x, y] = xy(idx)
+  const left = m.left + m.dx
+  const top = m.top + m.dy
+  return x >= left && x < left + m.w && y >= top && y < top + m.h
+}
+
+export function liftFrom(g: Grid, m: Marquee): string[] {
+  const out: string[] = []
+  for (let y = 0; y < m.h; y++) {
+    for (let x = 0; x < m.w; x++) {
+      const sx = m.left + x
+      const sy = m.top + y
+      out.push(sx >= 0 && sx < 16 && sy >= 0 && sy < 16 ? g[sy * 16 + sx] : '')
+    }
+  }
+  return out
+}
+
+export function withMarquee(g: Grid, m: Marquee): Grid {
+  if (!m.lifted) return g
+  const next = [...g]
+  for (let y = 0; y < m.h; y++) {
+    for (let x = 0; x < m.w; x++) {
+      const sx = m.left + x
+      const sy = m.top + y
+      if (sx >= 0 && sx < 16 && sy >= 0 && sy < 16) next[sy * 16 + sx] = ''
+    }
+  }
+  for (let y = 0; y < m.h; y++) {
+    for (let x = 0; x < m.w; x++) {
+      const c = m.lifted[y * m.w + x]
+      if (!c) continue
+      const tx = m.left + m.dx + x
+      const ty = m.top + m.dy + y
+      if (tx < 0 || tx > 15 || ty < 0 || ty > 15) continue
+      next[ty * 16 + tx] = c
+    }
+  }
+  return next
+}
 
 const SHAPE_TOOLS: Tool[] = ['line', 'rect']
 
@@ -325,7 +392,19 @@ function PixelEditor(): JSX.Element {
   const shapeAnchor = useRef<number | null>(null)
   const shapeCellsRef = useRef<number[]>([])
 
+  const [marquee, setMarquee] = useState<Marquee | null>(null)
+
+  const marqueeRef = useRef<Marquee | null>(null)
+  marqueeRef.current = marquee
+
+  const marqueeAnchor = useRef<number | null>(null)
+
+  const moveFrom = useRef<{ cell: number; dx: number; dy: number } | null>(null)
+
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
+
+  const activeGridRef = useRef<Grid>(active.grid)
+  activeGridRef.current = active.grid
 
   const opened = useRef<{ name: string; layers: Layer[] } | null>(null)
 
@@ -409,6 +488,33 @@ function PixelEditor(): JSX.Element {
     setActiveGrid(() => EMPTY.slice())
   }, [pushUndo, setActiveGrid])
 
+  const commitMarquee = useCallback((): void => {
+    const m = marqueeRef.current
+    setMarquee(null)
+    marqueeAnchor.current = null
+    moveFrom.current = null
+    if (!m?.lifted || (m.dx === 0 && m.dy === 0)) return
+    pushUndo()
+    setActiveGrid((g) => withMarquee(g, m))
+  }, [pushUndo, setActiveGrid])
+
+  const cancelMarquee = useCallback((): void => {
+    setMarquee(null)
+    marqueeAnchor.current = null
+    moveFrom.current = null
+  }, [])
+
+  const nudgeMarquee = useCallback(
+    (ddx: number, ddy: number): void => {
+      setMarquee((m) => {
+        if (!m) return m
+        const lifted = m.lifted ?? liftFrom(activeGridRef.current, m)
+        return { ...m, lifted, dx: m.dx + ddx, dy: m.dy + ddy }
+      })
+    },
+    []
+  )
+
   const transform = useCallback(
     (fn: (g: Grid) => Grid) => {
       pushUndo()
@@ -418,6 +524,10 @@ function PixelEditor(): JSX.Element {
   )
 
   useEffect(() => {
+    if (tool !== 'select' && marqueeRef.current) commitMarquee()
+  }, [tool, commitMarquee])
+
+  useEffect(() => {
     const TOOL_KEYS: Record<string, Tool> = {
       b: 'pencil',
       e: 'eraser',
@@ -425,6 +535,7 @@ function PixelEditor(): JSX.Element {
       l: 'line',
       r: 'rect',
       i: 'eyedropper',
+      m: 'select',
       u: 'lighten',
       d: 'darken',
       n: 'noise',
@@ -446,6 +557,8 @@ function PixelEditor(): JSX.Element {
       if ((e.ctrlKey || e.metaKey) && key === 'y') return (e.preventDefault(), redo())
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (e.key === 'Escape') {
+
+        if (marqueeRef.current) return cancelMarquee()
         if (shapeAnchor.current !== null) {
           shapeAnchor.current = null
           setShapePreview(null)
@@ -453,11 +566,34 @@ function PixelEditor(): JSX.Element {
         }
         return close()
       }
-      if (e.key === 'ArrowUp') return (e.preventDefault(), transform((g) => shiftGrid(g, 0, -1)))
-      if (e.key === 'ArrowDown') return (e.preventDefault(), transform((g) => shiftGrid(g, 0, 1)))
-      if (e.key === 'ArrowLeft') return (e.preventDefault(), transform((g) => shiftGrid(g, -1, 0)))
-      if (e.key === 'ArrowRight') return (e.preventDefault(), transform((g) => shiftGrid(g, 1, 0)))
-      if (e.key === 'Delete' || e.key === 'Backspace') return clearActive()
+      if (e.key === 'Enter' && marqueeRef.current) {
+        e.preventDefault()
+        return commitMarquee()
+      }
+
+      const NUDGE: Record<string, [number, number]> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0]
+      }
+      const nudge = NUDGE[e.key]
+      if (nudge) {
+        e.preventDefault()
+        if (marqueeRef.current) return nudgeMarquee(nudge[0], nudge[1])
+        return transform((g) => shiftGrid(g, nudge[0], nudge[1]))
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+
+        const m = marqueeRef.current
+        if (m) {
+
+          pushUndo()
+          setActiveGrid((g) => g.map((c, i) => (insideMarquee({ ...m, dx: 0, dy: 0 }, i) ? '' : c)))
+          return cancelMarquee()
+        }
+        return clearActive()
+      }
       const k = e.key.toLowerCase()
 
       if (k === 'x') return e.shiftKey ? swapColors() : setMirror((m) => !m)
@@ -465,7 +601,7 @@ function PixelEditor(): JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, close, transform, clearActive, swapColors, presetOpen, stencilOpen])
+  }, [undo, redo, close, transform, clearActive, swapColors, commitMarquee, cancelMarquee, nudgeMarquee, pushUndo, setActiveGrid, presetOpen, stencilOpen])
 
   const withMirror = useCallback(
     (cells: number[]): number[] => {
@@ -569,6 +705,20 @@ function PixelEditor(): JSX.Element {
     }
 
     if (!active.visible) patchLayer(active.id, { visible: true })
+    if (tool === 'select') {
+
+      if (marquee && insideMarquee(marquee, idx)) {
+        setMarquee((m) =>
+          m ? { ...m, lifted: m.lifted ?? liftFrom(activeGridRef.current, m) } : m
+        )
+        moveFrom.current = { cell: idx, dx: marquee.dx, dy: marquee.dy }
+        return
+      }
+      commitMarquee()
+      marqueeAnchor.current = idx
+      setMarquee({ ...rectBetween(idx, idx), lifted: null, dx: 0, dy: 0 })
+      return
+    }
     if (tool === 'fill') {
 
       floodFill(idx, inkFor(right))
@@ -592,6 +742,18 @@ function PixelEditor(): JSX.Element {
     const idx = cellFromEvent(e)
     setHover(idx)
     if (idx === null) return
+    if (tool === 'select') {
+      if (marqueeAnchor.current !== null) {
+        const r = rectBetween(marqueeAnchor.current, idx)
+        setMarquee((m) => (m ? { ...m, ...r } : m))
+      } else if (moveFrom.current) {
+        const from = moveFrom.current
+        const [ax, ay] = xy(from.cell)
+        const [bx, by] = xy(idx)
+        setMarquee((m) => (m ? { ...m, dx: from.dx + (bx - ax), dy: from.dy + (by - ay) } : m))
+      }
+      return
+    }
     if (shapeAnchor.current !== null && SHAPE_TOOLS.includes(tool)) {
       const raw =
         tool === 'line'
@@ -609,6 +771,12 @@ function PixelEditor(): JSX.Element {
   }
 
   const onPointerUp = (): void => {
+
+    if (tool === 'select') {
+      marqueeAnchor.current = null
+      moveFrom.current = null
+      return
+    }
     if (shapeAnchor.current !== null) {
       const cells = shapeCellsRef.current
       shapeAnchor.current = null
@@ -730,9 +898,16 @@ function PixelEditor(): JSX.Element {
   }
 
   const previewLayers = useMemo(() => {
-    if (noise === 0) return layers
-    return layers.map(l => l.id === active.id ? { ...l, grid: l.grid.map((c, i) => c ? shade(c, 1 + NOISE_MAP[i] * NOISE_RANGE * (noise / 100)) : c) } : l)
-  }, [layers, active.id, noise, NOISE_MAP])
+
+    let out = layers
+    if (marquee?.lifted) {
+      out = out.map((l) => (l.id === active.id ? { ...l, grid: withMarquee(l.grid, marquee) } : l))
+    }
+    if (noise !== 0) {
+      out = out.map(l => l.id === active.id ? { ...l, grid: l.grid.map((c, i) => c ? shade(c, 1 + NOISE_MAP[i] * NOISE_RANGE * (noise / 100)) : c) } : l)
+    }
+    return out
+  }, [layers, active.id, noise, NOISE_MAP, marquee])
 
   const composite = useMemo(() => compositeLayers(previewLayers, fx), [previewLayers, fx])
   const displayed = composite.grid
@@ -922,7 +1097,10 @@ function PixelEditor(): JSX.Element {
 
     const data = rgbaToDataUrl(displayed, composite.alpha)
 
-    const savedLayers: TextureLayer[] = layers.map((l) => ({
+    const saveStack = marquee?.lifted
+      ? layers.map((l) => (l.id === active.id ? { ...l, grid: withMarquee(l.grid, marquee) } : l))
+      : layers
+    const savedLayers: TextureLayer[] = saveStack.map((l) => ({
       name: l.name,
       visible: l.visible,
       opacity: l.opacity,
@@ -1110,6 +1288,12 @@ function PixelEditor(): JSX.Element {
                 </div>
 
                 <div className="flex items-center gap-1">
+                  <ToolButton
+                    icon={SquareDashed}
+                    active={tool === 'select'}
+                    onClick={() => setTool('select')}
+                    label="Select (M). Drag a box, drag it again to move it, Enter to put it down"
+                  />
                   <ToolButton icon={Slash} active={tool === 'line'} onClick={() => setTool('line')} label="Line (L), drag to draw" />
                   <ToolButton icon={Square} active={tool === 'rect'} onClick={() => setTool('rect')} label="Rectangle (R), hold Shift for filled" />
                 </div>
@@ -1252,6 +1436,20 @@ function PixelEditor(): JSX.Element {
                 {}
                 {mirror && (
                   <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-gold-400/40" />
+                )}
+                {
+
+}
+                {marquee && (
+                  <div
+                    className="pointer-events-none absolute border border-dashed border-gold-300 bg-gold-400/10"
+                    style={{
+                      left: (marquee.left + marquee.dx) * CELL,
+                      top: (marquee.top + marquee.dy) * CELL,
+                      width: marquee.w * CELL,
+                      height: marquee.h * CELL
+                    }}
+                  />
                 )}
                 {}
                 {hover !== null && (
