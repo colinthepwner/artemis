@@ -303,6 +303,10 @@ export class CodeGenerator {
       const w = new JavaWriter(`${this.ctx.pkg}.init`, this.mapping.imports)
       w.useRaw(`import static ${this.ctx.pkg}.${this.ctx.entryClass}.*;`)
       w.use('Item')
+
+      if (contributions.some((c) => (c.files ?? []).some((f) => f.relPath.startsWith('item/')))) {
+        w.useRaw(`import ${this.ctx.pkg}.item.*;`)
+      }
       w.line(`public final class ModItems {`)
       itemDecls.forEach((d) => w.line('').block(indent(d)))
       w.line('')

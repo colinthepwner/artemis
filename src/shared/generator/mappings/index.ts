@@ -27,12 +27,25 @@ export interface BtaMapping {
     logicPlain: string
     logicCustom: string
   }
-  itemBuilder: { decl: string; build: string; methods: Record<string, string> }
+  itemBuilder: {
+    decl: string
+    build: string
+
+    buildCustom: string
+    methods: Record<string, string>
+  }
   toolMaterial: { decl: string; tools: Record<string, string>; standalone: Record<string, string> }
   armorMaterial: { decl: string; pieces: Record<string, string>; standalone: Record<string, string> }
 
   models: Record<string, string>
 
+  itemUse: {
+    className: string
+    rule: string
+    becomes: string
+    drops: string
+    cost: string
+  }
   drops: {
     logicClass: string
     bodyNothing: string

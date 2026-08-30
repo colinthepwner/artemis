@@ -53,12 +53,27 @@ export const LIQUID_DEFAULTS: LiquidProps = {
   luminance: 0
 }
 
+export interface BlockUseRule {
+
+  target: string
+
+  becomes: string
+
+  drops: string
+
+  dropCount: number
+}
+
 export interface ItemProps {
   displayName: string
 
   stackSize: number
 
   category: string
+
+  blockUses: BlockUseRule[]
+
+  blockUseCost: number
 
   generateSet: boolean
   set: AnySetProps
@@ -97,6 +112,8 @@ export const ITEM_DEFAULTS: ItemProps = {
   displayName: '',
   stackSize: 64,
   category: 'material',
+  blockUses: [],
+  blockUseCost: 0,
   generateSet: false,
   set: ANYSET_DEFAULTS
 }

@@ -52,7 +52,17 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
     'plain material': { displayName: 'Test Item', generateSet: false },
     'generates a kit': { displayName: 'Test Item', generateSet: true },
     'promoted kit piece': { displayName: 'Test Item', generateSet: false, piece: 'pickaxe' },
-    'promoted armor piece': { displayName: 'Test Item', generateSet: false, piece: 'helmet' }
+    'promoted armor piece': { displayName: 'Test Item', generateSet: false, piece: 'helmet' },
+
+    'right-click rules': {
+      displayName: 'Test Chisel',
+      generateSet: false,
+      blockUseCost: 1,
+      blockUses: [
+        { target: 'block:STONE', becomes: 'block:STONE_CARVED', drops: '', dropCount: 1 },
+        { target: 'block:STONE_CARVED', becomes: 'block:STONE', drops: 'probe_item', dropCount: 2 }
+      ]
+    }
   },
   liquid: {
     water: { displayName: 'Test Liquid', materialKind: 'water' },

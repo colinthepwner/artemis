@@ -688,6 +688,17 @@ export const SCENARIOS: Scenario[] = [
       const { project, add } = mk('sinkmod')
       add('item', 'ruby', { displayName: 'Ruby', generateSet: true })
       add('item', 'ash', { displayName: 'Ash', stackSize: 16, category: 'misc' })
+
+      add('item', 'chisel', {
+        displayName: 'Chisel',
+        stackSize: 1,
+        category: 'misc',
+        blockUseCost: 1,
+        blockUses: [
+          { target: 'block:STONE', becomes: 'block:STONE_CARVED', drops: '', dropCount: 1 },
+          { target: 'block:STONE_CARVED', becomes: 'marble', drops: 'ash', dropCount: 1 }
+        ]
+      })
       add('block', 'marble', { displayName: 'Marble' })
 
       add('block', 'kiln', { displayName: 'Kiln', textureMode: 'perFace' })

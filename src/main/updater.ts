@@ -15,6 +15,8 @@ export const RELEASES_URL = `https://github.com/${REPO}/releases`
 const ALLOW_PRERELEASE = true
 
 export const OLD_SUFFIX = '.old-update'
+
+export const DOWNLOAD_PREFIX = '.artemis-update-'
 const CHECK_TIMEOUT_MS = 8000
 
 interface ReleaseAsset {
@@ -155,7 +157,7 @@ export async function cleanupLeftovers(dir: string): Promise<void> {
   try {
     for (const name of await readdir(dir)) {
 
-      if (name.endsWith(OLD_SUFFIX)) {
+      if (name.endsWith(OLD_SUFFIX) || name.startsWith(DOWNLOAD_PREFIX)) {
         await rm(join(dir, name), { force: true, recursive: true }).catch(() => {})
       }
     }
@@ -195,6 +197,25 @@ async function findBundle(dir: string): Promise<string | null> {
   return null
 }
 
+function handOffTo(target: string, args: string[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(target, args, { detached: true, stdio: 'ignore' })
+    let settled = false
+    child.once('spawn', () => {
+      if (settled) return
+      settled = true
+      child.unref()
+      setTimeout(() => app.exit(0), 400)
+      resolve()
+    })
+    child.once('error', (err) => {
+      if (settled) return
+      settled = true
+      reject(err)
+    })
+  })
+}
+
 async function swapAndRelaunch(
   kind: InstallKind,
   current: string,
@@ -215,8 +236,7 @@ async function swapAndRelaunch(
     await rm(staging, { force: true, recursive: true }).catch(() => {})
     await rm(downloaded, { force: true }).catch(() => {})
 
-    spawn('/usr/bin/open', ['-n', current], { detached: true, stdio: 'ignore' }).unref()
-    setTimeout(() => app.exit(0), 400)
+    await handOffTo('/usr/bin/open', ['-n', current])
     return
   }
 
@@ -224,15 +244,13 @@ async function swapAndRelaunch(
 
     await chmod(downloaded, 0o755)
     await swapExe(current, downloaded)
-    spawn(current, [], { detached: true, stdio: 'ignore' }).unref()
-    setTimeout(() => app.exit(0), 400)
+    await handOffTo(current)
     return
   }
 
   await swapExe(current, downloaded)
-  spawn(current, [], { detached: true, stdio: 'ignore' }).unref()
 
-  setTimeout(() => app.exit(0), 400)
+  await handOffTo(current)
 }
 
 export interface AvailableUpdate {
@@ -322,7 +340,7 @@ export async function installUpdate(
 
   const suffix =
     update.kind === 'macos-app' ? 'zip' : update.kind === 'appimage' ? 'AppImage' : 'exe'
-  const tmp = join(dir, `.artemis-update-${update.version}.${suffix}`)
+  const tmp = join(dir, `${DOWNLOAD_PREFIX}${update.version}.${suffix}`)
   try {
     await rm(tmp, { force: true }).catch(() => {})
 
@@ -347,6 +365,8 @@ export async function installUpdate(
     await swapAndRelaunch(update.kind, update.current, tmp)
     return true
   } catch (err) {
+
+    await rm(tmp, { force: true }).catch(() => {})
     send(win, {
       status: 'error',
       message: err instanceof Error ? err.message : String(err)

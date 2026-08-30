@@ -43,6 +43,7 @@
     "HalpLibe": "turniplabs.halplibe.HalpLibe",
     "HumanArmorShape": "net.minecraft.core.enums.HumanArmorShape",
     "Item": "net.minecraft.core.item.Item",
+    "Player": "net.minecraft.core.entity.player.Player",
     "ItemArmor": "net.minecraft.core.item.ItemArmor",
     "ItemBlock": "net.minecraft.core.item.block.ItemBlock",
     "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
@@ -247,6 +248,7 @@
     "$comment": "halplibe ItemBuilder, verified against 6.1.4 and against a running game. Item(key, namespaceId, id): the namespace id MUST contain exactly one ':' or NamespaceID throws HardIllegalArgumentException and the mod dies in ModItems.<clinit>. The constructor then stores the key as \"item.\" + key, and ItemBuilder.build rewrites that to \"item.<modId>.<everything after the first dot>\". So the first argument is the BARE registry name: passing \"item.ruby\" lands on item.<modid>.item.ruby and no lang line ever matches it.",
     "decl": "public static final Item {{FIELD}} = new ItemBuilder(MOD_ID)",
     "build": "\t{{creative}}\n\t.build(new Item(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID()));",
+    "buildCustom": "\t{{creative}}\n\t.build(new {{className}}(\"{{registryName}}\", \"{{modId}}:item/{{registryName}}\", nextItemID()));",
     "methods": {
       "stackSize": ".setStackSize({{value}})",
       "maxDamage": ".setMaxDamage({{value}})"
@@ -638,8 +640,8 @@
     "blockAll": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}\"));",
     "blockTopBottomSides": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}_top\", \"{{modId}}:block/{{registryName}}_bottom\", \"{{modId}}:block/{{registryName}}_side\"));",
     "$perFaceComment": "withTextures has a fourth arity nothing here used: (top, bottom, north, east, south, west). Read off the bytecode of BlockModelStandard in the 8.0.1 client jar rather than assumed, because the order is not alphabetical and not the order any doc lists the sides in: javap -c shows the six arguments handed to TextureLayer.set with Side.TOP, BOTTOM, NORTH, EAST, SOUTH, WEST in that sequence. The three-argument form checked at the same time is (top, bottom, sides), which is what blockTopBottomSides above already emits. NOTE this is a fixed model: it paints a named side, it does not turn the block to face whoever placed it. A furnace faces the player because its BlockLogic swaps textures on metadata, which is a separate thing from having six faces to swap between.",
-  "blockPerFace": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}_top\", \"{{modId}}:block/{{registryName}}_bottom\", \"{{modId}}:block/{{registryName}}_north\", \"{{modId}}:block/{{registryName}}_east\", \"{{modId}}:block/{{registryName}}_south\", \"{{modId}}:block/{{registryName}}_west\"));",
-  "blockCross": "dispatcher.addDispatch(new BlockModelCrossedSquares<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}\"));",
+    "blockPerFace": "dispatcher.addDispatch(new BlockModelStandard<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}_top\", \"{{modId}}:block/{{registryName}}_bottom\", \"{{modId}}:block/{{registryName}}_north\", \"{{modId}}:block/{{registryName}}_east\", \"{{modId}}:block/{{registryName}}_south\", \"{{modId}}:block/{{registryName}}_west\"));",
+    "blockCross": "dispatcher.addDispatch(new BlockModelCrossedSquares<>(ModBlocks.{{FIELD}}).withTextures(\"{{modId}}:block/{{registryName}}\"));",
     "blockFluid": "dispatcher.addDispatch(new BlockModelFluid<>(ModBlocks.{{FIELD}}, \"{{modId}}:block/{{registryName}}\", \"{{modId}}:block/{{registryName}}\"));",
     "blockItem": "dispatcher.addDispatch(new ItemModelBlock((ItemBlock<?>) ModBlocks.{{FIELD}}.asItem()));",
     "item": "dispatcher.addDispatch(new ItemModelStandard(ModItems.{{FIELD}}));",
@@ -716,15 +718,15 @@
     "call": ".setCreativeInventoryPlacement(new CreativeInventoryPlacement.Category(CreativeInventoryCategory.{{category}}))",
     "categories": {
       "block": "PLACEABLES",
-    "stone": "STONE",
-    "logs": "LOGS",
-    "wood": "WOOD",
-    "organic": "ORGANIC",
-    "natural": "NATURAL",
-    "storage": "STORAGE",
-    "workbenches": "WORKBENCHES",
-    "redstone": "REDSTONE",
-    "basics": "BASICS",
+      "stone": "STONE",
+      "logs": "LOGS",
+      "wood": "WOOD",
+      "organic": "ORGANIC",
+      "natural": "NATURAL",
+      "storage": "STORAGE",
+      "workbenches": "WORKBENCHES",
+      "redstone": "REDSTONE",
+      "basics": "BASICS",
       "ore": "ORE",
       "oreDrop": "ORE_PRODUCTS",
       "plant": "NATURAL",
@@ -736,5 +738,13 @@
       "food": "FOOD",
       "misc": "MISCELLANEOUS"
     }
+  },
+  "itemUse": {
+    "$comment": "What an item does when it is right-clicked on a block. Item.onUseOnBlock(ItemStack, World, Player, TilePosc, Side, double, double) is the overridable hook; the onUseItemOnBlock beside it is final and delegates to this one. Signature read off javap on the 8.0.1 client jar, along with World.getBlockType(TilePosc), World.setBlockType(TilePosc, Block), World.dropItem(TilePosc, ItemStack), ItemStack.damageItem(int, Entity) and the public isClientSide field. Returning true means the click was consumed, which is what stops the block in the other hand being placed on top of the one just changed. Nothing is done on the client: the server owns the world, and a client that edits it too shows the change for one frame and then has it taken back, which reads as the item working intermittently.",
+    "className": "public class {{className}} extends Item {\n\n\tpublic {{className}}(String key, String namespaceId, int id) {\n\t\tsuper(key, namespaceId, id);\n\t}\n\n\t@Override\n\tpublic boolean onUseOnBlock(ItemStack stack, World world, Player player, TilePosc pos, Side side, double xHit, double yHit) {\n\t\tBlock<?> hit = world.getBlockType(pos);\n\t\tif (hit == null) return false;\n{{rules}}\t\treturn false;\n\t}\n}",
+    "rule": "\t\tif (hit == {{target}}) {\n\t\t\tif (world.isClientSide) return true;\n{{effects}}\t\t\treturn true;\n\t\t}\n",
+    "becomes": "\t\t\tworld.setBlockType(pos, {{block}});\n",
+    "drops": "\t\t\tworld.dropItem(pos, {{stack}});\n",
+    "cost": "\t\t\tstack.damageItem({{amount}}, player);\n"
   }
 }

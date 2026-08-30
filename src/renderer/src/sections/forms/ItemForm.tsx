@@ -15,6 +15,7 @@ import {
   generateKitTextures,
   suggestKitAccent
 } from '@/components/pixel/kitGenerator'
+import { BlockUsesFields } from './BlockUsesFields'
 
 const CATEGORY_OPTIONS = [
   { value: 'material', label: 'Materials' },
@@ -136,6 +137,24 @@ function ItemFormInner({
             </div>
           )
         },
+
+    ...(isPiece
+      ? []
+      : [
+          {
+            id: 'uses',
+            title: 'Right-click',
+            desc: 'What happens when this is used on a block.',
+            content: (
+              <BlockUsesFields
+                rules={p.blockUses ?? []}
+                cost={p.blockUseCost ?? 0}
+                onChange={(v) => patch('blockUses', v)}
+                onCostChange={(v) => patch('blockUseCost', v)}
+              />
+            )
+          }
+        ]),
     ...(isPiece ? [] : [{
       id: 'kit',
       title: 'Tools & Armor',

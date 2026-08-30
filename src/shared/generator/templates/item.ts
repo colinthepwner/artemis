@@ -1,9 +1,48 @@
 import type { ArtemisElement } from '../../project'
-import { ITEM_DEFAULTS, type ItemProps } from '../props'
-import { render } from '../template'
+import { ITEM_DEFAULTS, type BlockUseRule, type ItemProps } from '../props'
+import { render, JavaWriter } from '../template'
+import { toPascalCase } from '../../project'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
 import { titleCase, itemLangLine } from './block'
 import { TOOL_KINDS, ARMOR_KINDS, kitPieces, type ToolKind, type ArmorKind } from '../family'
+
+function itemUseClass(
+  registryName: string,
+  rules: BlockUseRule[],
+  cost: number,
+  ctx: EmitContext
+): { className: string; file: { relPath: string; writer: JavaWriter } } {
+  const className = `Item${toPascalCase(registryName)}`
+  const w = new JavaWriter(`${ctx.pkg}.item`, ctx.mapping.imports)
+  w.use('Item', 'ItemStack', 'World', 'Player', 'TilePosc', 'Side', 'Block')
+
+  const iu = ctx.mapping.itemUse
+  const body = rules
+    .map((r) => {
+      let effects = ''
+      if (r.becomes.trim()) {
+        effects += render(iu.becomes, { block: ctx.blockExpr(r.becomes, w) })
+      }
+      if (r.drops.trim()) {
+        effects += render(iu.drops, {
+          stack: ctx.stackExpr(r.drops, Math.max(1, Math.round(r.dropCount || 1)), w)
+        })
+      }
+
+      if (cost > 0) effects += render(iu.cost, { amount: Math.round(cost) })
+      return render(iu.rule, { target: ctx.blockExpr(r.target, w), effects })
+    })
+    .join('')
+
+  w.block(render(iu.className, { className, rules: body }))
+  return { className, file: { relPath: `item/${className}.java`, writer: w } }
+}
+
+export function usableRules(rules: BlockUseRule[] | undefined): BlockUseRule[] {
+  return (rules ?? []).filter(
+    (r) => r.target.trim() !== '' && (r.becomes.trim() !== '' || r.drops.trim() !== '')
+  )
+}
 
 export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution {
   const p = {
@@ -65,14 +104,19 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   if (p.stackSize !== 64 && ib.methods['stackSize']) {
     chain.push('\t' + render(ib.methods['stackSize'], { value: Math.max(1, Math.min(64, p.stackSize)) }))
   }
+
+  const rules = usableRules(p.blockUses)
+  const use = rules.length ? itemUseClass(el.name, rules, p.blockUseCost ?? 0, ctx) : null
+
   itemDecls.push(
     [
       render(ib.decl, { FIELD }),
       ...chain,
-      render(ib.build, {
+      render(use ? ib.buildCustom : ib.build, {
         displayName,
         registryName: el.name,
         modId: ctx.meta.modId,
+        className: use?.className ?? '',
         creative: ctx.creativeCall(p.category)
       })
     ].join('\n')
@@ -140,5 +184,5 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
     }
   }
 
-  return { itemDecls, langLines, itemModels }
+  return { itemDecls, langLines, itemModels, files: use ? [use.file] : [] }
 }

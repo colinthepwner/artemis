@@ -1,4 +1,11 @@
-import { swapExe, cleanupLeftovers, noteSummary, OLD_SUFFIX, RELEASES_URL } from '../src/main/updater'
+import {
+  swapExe,
+  cleanupLeftovers,
+  noteSummary,
+  DOWNLOAD_PREFIX,
+  OLD_SUFFIX,
+  RELEASES_URL
+} from '../src/main/updater'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -112,6 +119,9 @@ async function main(): Promise<void> {
     mkdirSync(join(dir, `Artemis-0.0.9.exe${OLD_SUFFIX}`))
     writeFileSync(join(dir, `Artemis-0.0.9.exe${OLD_SUFFIX}`, 'inside.txt'), 'x')
 
+    writeFileSync(join(dir, `${DOWNLOAD_PREFIX}0.1.8.exe`), 'an update that never landed')
+    writeFileSync(join(dir, `${DOWNLOAD_PREFIX}0.1.10.exe`), 'nor did this one')
+
     writeFileSync(join(dir, 'projects.artemis'), 'a project someone saved next to the exe')
     writeFileSync(join(dir, 'Artemis.exe.config'), 'settings')
     mkdirSync(join(dir, 'workspaces'))
@@ -119,6 +129,11 @@ async function main(): Promise<void> {
     await cleanupLeftovers(dir)
 
     check('every leftover exe is gone', readdirSync(dir).every((f) => !f.endsWith(OLD_SUFFIX)), readdirSync(dir).join(' '))
+    check(
+      'and so is every download that never landed',
+      readdirSync(dir).every((f) => !f.startsWith(DOWNLOAD_PREFIX)),
+      readdirSync(dir).join(' ')
+    )
     check('the running exe is untouched', read(exe) === 'RUNNING VERSION')
     check('a saved project is untouched', existsSync(join(dir, 'projects.artemis')))
     check('and so is anything else in the folder', existsSync(join(dir, 'Artemis.exe.config')) && existsSync(join(dir, 'workspaces')))
