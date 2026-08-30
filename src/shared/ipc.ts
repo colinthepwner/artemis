@@ -9,6 +9,10 @@ export const IPC = {
   ProjectSave: 'project:save',
   ProjectOpen: 'project:open',
   SoundImport: 'sound:import',
+
+  TextureExportFile: 'texture:export-file',
+
+  TextureExportClipboard: 'texture:export-clipboard',
   ProjectOpenPath: 'project:open-path',
 
   ProjectOpenRequested: 'project:open-requested',
@@ -200,6 +204,12 @@ export interface ArtemisApi {
   sound: {
 
     importOgg: () => Promise<{ name: string; ogg: string; bytes: number } | null>
+  }
+  texture: {
+
+    exportFile: (dataUrl: string, suggestedName: string) => Promise<string | null>
+
+    exportClipboard: (dataUrl: string) => Promise<boolean>
   }
   app: {
     platform: NodeJS.Platform

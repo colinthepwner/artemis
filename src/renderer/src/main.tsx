@@ -62,6 +62,8 @@ if (!window.artemis) {
     prefs: { load: async () => ({}), save: () => {} },
 
     sound: { importOgg: async () => null },
+
+    texture: { exportFile: async () => null, exportClipboard: async () => false },
     presence: { update: () => {} },
     test: {
       start: async () => ({ ok: false, error: 'Testing requires the desktop app.' }),

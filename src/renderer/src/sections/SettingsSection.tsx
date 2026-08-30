@@ -1,8 +1,36 @@
+import { useState } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { ModIconField } from '@/components/pixel/ModIconField'
 import { Select } from '@/components/ui/controls'
 import { toRegistryName, type ModDependency } from '@shared/project'
+
+function AuthorsField(): JSX.Element {
+  const authors = useProjectStore((s) => s.project?.meta.authors ?? [])
+  const updateMeta = useProjectStore((s) => s.updateMeta)
+
+  const [draft, setDraft] = useState<string | null>(null)
+
+  return (
+    <div>
+      <label className="label-base">Authors (comma separated)</label>
+      <input
+        className="input-base"
+        value={draft ?? authors.join(', ')}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          updateMeta({
+            authors: e.target.value
+              .split(',')
+              .map((a) => a.trim())
+              .filter(Boolean)
+          })
+        }}
+        onBlur={() => setDraft(null)}
+      />
+    </div>
+  )
+}
 
 export function SettingsSection(): JSX.Element | null {
   const project = useProjectStore((s) => s.project)
@@ -42,16 +70,7 @@ export function SettingsSection(): JSX.Element | null {
             <input className="input-base font-mono opacity-50" value={project.meta.modId} readOnly />
           </div>
         </div>
-        <div>
-          <label className="label-base">Authors (comma separated)</label>
-          <input
-            className="input-base"
-            value={project.meta.authors.join(', ')}
-            onChange={(e) =>
-              updateMeta({ authors: e.target.value.split(',').map((a) => a.trim()).filter(Boolean) })
-            }
-          />
-        </div>
+        <AuthorsField />
         <ModIconField />
         <div>
           <label className="label-base">Description</label>

@@ -18,6 +18,11 @@ const api: ArtemisApi = {
   sound: {
     importOgg: () => ipcRenderer.invoke(IPC.SoundImport)
   },
+  texture: {
+    exportFile: (dataUrl, suggestedName) =>
+      ipcRenderer.invoke(IPC.TextureExportFile, dataUrl, suggestedName),
+    exportClipboard: (dataUrl) => ipcRenderer.invoke(IPC.TextureExportClipboard, dataUrl)
+  },
   app: {
     platform: process.platform,
 

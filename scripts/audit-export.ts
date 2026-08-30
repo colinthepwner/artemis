@@ -130,10 +130,23 @@ async function main(): Promise<void> {
     const langLines = read(langPath).split('\n').filter((l) => l.includes('='))
     const langKeys = new Set(langLines.map((l) => l.slice(0, l.indexOf('='))))
     check('the lang file is not empty', langKeys.size > 0)
+
+    const mustHaveValue = langLines.filter((l) => !l.slice(0, l.indexOf('=')).endsWith('.desc'))
     check(
-      'every lang line has a value',
-      langLines.every((l) => l.slice(l.indexOf('=') + 1).trim().length > 0),
-      langLines.filter((l) => !l.slice(l.indexOf('=') + 1).trim()).join(', ')
+      'every lang line has a value, descriptions aside',
+      mustHaveValue.every((l) => l.slice(l.indexOf('=') + 1).trim().length > 0),
+      mustHaveValue.filter((l) => !l.slice(l.indexOf('=') + 1).trim()).join(', ')
+    )
+
+    const describable = langLines
+      .map((l) => l.slice(0, l.indexOf('=')))
+      .filter((k) => k.endsWith('.name') && /^(tile|item)\./.test(k))
+      .map((k) => k.replace(/\.name$/, '.desc'))
+    const undescribed = describable.filter((k) => !langKeys.has(k))
+    check(
+      'every block and item has a description line, so none of them shows a raw key',
+      undescribed.length === 0,
+      undescribed.join(', ')
     )
 
     const keyPattern = new RegExp(`\\b(?:tile|item)\\.${modId}\\.[\\w.]+\\.name\\b`, 'g')

@@ -1777,6 +1777,36 @@ function theSettingsScreen(): void {
     JSON.stringify(modIdField?.props.readOnly)
   )
 
+  const authorsOf = (): ProbeNode | undefined =>
+    root
+      .findAll((n) => n.type === 'input')
+      .find((n) => labelOf(root, n) === 'Authors (comma separated)')
+
+  const authors = authorsOf()
+  check('the authors field is on the screen', Boolean(authors))
+  if (authors) {
+    root.change(authors, 'camoweed_,')
+    root.flush()
+    check(
+      'a comma typed into the authors field is still there afterwards',
+      String(authorsOf()?.props.value) === 'camoweed_,',
+      String(authorsOf()?.props.value)
+    )
+
+    root.change(authorsOf()!, 'camoweed_, vivi')
+    root.flush()
+    check(
+      'and so is the space after it',
+      String(authorsOf()?.props.value) === 'camoweed_, vivi',
+      String(authorsOf()?.props.value)
+    )
+    check(
+      'while the project holds the two names, parsed and trimmed',
+      live().meta.authors.join('|') === 'camoweed_|vivi',
+      live().meta.authors.join('|')
+    )
+  }
+
   const dead: string[] = []
   for (let i = 0; i < inputs.length; i++) {
     const field = root.findAll((n) => n.type === 'input' || n.type === 'textarea')[i]

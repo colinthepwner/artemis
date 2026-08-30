@@ -11,7 +11,10 @@ import {
   ArrowLeftRight,
   ChevronDown,
   ChevronUp,
+  ClipboardCopy,
   Copy,
+  Download,
+  ImageDown,
   SquareDashed,
   Droplet,
   Eraser,
@@ -1212,6 +1215,10 @@ function PixelEditor(): JSX.Element {
             <span className="w-12 text-right font-mono text-2xs text-mist-600">
               {hover !== null ? `${hx}, ${hy}` : ''}
             </span>
+            <ExportMenu
+              name={name}
+              png={() => rgbaToDataUrl(displayed, composite.alpha)}
+            />
             <button
               onClick={close}
               className="rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
@@ -1731,6 +1738,79 @@ function PixelEditor(): JSX.Element {
 }
 
 const DRAG_SLOP = 4
+
+function ExportMenu(props: { name: string; png: () => string }): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+
+  const flash = (msg: string): void => {
+    setSaid(msg)
+    setTimeout(() => setSaid(null), 1800)
+  }
+
+  const toFile = (): void => {
+    setOpen(false)
+    void window.artemis.texture
+      .exportFile(props.png(), props.name || 'texture')
+      .then((path) => path && flash('Saved'))
+      .catch(() => flash('Could not save'))
+  }
+
+  const toClipboard = (): void => {
+    setOpen(false)
+    void window.artemis.texture
+      .exportClipboard(props.png())
+      .then((ok) => flash(ok ? 'Copied' : 'Could not copy'))
+      .catch(() => flash('Could not copy'))
+  }
+
+  return (
+    <div className="relative">
+      {said && (
+        <span className="absolute right-full top-1/2 mr-2 -translate-y-1/2 whitespace-nowrap text-2xs text-gold-400/90">
+          {said}
+        </span>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Export this texture"
+        className={cn(
+          'rounded-md p-1.5 transition-colors',
+          open ? 'bg-ink-750 text-mist-200' : 'text-mist-500 hover:bg-ink-750 hover:text-mist-200'
+        )}
+      >
+        <Download size={15} />
+      </button>
+      {open && (
+        <>
+          {}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-1.5 w-44 overflow-hidden rounded-md bg-ink-850 py-1 shadow-panel">
+            <ExportItem icon={ImageDown} label="Save as PNG..." onSelect={toFile} />
+            <ExportItem icon={ClipboardCopy} label="Copy to clipboard" onSelect={toClipboard} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function ExportItem(props: {
+  icon: typeof Download
+  label: string
+  onSelect: () => void
+}): JSX.Element {
+  const Icon = props.icon
+  return (
+    <button
+      onClick={props.onSelect}
+      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-2xs text-mist-300 transition-colors hover:bg-ink-750 hover:text-mist-100"
+    >
+      <Icon size={12} className="shrink-0 text-mist-500" />
+      {props.label}
+    </button>
+  )
+}
 
 function LayerRow(props: {
   layer: Layer

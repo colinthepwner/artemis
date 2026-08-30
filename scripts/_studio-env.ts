@@ -60,6 +60,10 @@ const api: ArtemisApi = {
     dragMove: (dx, dy) => record('window.dragMove', dx, dy)
   },
   sound: { importOgg: async () => { record('sound.importOgg'); return null } },
+  texture: {
+    exportFile: async () => { record('texture.exportFile'); return null },
+    exportClipboard: async () => { record('texture.exportClipboard'); return false }
+  },
   app: { platform: 'win32', version: '0.0.0-probe', isDev: false, skipOnboarding: false },
   setup: {
     status: async () => setupInbox.status,

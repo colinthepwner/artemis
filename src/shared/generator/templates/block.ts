@@ -25,17 +25,23 @@ export function tileLangLines(
     modId: ctx.meta.modId,
     registryName
   })
-  const lines = [`${key}.name=${p.displayName || titleCase(registryName)}`]
-  if (p.description) lines.push(`${key}.desc=${p.description}`)
-  return lines
+  return [
+    `${key}.name=${p.displayName || titleCase(registryName)}`,
+    `${key}.desc=${p.description ?? ''}`
+  ]
 }
 
-export function itemLangLine(registryName: string, displayName: string, ctx: EmitContext): string {
+export function itemLangLines(
+  registryName: string,
+  displayName: string,
+  ctx: EmitContext,
+  description?: string
+): string[] {
   const key = render(ctx.mapping.registration.itemLangKey, {
     modId: ctx.meta.modId,
     registryName
   })
-  return `${key}.name=${displayName}`
+  return [`${key}.name=${displayName}`, `${key}.desc=${description ?? ''}`]
 }
 
 export interface BlockDeclOptions {

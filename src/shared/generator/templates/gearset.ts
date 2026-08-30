@@ -2,7 +2,7 @@ import type { ArtemisElement } from '../../project'
 import { GEARSET_DEFAULTS, type GearSetProps } from '../props'
 import { render } from '../template'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
-import { titleCase, itemLangLine } from './block'
+import { titleCase, itemLangLines } from './block'
 import { kitPieces, type ToolKind, type ArmorKind } from '../family'
 import { toConstantCase } from '../../project'
 
@@ -43,7 +43,7 @@ export function emitGearSet(el: ArtemisElement, ctx: EmitContext): EmitContribut
           creative: ctx.creativeCall('tool')
         })
       )
-      langLines.push(itemLangLine(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))
+      langLines.push(...itemLangLines(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))
       itemModels.push(...ctx.itemModelCalls(piece.name))
     }
   }
@@ -69,7 +69,7 @@ export function emitGearSet(el: ArtemisElement, ctx: EmitContext): EmitContribut
           creative: ctx.creativeCall('armor')
         })
       )
-      langLines.push(itemLangLine(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))
+      langLines.push(...itemLangLines(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))
       itemModels.push(...ctx.itemModelCalls(piece.name))
     }
   }

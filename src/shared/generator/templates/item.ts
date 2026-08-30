@@ -3,7 +3,7 @@ import { ITEM_DEFAULTS, itemTypeOf, type BlockUseRule, type ItemProps } from '..
 import { render, JavaWriter } from '../template'
 import { toPascalCase } from '../../project'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
-import { titleCase, itemLangLine } from './block'
+import { titleCase, itemLangLines } from './block'
 import { TOOL_KINDS, ARMOR_KINDS, kitPieces, type ToolKind, type ArmorKind } from '../family'
 
 function itemUseClass(
@@ -73,7 +73,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   const ib = ctx.mapping.itemBuilder
 
   const itemDecls: string[] = []
-  const langLines: string[] = [itemLangLine(el.name, displayName, ctx)]
+  const langLines: string[] = itemLangLines(el.name, displayName, ctx, p.description)
   const itemModels: string[] = [...ctx.itemModelCalls(el.name)]
 
   const tool = p.piece && (TOOL_KINDS as readonly string[]).includes(p.piece) ? p.piece : null

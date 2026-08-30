@@ -2,6 +2,8 @@ import { TOOL_KINDS, ARMOR_KINDS, type ToolKind, type ArmorKind } from './family
 
 export interface BlockProps {
   displayName: string
+
+  description: string
   material: string
   sound: string
   hardness: number
@@ -27,6 +29,7 @@ export interface BlockProps {
 
 export const BLOCK_DEFAULTS: BlockProps = {
   displayName: '',
+  description: '',
   material: 'stone',
   sound: 'stone',
   hardness: 1.5,
@@ -75,6 +78,8 @@ export interface BlockUseRule {
 
 export interface ItemProps {
   displayName: string
+
+  description: string
 
   stackSize: number
 
@@ -149,6 +154,7 @@ export const GEARSET_DEFAULTS: GearSetProps = {
 
 export const ITEM_DEFAULTS: ItemProps = {
   displayName: '',
+  description: '',
   stackSize: 64,
   category: 'material',
   healAmount: 4,

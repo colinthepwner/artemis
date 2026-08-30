@@ -10,7 +10,7 @@ import {
   X
 } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
-import type { ArtemisElement } from '@shared/project'
+import type { ArtemisElement, ElementKind } from '@shared/project'
 import { capitalizeWords, toRegistryName } from '@shared/project'
 import { textureSlotsForElement } from '@shared/generator/textures'
 import { elementRegistryEntries } from '@shared/generator/registry'
@@ -328,6 +328,12 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
     })
   }
 
+  const setDescription = (v: string): void => {
+    updateElement(element.id, {
+      properties: { ...element.properties, description: v }
+    })
+  }
+
   const setId = (v: string): void => {
     const reg = toRegistryName(v)
     setLinked(false)
@@ -374,6 +380,21 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
             : 'Fills in automatically from the name. Used for code, textures and recipes.'}
         </p>
       </div>
+      {DESCRIBABLE.has(element.kind) && (
+        <div>
+          <label className="label-base">Description</label>
+          <textarea
+            className="input-base min-h-[52px] resize-y"
+            value={(element.properties['description'] as string) ?? ''}
+            placeholder="Shown under the name when a player points at it."
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <p className="mt-1.5 text-2xs leading-relaxed text-mist-600">
+            The line under the name in the tooltip. Every block and item in the
+            game has one.
+          </p>
+        </div>
+      )}
       {shownDup && (
         <div className="flex items-start gap-2 rounded-md bg-ember-500/10 p-3">
           <AlertTriangle size={13} className="mt-px shrink-0 text-ember-400" />
@@ -388,6 +409,8 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
     </>
   )
 }
+
+const DESCRIBABLE = new Set<ElementKind>(['block', 'item', 'plant'])
 
 function ReviewSlide(props: {
   checks: ReviewCheck[]

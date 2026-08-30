@@ -1,10 +1,15 @@
-import { app, dialog, ipcMain, shell } from 'electron'
+import { app, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
 import { access, mkdir, readFile, readdir, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { gzipSync } from 'zlib'
 import { IPC, type RecentProject } from '../../shared/ipc'
 
 const ARTEMIS_FILTER = [{ name: 'Artemis Project', extensions: ['artemis'] }]
+
+function dataUrlToBuffer(dataUrl: string): Buffer {
+  const comma = dataUrl.indexOf(',')
+  return Buffer.from(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl, 'base64')
+}
 
 export function projectsRoot(): string {
   return join(app.getPath('documents'), 'ArtemisForBTA')
@@ -148,6 +153,25 @@ export function registerProjectIpc(): void {
       ogg: gzipSync(raw, { level: 9 }).toString('base64'),
       bytes: raw.length
     }
+  })
+
+  ipcMain.handle(IPC.TextureExportFile, async (_e, dataUrl: string, suggestedName: string) => {
+    const res = await dialog.showSaveDialog({
+      filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      defaultPath: join(app.getPath('pictures'), `${suggestedName || 'texture'}.png`)
+    })
+    if (res.canceled || !res.filePath) return null
+    const target = /\.png$/i.test(res.filePath) ? res.filePath : `${res.filePath}.png`
+    await writeFile(target, dataUrlToBuffer(dataUrl))
+    return target
+  })
+
+  ipcMain.handle(IPC.TextureExportClipboard, (_e, dataUrl: string) => {
+
+    const image = nativeImage.createFromBuffer(dataUrlToBuffer(dataUrl))
+    if (image.isEmpty()) return false
+    clipboard.writeImage(image)
+    return true
   })
 
   ipcMain.handle(IPC.ProjectsDir, () => ensureProjectsRoot())
