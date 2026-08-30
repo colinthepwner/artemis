@@ -1,7 +1,7 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
-import { createWriteStream, existsSync } from 'fs'
-import { chmod, mkdir, readdir, rename, rm, stat } from 'fs/promises'
+import { createWriteStream, existsSync, readFileSync, writeFileSync } from 'fs'
+import { chmod, copyFile, mkdir, readdir, rename, rm, stat } from 'fs/promises'
 import { get } from 'https'
 import { dirname, join } from 'path'
 import { IPC, type UpdateState } from '../shared/ipc'
@@ -17,7 +17,40 @@ const ALLOW_PRERELEASE = true
 export const OLD_SUFFIX = '.old-update'
 
 export const DOWNLOAD_PREFIX = '.artemis-update-'
+
+export function stagingDir(): string {
+  return join(app.getPath('userData'), 'updates')
+}
+
+export function stagingPath(kind: InstallKind, target: string, version: string): string {
+  if (kind === 'windows-portable') return join(stagingDir(), `Artemis-${version}.exe`)
+  const suffix = kind === 'macos-app' ? 'zip' : 'AppImage'
+  return join(dirname(target), `${DOWNLOAD_PREFIX}${version}.${suffix}`)
+}
 const CHECK_TIMEOUT_MS = 8000
+
+function stateFile(): string {
+  return join(app.getPath('userData'), 'update-state.json')
+}
+
+function failedVersion(): string | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(stateFile(), 'utf-8'))
+    const v = (parsed as { failed?: unknown } | null)?.failed
+    return typeof v === 'string' ? v : null
+  } catch {
+
+    return null
+  }
+}
+
+function rememberFailure(version: string | null): void {
+  try {
+    writeFileSync(stateFile(), JSON.stringify({ failed: version }, null, 2), 'utf-8')
+  } catch {
+
+  }
+}
 
 interface ReleaseAsset {
   name: string
@@ -154,6 +187,8 @@ async function download(
 }
 
 export async function cleanupLeftovers(dir: string): Promise<void> {
+
+  await rm(stagingDir(), { recursive: true, force: true }).catch(() => {})
   try {
     for (const name of await readdir(dir)) {
 
@@ -199,7 +234,12 @@ async function findBundle(dir: string): Promise<string | null> {
 
 function handOffTo(target: string, args: string[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(target, args, { detached: true, stdio: 'ignore' })
+
+    const child = spawn(target, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    })
     let settled = false
     child.once('spawn', () => {
       if (settled) return
@@ -248,9 +288,39 @@ async function swapAndRelaunch(
     return
   }
 
-  await swapExe(current, downloaded)
+  await handOffTo(downloaded, [APPLY_FLAG, current])
+}
 
-  await handOffTo(current)
+export const APPLY_FLAG = '--artemis-apply-update'
+
+export function pendingApplyTarget(argv: string[]): string | null {
+  const at = argv.indexOf(APPLY_FLAG)
+  if (at < 0) return null
+  const target = argv[at + 1]
+  return target && target.length > 0 ? target : null
+}
+
+export async function applyUpdateAndExit(target: string): Promise<void> {
+
+  const me = process.env['PORTABLE_EXECUTABLE_FILE'] ?? process.execPath
+
+  let installed = false
+  for (let attempt = 0; attempt < 150; attempt++) {
+    try {
+      await copyFile(me, target)
+      installed = true
+      break
+    } catch {
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  }
+
+  try {
+    spawn(target, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  } catch {
+
+  }
+  app.exit(0)
 }
 
 export interface AvailableUpdate {
@@ -336,11 +406,8 @@ export async function installUpdate(
   win: BrowserWindow,
   update: AvailableUpdate
 ): Promise<boolean> {
-  const dir = dirname(update.current)
-
-  const suffix =
-    update.kind === 'macos-app' ? 'zip' : update.kind === 'appimage' ? 'AppImage' : 'exe'
-  const tmp = join(dir, `${DOWNLOAD_PREFIX}${update.version}.${suffix}`)
+  const tmp = stagingPath(update.kind, update.current, update.version)
+  await mkdir(dirname(tmp), { recursive: true })
   try {
     await rm(tmp, { force: true }).catch(() => {})
 
@@ -355,7 +422,15 @@ export async function installUpdate(
       send(win, { status: 'downloading', version: update.version, percent, transferred, total })
     )
 
-    const written = await stat(tmp)
+    let written: { size: number }
+    try {
+      written = await stat(tmp)
+    } catch {
+      throw new Error(
+        'the download was removed before it could be installed, ' +
+          'which usually means antivirus quarantined it'
+      )
+    }
     if (update.size > 0 && written.size !== update.size) {
       await rm(tmp, { force: true }).catch(() => {})
       throw new Error('download was incomplete')
@@ -363,10 +438,14 @@ export async function installUpdate(
 
     send(win, { status: 'installing', version: update.version })
     await swapAndRelaunch(update.kind, update.current, tmp)
+
+    rememberFailure(null)
     return true
   } catch (err) {
 
     await rm(tmp, { force: true }).catch(() => {})
+
+    rememberFailure(update.version)
     send(win, {
       status: 'error',
       message: err instanceof Error ? err.message : String(err)
@@ -389,6 +468,12 @@ export async function checkForUpdates(win: BrowserWindow): Promise<boolean> {
       return false
     }
     if (!update.selfInstall) {
+
+      offered = update
+      send(win, { status: 'idle' })
+      return false
+    }
+    if (failedVersion() === update.version) {
 
       offered = update
       send(win, { status: 'idle' })

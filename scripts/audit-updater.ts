@@ -2,12 +2,15 @@ import {
   swapExe,
   cleanupLeftovers,
   noteSummary,
+  pendingApplyTarget,
+  stagingPath,
+  APPLY_FLAG,
   DOWNLOAD_PREFIX,
   OLD_SUFFIX,
   RELEASES_URL
 } from '../src/main/updater'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'fs'
-import { join } from 'path'
+import { basename, dirname, join, sep } from 'path'
 import { tmpdir } from 'os'
 import { harness } from './_harness'
 
@@ -186,6 +189,63 @@ async function main(): Promise<void> {
     check('and the releases URL is a real https one',
       /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases$/.test(RELEASES_URL),
       RELEASES_URL)
+  }
+
+  console.log()
+  console.log('the Windows install, which had never once worked')
+
+  {
+    const updaterSrc = readFileSync('src/main/updater.ts', 'utf-8')
+    const from = updaterSrc.indexOf('async function swapAndRelaunch')
+    const to = updaterSrc.indexOf('export const APPLY_FLAG')
+    check('the code this reads is still shaped the way it thinks', from >= 0 && to > from)
+    const swapping = updaterSrc.slice(from, to)
+
+    const renames = (swapping.match(/await swapExe\(/g) ?? []).length
+    check('only the platforms that can rename a running file still do', renames === 2, String(renames))
+    check(
+      'Windows hands the download the path to replace instead',
+      swapping.includes('[APPLY_FLAG, current]')
+    )
+
+    const code = updaterSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    check(
+      'and no shell is asked to do it',
+      !/powershell|cmd\.exe|EncodedCommand/i.test(code),
+      'the install must be code from this repository'
+    )
+
+    const somebodysExe = join('C:', 'Users', 'someone', 'Artemis.exe')
+    check(
+      'a launch carrying the flag knows what to replace',
+      pendingApplyTarget(['artemis', APPLY_FLAG, somebodysExe]) === somebodysExe
+    )
+    check(
+      'an ordinary launch is not mistaken for one',
+      pendingApplyTarget(['artemis', join('C:', 'mods', 'thing.artemis')]) === null
+    )
+    check('nor is the flag with nothing after it', pendingApplyTarget(['artemis', APPLY_FLAG]) === null)
+
+    const staged = stagingPath('windows-portable', somebodysExe, '1.2.3')
+    check(
+      'a Windows download does not wait beside the exe',
+      dirname(staged) !== dirname(somebodysExe),
+      staged
+    )
+    check('and is not hidden behind a dot', !basename(staged).startsWith('.'), basename(staged))
+
+    const appTarget = '/Applications/Artemis.app'
+
+    const inSameDir = (a: string, b: string): boolean =>
+      dirname(a).split(sep).join('/') === dirname(b).split(sep).join('/')
+    for (const kind of ['macos-app', 'appimage'] as const) {
+      const beside = stagingPath(kind, appTarget, '1.2.3')
+      check(
+        `a ${kind} download still waits beside its target, because its install is a rename`,
+        inSameDir(beside, appTarget),
+        beside
+      )
+    }
   }
 
   console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)

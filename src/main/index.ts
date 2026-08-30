@@ -22,7 +22,9 @@ import { registerExportIpc } from './export/exporter'
 import { registerTestIpc } from './test/runner'
 import {
   announceOfferedUpdate,
+  applyUpdateAndExit,
   checkForUpdates,
+  pendingApplyTarget,
   registerUpdateIpc,
   watchForUpdates
 } from './updater'
@@ -258,6 +260,12 @@ function startupFailed(err: unknown): void {
 }
 
 async function start(): Promise<void> {
+
+  const applyTarget = pendingApplyTarget(process.argv)
+  if (applyTarget) {
+    await applyUpdateAndExit(applyTarget)
+    return
+  }
 
   if (app.isPackaged) {
     const { proceed, locked } = await claimSingleInstance()
