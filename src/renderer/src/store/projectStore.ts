@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import {
   createEmptyProject,
   titleCase,
+  toRegistryName,
   type ArtemisElement,
   type ArtemisProject,
   type ElementKind,
@@ -30,6 +31,7 @@ export function normalize(parsed: ArtemisProject): ArtemisProject {
     throw new Error(`Unsupported project format v${parsed.formatVersion}`)
   }
   parsed.textures ??= []
+  parsed.sounds ??= []
   parsed.textureAssignments ??= {}
   parsed.codeOverrides ??= {}
   parsed.meta.obfuscate ??= true
@@ -89,6 +91,10 @@ interface ProjectState {
     patch: { name?: string; data?: string; layers?: TextureLayer[]; emissive?: string }
   ) => void
   removeTexture: (id: string) => void
+
+  importSound: () => Promise<string | null>
+  updateSound: (id: string, patch: { name?: string; event?: string }) => void
+  removeSound: (id: string) => void
 
   assignTexture: (slotKey: string, textureId: string | null) => void
   textureById: (id: string | undefined) => ProjectTexture | undefined
@@ -404,6 +410,54 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             dirty: true
           }
         : s
+    ),
+
+  importSound: async () => {
+    const picked = await window.artemis.sound.importOgg()
+    if (!picked) return null
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const name = toRegistryName(picked.name) || 'sound'
+    set((st) =>
+      st.project
+        ? {
+            project: {
+              ...st.project,
+              sounds: [
+                ...(st.project.sounds ?? []),
+                { id, name, event: name.replace(/_/g, '.'), ogg: picked.ogg, bytes: picked.bytes, createdAt: now, updatedAt: now }
+              ]
+            },
+            dirty: true
+          }
+        : st
+    )
+    return id
+  },
+
+  updateSound: (id, patch) =>
+    set((st) =>
+      st.project
+        ? {
+            project: {
+              ...st.project,
+              sounds: (st.project.sounds ?? []).map((s2) =>
+                s2.id === id ? { ...s2, ...patch, updatedAt: new Date().toISOString() } : s2
+              )
+            },
+            dirty: true
+          }
+        : st
+    ),
+
+  removeSound: (id) =>
+    set((st) =>
+      st.project
+        ? {
+            project: { ...st.project, sounds: (st.project.sounds ?? []).filter((s2) => s2.id !== id) },
+            dirty: true
+          }
+        : st
     ),
 
   removeTexture: (id) =>

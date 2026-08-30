@@ -59,6 +59,7 @@ const api: ArtemisApi = {
     dragStart: () => record('window.dragStart'),
     dragMove: (dx, dy) => record('window.dragMove', dx, dy)
   },
+  sound: { importOgg: async () => { record('sound.importOgg'); return null } },
   app: { platform: 'win32', version: '0.0.0-probe', isDev: false, skipOnboarding: false },
   setup: {
     status: async () => setupInbox.status,

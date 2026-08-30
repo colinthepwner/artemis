@@ -1,5 +1,6 @@
 import { createEmptyProject, type ArtemisProject, type ElementKind } from '../src/shared/project'
 import { KIND_DEFAULTS } from '../src/shared/generator/props'
+import { gzipSync } from 'zlib'
 import { migrateProject } from '../src/shared/migrate'
 
 export interface Scenario {
@@ -688,6 +689,18 @@ export const SCENARIOS: Scenario[] = [
     name: 'kitchen sink',
     build: () => {
       const { project, add } = mk('sinkmod')
+
+      project.sounds = [
+        {
+          id: 'snd-clang',
+          name: 'clang',
+          event: 'block.clang',
+          ogg: gzipSync(Buffer.from('OggS' + 'x'.repeat(2048), 'binary'), { level: 9 }).toString('base64'),
+          bytes: 2052,
+          createdAt: '2026-08-30T00:00:00Z',
+          updatedAt: '2026-08-30T00:00:00Z'
+        }
+      ]
 
       project.meta.dependencies = [
         { modId: 'someothermod', version: '>=1.2.0', optional: false },

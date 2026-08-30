@@ -1,6 +1,7 @@
 import { dialog, ipcMain, shell } from 'electron'
 import { mkdir, writeFile, readFile, readdir, rm, stat } from 'fs/promises'
 import { existsSync, writeFileSync } from 'fs'
+import { gunzipSync } from 'zlib'
 import { dirname, join } from 'path'
 import { IPC } from '../../shared/ipc'
 import type { ArtemisProject } from '../../shared/project'
@@ -479,6 +480,33 @@ ${obfuscate ? obfuscationTask() : ''}`,
       }
     } else {
       missing.push(slot)
+    }
+  }
+
+  const sounds = project.sounds ?? []
+  if (sounds.length) {
+    const manifest: Record<string, { sounds: string[] }> = {}
+    for (const sound of sounds) {
+      const name = sound.name.trim()
+      const event = sound.event.trim()
+      if (!name || !event) continue
+      await writeBytes(
+        root,
+        `src/main/resources/assets/${meta.modId}/sounds/${name}.ogg`,
+        gunzipSync(Buffer.from(sound.ogg, 'base64')),
+        generated
+      )
+
+      manifest[event] = { sounds: [`${name}.ogg`] }
+    }
+    if (Object.keys(manifest).length) {
+      await write(
+        root,
+        `src/main/resources/assets/${meta.modId}/sounds/sounds.json`,
+        JSON.stringify(manifest, null, 2) + '\n',
+        generated
+      )
+      log.push(`  + ${Object.keys(manifest).length} sound(s) and their sounds.json`)
     }
   }
 

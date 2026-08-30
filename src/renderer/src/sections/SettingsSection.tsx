@@ -2,7 +2,7 @@ import { useProjectStore } from '@/store/projectStore'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { ModIconField } from '@/components/pixel/ModIconField'
 import { Select } from '@/components/ui/controls'
-import type { ModDependency } from '@shared/project'
+import { toRegistryName, type ModDependency } from '@shared/project'
 
 export function SettingsSection(): JSX.Element | null {
   const project = useProjectStore((s) => s.project)
@@ -61,6 +61,8 @@ export function SettingsSection(): JSX.Element | null {
             onChange={(e) => updateMeta({ description: e.target.value })}
           />
         </div>
+
+        <SoundList />
 
         <DependencyList
           value={project.meta.dependencies ?? []}
@@ -142,6 +144,61 @@ function DependencyList(props: {
           className="flex w-full items-center justify-center gap-1.5 rounded-md bg-ink-750 py-2 text-2xs text-mist-300 transition-colors hover:bg-ink-700"
         >
           <Plus size={13} /> Add a mod
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SoundList(): JSX.Element {
+  const sounds = useProjectStore((s) => s.project?.sounds ?? [])
+  const importSound = useProjectStore((s) => s.importSound)
+  const updateSound = useProjectStore((s) => s.updateSound)
+  const removeSound = useProjectStore((s) => s.removeSound)
+
+  return (
+    <div>
+      <label className="label-base">Sounds</label>
+      <p className="mb-2 text-2xs leading-relaxed text-mist-600">
+        Ogg files the mod ships. The key is what the game plays it by, written with dots. Ogg
+        only, because that is the one thing BTA's sound loader reads.
+      </p>
+      <div className="space-y-2">
+        {sounds.map((sound) => (
+          <div key={sound.id} className="flex items-center gap-2">
+            <input
+              className="input-base min-w-0 flex-1 font-mono text-2xs"
+              value={sound.name}
+              onChange={(e) => updateSound(sound.id, { name: toRegistryName(e.target.value) })}
+              title="The file it lands on"
+            />
+            <input
+              className="input-base min-w-0 flex-1 font-mono text-2xs"
+              value={sound.event}
+              onChange={(e) => updateSound(sound.id, { event: e.target.value.trim() })}
+              placeholder="my.event"
+              title="The key the game plays it by"
+            />
+            <span
+              className="w-16 shrink-0 text-right font-mono text-2xs text-mist-600"
+              title={`${sound.bytes} bytes before compression`}
+            >
+              {Math.max(1, Math.round(sound.bytes / 1024))} KB
+            </span>
+            <button
+              onClick={() => removeSound(sound.id)}
+              title="Remove"
+              className="shrink-0 rounded-md p-1.5 text-mist-500 transition-colors hover:bg-ember-500/15 hover:text-ember-400"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={() => void importSound()}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-ink-750 py-2 text-2xs text-mist-300 transition-colors hover:bg-ink-700"
+        >
+          <Plus size={13} /> Add an ogg
         </button>
       </div>
     </div>

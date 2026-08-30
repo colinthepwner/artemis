@@ -69,6 +69,20 @@ export interface TextureLayer {
   data: string
 }
 
+export interface ProjectSound {
+  id: string
+
+  name: string
+
+  event: string
+
+  ogg: string
+
+  bytes: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ProjectTexture {
   id: string
   name: string
@@ -90,6 +104,8 @@ export interface ArtemisProject {
   elements: ArtemisElement[]
 
   textures: ProjectTexture[]
+
+  sounds?: ProjectSound[]
 
   textureAssignments: Record<string, string>
 

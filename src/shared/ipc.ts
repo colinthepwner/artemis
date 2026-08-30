@@ -8,6 +8,7 @@ export const IPC = {
 
   ProjectSave: 'project:save',
   ProjectOpen: 'project:open',
+  SoundImport: 'sound:import',
   ProjectOpenPath: 'project:open-path',
 
   ProjectOpenRequested: 'project:open-requested',
@@ -194,6 +195,11 @@ export interface ArtemisApi {
     dragStart(): void
 
     dragMove(dx: number, dy: number): void
+  }
+
+  sound: {
+
+    importOgg: () => Promise<{ name: string; ogg: string; bytes: number } | null>
   }
   app: {
     platform: NodeJS.Platform

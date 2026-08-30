@@ -15,6 +15,9 @@ const api: ArtemisApi = {
     dragStart: () => ipcRenderer.send(IPC.WindowDragStart),
     dragMove: (dx, dy) => ipcRenderer.send(IPC.WindowDragMove, dx, dy)
   },
+  sound: {
+    importOgg: () => ipcRenderer.invoke(IPC.SoundImport)
+  },
   app: {
     platform: process.platform,
 

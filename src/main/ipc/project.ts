@@ -1,6 +1,7 @@
 import { app, dialog, ipcMain, shell } from 'electron'
 import { access, mkdir, readFile, readdir, writeFile } from 'fs/promises'
-import { dirname, join } from 'path'
+import { basename, dirname, join } from 'path'
+import { gzipSync } from 'zlib'
 import { IPC, type RecentProject } from '../../shared/ipc'
 
 const ARTEMIS_FILTER = [{ name: 'Artemis Project', extensions: ['artemis'] }]
@@ -132,6 +133,21 @@ export function registerProjectIpc(): void {
     const path = res.filePaths[0]
     const json = await readFile(path, 'utf-8')
     return { path, json }
+  })
+
+  ipcMain.handle(IPC.SoundImport, async () => {
+    const res = await dialog.showOpenDialog({
+      filters: [{ name: 'Ogg Vorbis', extensions: ['ogg'] }],
+      properties: ['openFile']
+    })
+    if (res.canceled || res.filePaths.length === 0) return null
+    const path = res.filePaths[0]
+    const raw = await readFile(path)
+    return {
+      name: basename(path).replace(/\.ogg$/i, ''),
+      ogg: gzipSync(raw, { level: 9 }).toString('base64'),
+      bytes: raw.length
+    }
   })
 
   ipcMain.handle(IPC.ProjectsDir, () => ensureProjectsRoot())

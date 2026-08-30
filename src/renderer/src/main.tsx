@@ -60,6 +60,8 @@ if (!window.artemis) {
       revealJar: () => {}
     },
     prefs: { load: async () => ({}), save: () => {} },
+
+    sound: { importOgg: async () => null },
     presence: { update: () => {} },
     test: {
       start: async () => ({ ok: false, error: 'Testing requires the desktop app.' }),

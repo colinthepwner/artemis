@@ -355,6 +355,31 @@ async function main(): Promise<void> {
     check('no mixin is listed twice', dupes.length === 0, dupes.join(', '))
   }
 
+  {
+    const dir = `src/main/resources/assets/${modId}/sounds`
+    const ogg = join(root, dir, 'clang.ogg')
+    check('the ogg is written', existsSync(ogg))
+    check(
+      'and comes back out of the project byte for byte',
+      existsSync(ogg) &&
+        readFileSync(ogg).equals(Buffer.from('OggS' + 'x'.repeat(2048), 'binary')),
+      'the gzip round trip changed the file'
+    )
+    const manifestPath = join(root, dir, 'sounds.json')
+    check('the manifest is written beside it', existsSync(manifestPath))
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<
+        string,
+        { sounds?: string[] }
+      >
+      check(
+        'keyed on the event a mod would play, not on the file name',
+        manifest['block.clang']?.sounds?.[0] === 'clang.ogg',
+        JSON.stringify(manifest)
+      )
+    }
+  }
+
   const fmjPath = 'src/main/resources/fabric.mod.json'
   check('fabric.mod.json is written', existsSync(join(root, fmjPath)))
   if (existsSync(join(root, fmjPath))) {
