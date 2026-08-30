@@ -163,6 +163,49 @@ console.log('a piece detached from a set with nothing owning it')
   check('and repairing it twice is the same as once', stable(twice) === stable(holed))
 }
 
+console.log('what a right-click rule does, and which side does it')
+
+{
+  const clicky = mk('clickmod')
+  clicky.add('item', 'chisel', {
+    displayName: 'Chisel',
+    blockUses: [
+      {
+        target: 'block:STONE',
+        becomes: 'block:STONE_CARVED',
+        drops: '',
+        dropCount: 1,
+        particle: 'smoke',
+        particleCount: 6,
+        sound: 'block.clang'
+      }
+    ]
+  })
+  const src =
+    new CodeGenerator(clicky.project).generate().find((f) => f.path.includes('ItemChisel'))
+      ?.content ?? ''
+  const guard = src.indexOf('isClientSide')
+  const particle = src.indexOf('spawnParticle')
+  const sound = src.indexOf('playSoundEffectAtTile')
+  const change = src.indexOf('setBlockType')
+  check('a rule spawns its particles', particle > 0, src.slice(0, 200))
+  check(
+    'before the client returns, or only the server would ever make them',
+    particle > 0 && guard > 0 && particle < guard,
+    `particle at ${particle}, guard at ${guard}`
+  )
+  check(
+    'and plays its sound on the same side, for the same reason',
+    sound > 0 && sound < guard,
+    `sound at ${sound}, guard at ${guard}`
+  )
+  check(
+    'while changing the world only after it, so the client cannot fight the server',
+    change > 0 && change > guard,
+    `change at ${change}, guard at ${guard}`
+  )
+}
+
 console.log('a block that powers redstone')
 
 {

@@ -1,7 +1,18 @@
 import { Plus, Trash2, ArrowRight } from 'lucide-react'
-import { Field, NumberInput } from '@/components/ui/controls'
+import { Field, NumberInput, Select } from '@/components/ui/controls'
 import { ItemRefField } from '@/components/pixel/ItemRefPicker'
 import type { BlockUseRule } from '@shared/generator/props'
+
+const PARTICLE_OPTIONS = [
+  { value: '', label: 'Nothing' },
+  ...[
+    'acidBoiling', 'arrowtrail', 'ashmote', 'blueflame', 'bubble', 'bubbleboiling',
+    'dripAcid', 'dripLava', 'dripWater', 'explode', 'fallingleaf', 'fireflyBlue',
+    'fireflyGreen', 'fireflyOrange', 'fireflyRed', 'flame', 'footstep', 'heart',
+    'largesmoke', 'lava', 'note', 'portal', 'reddust', 'rubyglassLightning',
+    'slimechunk', 'smoke', 'snowshovel', 'soulflame', 'splash', 'ventsmoke'
+  ].map((n) => ({ value: n, label: n }))
+]
 
 export function BlockUsesFields(props: {
   rules: BlockUseRule[]
@@ -15,7 +26,10 @@ export function BlockUsesFields(props: {
     onChange(rules.map((r, n) => (n === i ? { ...r, ...patch } : r)))
 
   const add = (): void =>
-    onChange([...rules, { target: '', becomes: '', drops: '', dropCount: 1 }])
+    onChange([
+      ...rules,
+      { target: '', becomes: '', drops: '', dropCount: 1, sound: '', particle: '', particleCount: 8 }
+    ])
 
   const remove = (i: number): void => onChange(rules.filter((_, n) => n !== i))
 
@@ -56,7 +70,7 @@ export function BlockUsesFields(props: {
                 </button>
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <span className="shrink-0 text-2xs text-mist-600">and drops</span>
+                <span className="w-14 shrink-0 text-2xs text-mist-600">drops</span>
                 <ItemRefField
                   value={rule.drops}
                   onChange={(v) => patchRule(i, { drops: v })}
@@ -73,6 +87,40 @@ export function BlockUsesFields(props: {
                   />
                   </span>
                 )}
+              </div>
+
+              {
+}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-14 shrink-0 text-2xs text-mist-600">puffs</span>
+                <span className="min-w-0 flex-1">
+                  <Select
+                    value={rule.particle ?? ''}
+                    onChange={(v) => patchRule(i, { particle: v })}
+                    options={PARTICLE_OPTIONS}
+                  />
+                </span>
+                {(rule.particle ?? '').trim() !== '' && (
+                  <span className="w-16 shrink-0">
+                    <NumberInput
+                      value={rule.particleCount || 8}
+                      onChange={(v) => patchRule(i, { particleCount: Math.max(1, Math.round(v)) })}
+                      min={1}
+                      max={64}
+                    />
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-14 shrink-0 text-2xs text-mist-600">plays</span>
+                <input
+                  className="input-base min-w-0 flex-1 font-mono text-2xs"
+                  value={rule.sound ?? ''}
+                  onChange={(e) => patchRule(i, { sound: e.target.value.trim() })}
+                  placeholder="nothing"
+                  title="A sound key: one of your own from Artemis Settings, or one of the game's"
+                />
               </div>
             </div>
           ))}

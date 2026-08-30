@@ -47,6 +47,7 @@
     "ItemTags": "net.minecraft.core.item.tag.ItemTags",
     "LookupFuelFurnace": "net.minecraft.core.crafting.LookupFuelFurnace",
     "Player": "net.minecraft.core.entity.player.Player",
+    "SoundCategory": "net.minecraft.core.sound.SoundCategory",
     "ItemArmor": "net.minecraft.core.item.ItemArmor",
     "ItemBlock": "net.minecraft.core.item.block.ItemBlock",
     "ItemBuilder": "turniplabs.halplibe.helper.ItemBuilder",
@@ -743,12 +744,14 @@
     }
   },
   "itemUse": {
-    "$comment": "What an item does when it is right-clicked on a block. Item.onUseOnBlock(ItemStack, World, Player, TilePosc, Side, double, double) is the overridable hook; the onUseItemOnBlock beside it is final and delegates to this one. Signature read off javap on the 8.0.1 client jar, along with World.getBlockType(TilePosc), World.setBlockType(TilePosc, Block), World.dropItem(TilePosc, ItemStack), ItemStack.damageItem(int, Entity) and the public isClientSide field. Returning true means the click was consumed, which is what stops the block in the other hand being placed on top of the one just changed. Nothing is done on the client: the server owns the world, and a client that edits it too shows the change for one frame and then has it taken back, which reads as the item working intermittently.",
+    "$comment": "What an item does when it is right-clicked on a block. Item.onUseOnBlock(ItemStack, World, Player, TilePosc, Side, double, double) is the overridable hook; the onUseItemOnBlock beside it is final and delegates to this one. Signature read off javap on the 8.0.1 client jar, along with World.getBlockType(TilePosc), World.setBlockType(TilePosc, Block), World.dropItem(TilePosc, ItemStack), ItemStack.damageItem(int, Entity), World.playSoundEffectAtTile(Entity, SoundCategory, TilePosc, String, float, float), World.spawnParticle(String, six doubles, int, boolean) and the public isClientSide field. Returning true means the click was consumed, which is what stops the block in the other hand being placed on top of the one just changed. NOTE the ordering inside a rule: particles are spawned BEFORE the client bails out, because particles only exist on a client and the server has nothing to show them to. Everything that changes the world happens after, on the server alone, because a client that edits the world too shows the change for one frame and then has it taken back.",
     "className": "public class {{className}} extends Item {\n\n\tpublic {{className}}(String key, String namespaceId, int id) {\n\t\tsuper(key, namespaceId, id);\n\t}\n\n\t@Override\n\tpublic boolean onUseOnBlock(ItemStack stack, World world, Player player, TilePosc pos, Side side, double xHit, double yHit) {\n\t\tBlock<?> hit = world.getBlockType(pos);\n\t\tif (hit == null) return false;\n{{rules}}\t\treturn false;\n\t}\n}",
-    "rule": "\t\tif (hit == {{target}}) {\n\t\t\tif (world.isClientSide) return true;\n{{effects}}\t\t\treturn true;\n\t\t}\n",
+    "rule": "\t\tif (hit == {{target}}) {\n{{clientEffects}}\t\t\tif (world.isClientSide) return true;\n{{effects}}\t\t\treturn true;\n\t\t}\n",
     "becomes": "\t\t\tworld.setBlockType(pos, {{block}});\n",
     "drops": "\t\t\tworld.dropItem(pos, {{stack}});\n",
-    "cost": "\t\t\tstack.damageItem({{amount}}, player);\n"
+    "cost": "\t\t\tstack.damageItem({{amount}}, player);\n",
+    "sound": "\t\t\tworld.playSoundEffectAtTile(player, SoundCategory.WORLD_SOUNDS, pos, \"{{event}}\", 1.0F, 1.0F);\n",
+    "particle": "\t\t\tfor (int i = 0; i < {{count}}; i++) {\n\t\t\t\tworld.spawnParticle(\"{{name}}\", pos.x() + world.rand.nextDouble(), pos.y() + 1.0D, pos.z() + world.rand.nextDouble(), 0.0D, 0.0D, 0.0D, 0, false);\n\t\t\t}\n"
   },
   "itemTags": {
     "$comment": "UI toggle key -> ItemTags constant, read off javap on net.minecraft.core.item.tag.ItemTags in the 8.0.1 client jar. BTA declares ten and this is nine of them: NOT_IN_CREATIVE_MENU is left out because it gets a switch of its own, the way it does on a block, rather than sitting in the list twice. WORTH KNOWING, because people ask: there is no WOLF_FAVOURITE_ITEM or SHEEP_FAVOURITE_ITEM in 8.0.1. Chickens and cows are the two animals with a favourite ITEM; sheep and pigs have a favourite BLOCK, which is a different tag on a different class. The form enumerates whatever is in this table, so adding one is a line here.",

@@ -65,6 +65,12 @@ export interface BlockUseRule {
   drops: string
 
   dropCount: number
+
+  sound: string
+
+  particle: string
+
+  particleCount: number
 }
 
 export interface ItemProps {

@@ -19,6 +19,19 @@ function itemUseClass(
   const iu = ctx.mapping.itemUse
   const body = rules
     .map((r) => {
+
+      let clientEffects = ''
+      if (r.particle?.trim()) {
+        clientEffects += render(iu.particle, {
+          name: r.particle.trim(),
+          count: Math.max(1, Math.min(64, Math.round(r.particleCount || 8)))
+        })
+      }
+      if (r.sound?.trim()) {
+        w.use('SoundCategory')
+        clientEffects += render(iu.sound, { event: r.sound.trim() })
+      }
+
       let effects = ''
       if (r.becomes.trim()) {
         effects += render(iu.becomes, { block: ctx.blockExpr(r.becomes, w) })
@@ -30,7 +43,7 @@ function itemUseClass(
       }
 
       if (cost > 0) effects += render(iu.cost, { amount: Math.round(cost) })
-      return render(iu.rule, { target: ctx.blockExpr(r.target, w), effects })
+      return render(iu.rule, { target: ctx.blockExpr(r.target, w), clientEffects, effects })
     })
     .join('')
 
@@ -40,7 +53,12 @@ function itemUseClass(
 
 export function usableRules(rules: BlockUseRule[] | undefined): BlockUseRule[] {
   return (rules ?? []).filter(
-    (r) => r.target.trim() !== '' && (r.becomes.trim() !== '' || r.drops.trim() !== '')
+    (r) =>
+      r.target.trim() !== '' &&
+      (r.becomes.trim() !== '' ||
+        r.drops.trim() !== '' ||
+        (r.sound ?? '').trim() !== '' ||
+        (r.particle ?? '').trim() !== '')
   )
 }
 

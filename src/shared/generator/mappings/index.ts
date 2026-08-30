@@ -51,6 +51,8 @@ export interface BtaMapping {
     becomes: string
     drops: string
     cost: string
+    sound: string
+    particle: string
   }
 
   blockLogic: { classTemplate: string; dropMethod: string; signalMethods: string }

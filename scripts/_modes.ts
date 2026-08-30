@@ -78,8 +78,24 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
       displayName: 'Test Chisel',
       blockUseCost: 1,
       blockUses: [
-        { target: 'block:STONE', becomes: 'block:STONE_CARVED', drops: '', dropCount: 1 },
-        { target: 'block:STONE_CARVED', becomes: 'block:STONE', drops: 'probe_item', dropCount: 2 }
+        {
+          target: 'block:STONE',
+          becomes: 'block:STONE_CARVED',
+          drops: '',
+          dropCount: 1,
+          particle: 'smoke',
+          particleCount: 6,
+          sound: 'block.clang'
+        },
+        {
+          target: 'block:STONE_CARVED',
+          becomes: 'block:STONE',
+          drops: 'probe_item',
+          dropCount: 2,
+          particle: '',
+          particleCount: 8,
+          sound: ''
+        }
       ]
     }
   },
