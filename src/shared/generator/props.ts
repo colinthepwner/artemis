@@ -71,6 +71,8 @@ export interface ItemProps {
 
   category: string
 
+  durability: number
+
   blockUses: BlockUseRule[]
 
   blockUseCost: number
@@ -121,6 +123,7 @@ export const ITEM_DEFAULTS: ItemProps = {
   displayName: '',
   stackSize: 64,
   category: 'material',
+  durability: 0,
   blockUses: [],
   blockUseCost: 0,
   generateSet: false,

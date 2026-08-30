@@ -59,6 +59,14 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
     'promoted kit piece': { displayName: 'Test Item', piece: 'pickaxe' },
     'promoted armor piece': { displayName: 'Test Item', piece: 'helmet' },
 
+    'wears out': {
+      displayName: 'Test Chisel',
+      durability: 128,
+      stackSize: 64,
+      blockUseCost: 1,
+      blockUses: [{ target: 'block:STONE', becomes: 'block:COBBLE_STONE', drops: '', dropCount: 1 }]
+    },
+
     'right-click rules': {
       displayName: 'Test Chisel',
       blockUseCost: 1,

@@ -126,6 +126,27 @@ console.log('readiness: dangling references are caught')
   check('the fixed project declares nothing twice', duplicateDecls(fixed).length === 0, duplicateDecls(fixed).join('; '))
 }
 
+console.log('an item that wears out')
+
+{
+  const durable = mk('duramod')
+  durable.add('item', 'chisel', { displayName: 'Chisel', durability: 128, stackSize: 64 })
+  durable.add('item', 'ruby', { displayName: 'Ruby', stackSize: 64 })
+  const java = new CodeGenerator(durable.project)
+    .generate()
+    .find((f) => f.path.endsWith('ModItems.java'))!.content
+  const chisel = java.split('\n\n').find((b) => b.includes('CHISEL')) ?? ''
+  const ruby = java.split('\n\n').find((b) => b.includes('RUBY')) ?? ''
+  check('an item with durability declares a max damage', /setMaxDamage\(128\)/.test(chisel), chisel)
+
+  check('and does not stack, whatever the file asks for', /setStackSize\(1\)/.test(chisel), chisel)
+  check(
+    'an item without one is untouched, so nothing already made changes',
+    !/setMaxDamage|setStackSize/.test(ruby),
+    ruby
+  )
+}
+
 console.log('readiness: colliding registry names')
 
 {

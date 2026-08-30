@@ -76,12 +76,31 @@ function ItemFormInner({
           desc: 'How it stacks and where creative mode shelves it.',
           content: (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Stack Size" hint="How many fit in one slot. Tools sit at 1.">
+              <Field
+                label="Stack Size"
+                hint={
+                  (p.durability ?? 0) > 0
+                    ? 'Anything with durability sits at 1: wear is carried by the stack, so two half-worn ones in a slot would share it.'
+                    : 'How many fit in one slot. Tools sit at 1.'
+                }
+              >
                 <NumberInput
-                  value={p.stackSize}
+                  value={(p.durability ?? 0) > 0 ? 1 : p.stackSize}
                   onChange={(v) => patch('stackSize', Math.max(1, Math.min(64, Math.round(v))))}
                   min={1}
                   max={64}
+                  disabled={(p.durability ?? 0) > 0}
+                />
+              </Field>
+              <Field
+                label="Durability"
+                hint="Uses before it breaks. 0 for something that never wears out, which is most things."
+              >
+                <NumberInput
+                  value={p.durability ?? 0}
+                  onChange={(v) => patch('durability', Math.max(0, Math.round(v)))}
+                  min={0}
+                  max={4096}
                 />
               </Field>
               <Field label="Creative Shelf">
@@ -114,7 +133,17 @@ function ItemFormInner({
         ]),
   ]
 
-  const checks: ReviewCheck[] = []
+  const spendsNothing = (p.blockUseCost ?? 0) > 0 && (p.durability ?? 0) === 0
+  const checks: ReviewCheck[] = [
+    {
+      label: 'Durability cost can be paid',
+      ok: !spendsNothing,
+      detail: spendsNothing
+        ? 'This spends durability on every use, but the item has none, so it will never wear out. Give it a durability on the Behavior slide, or set the cost to 0.'
+        : undefined,
+      stepId: 'behavior'
+    }
+  ]
 
   return <FormShell element={element} onClose={onClose} steps={steps} checks={checks} />
 }

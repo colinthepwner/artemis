@@ -101,8 +101,14 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   }
 
   const chain: string[] = []
-  if (p.stackSize !== 64 && ib.methods['stackSize']) {
-    chain.push('\t' + render(ib.methods['stackSize'], { value: Math.max(1, Math.min(64, p.stackSize)) }))
+
+  const durability = Math.max(0, Math.round(p.durability ?? 0))
+  const stackSize = durability > 0 ? 1 : Math.max(1, Math.min(64, p.stackSize))
+  if (stackSize !== 64 && ib.methods['stackSize']) {
+    chain.push('	' + render(ib.methods['stackSize'], { value: stackSize }))
+  }
+  if (durability > 0 && ib.methods['maxDamage']) {
+    chain.push('	' + render(ib.methods['maxDamage'], { value: durability }))
   }
 
   const rules = usableRules(p.blockUses)

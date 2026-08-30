@@ -45,6 +45,8 @@ export function NumberInput(props: {
   min?: number
   max?: number
   step?: number
+
+  disabled?: boolean
 }): JSX.Element {
   const [local, setLocal] = useState<string | null>(null)
 
@@ -55,11 +57,12 @@ export function NumberInput(props: {
   return (
     <input
       type="number"
-      className="input-base font-mono"
+      className={cn('input-base font-mono', props.disabled && 'cursor-not-allowed opacity-50')}
       value={local !== null ? local : (Number.isFinite(props.value) ? props.value : 0)}
       min={props.min}
       max={props.max}
       step={props.step ?? 1}
+      disabled={props.disabled}
       onChange={(e) => {
         setLocal(e.target.value)
         const v = parseFloat(e.target.value)
