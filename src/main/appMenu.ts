@@ -5,9 +5,7 @@ import { desktopPlatform } from '../shared/platform'
 let state: MenuState = {
   hasProject: false,
   autoCapitalize: true,
-  inspectorOpen: false,
   reduceAnimations: false,
-  showCheckerGrid: true,
   discordPresence: true,
   bundleTestMods: true,
   savingMode: 'manual'
@@ -41,17 +39,10 @@ function template(): MenuItemConstructorOptions[] {
               type: 'checkbox',
               checked: state.autoCapitalize
             }),
-            item('Show the code preview', 'settings.inspector', {
-              type: 'checkbox',
-              checked: state.inspectorOpen
-            }),
+
             item('Reduce animations', 'settings.reduceAnimations', {
               type: 'checkbox',
               checked: state.reduceAnimations
-            }),
-            item('Show checkered grid', 'settings.checkerGrid', {
-              type: 'checkbox',
-              checked: state.showCheckerGrid
             }),
             item('Show what you are modding on Discord', 'settings.discordPresence', {
               type: 'checkbox',
@@ -104,8 +95,12 @@ function template(): MenuItemConstructorOptions[] {
 
       label: 'Edit',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+
+        item('Undo', 'edit.undo', { accelerator: 'CmdOrCtrl+Z', enabled: state.hasProject }),
+        item('Redo', 'edit.redo', {
+          accelerator: 'CmdOrCtrl+Shift+Z',
+          enabled: state.hasProject
+        }),
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },
@@ -119,7 +114,7 @@ function template(): MenuItemConstructorOptions[] {
     },
     {
       label: 'Help',
-      submenu: [item('Take the tour again', 'help.tour')]
+      submenu: [item('Take the tour again', 'help.tour'), item('Send Feedback…', 'help.feedback')]
     }
   ]
 }

@@ -478,6 +478,7 @@ export async function checkForUpdates(win: BrowserWindow): Promise<boolean> {
     if (failedVersion() === update.version) {
 
       offered = update
+      offeredStuck = true
       send(win, { status: 'idle' })
       return false
     }
@@ -498,6 +499,8 @@ const FIRST_CHECK_MS = 15 * 60 * 1000
 let watchTimer: NodeJS.Timeout | null = null
 let offered: AvailableUpdate | null = null
 
+let offeredStuck = false
+
 export function offeredUpdate(): AvailableUpdate | null {
   return offered
 }
@@ -510,7 +513,8 @@ export function announceOfferedUpdate(win: BrowserWindow): void {
     total: offered.size,
     page: offered.page,
     selfInstall: offered.selfInstall,
-    notes: offered.notes
+    notes: offered.notes,
+    stuck: offeredStuck
   })
 }
 
@@ -524,6 +528,8 @@ export function watchForUpdates(win: BrowserWindow): void {
       const update = await findUpdate()
       if (!update || win.isDestroyed()) return
       offered = update
+
+      offeredStuck = false
       send(win, {
         status: 'available',
         version: update.version,

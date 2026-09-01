@@ -2,11 +2,11 @@ import { useMemo } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { getVanillaRegistry } from '@shared/generator/vanilla'
 import { projectRegistryEntries } from '@shared/generator/registry'
+import { splitAxis } from '@shared/generator/props'
 import { artworkFor, blockFacesFor } from '@shared/generator/artwork'
 import { vanillaIcon } from '@/components/pixel/vanillaIcons'
 import { useVanillaArt } from '@/components/pixel/useVanillaArt'
 import { PickerDialog, type PickerEntry } from '@/components/ui/PickerDialog'
-import { isCrossPlantField } from './voxel'
 
 export interface RefArt {
   top?: string
@@ -34,8 +34,9 @@ export function useRefArt(): (ref: string) => RefArt {
     return (ref: string): RefArt => {
       const hit = cache.get(ref)
       if (hit) return hit
-      let out: RefArt = { color: refColor(ref) }
-      const t = ref.trim()
+
+      const t = splitAxis(ref.trim()).ref
+      let out: RefArt = { color: refColor(t) }
       if (t.startsWith('block:')) {
         const field = t.slice(6)
         const side = art.blocks[field]
@@ -56,7 +57,7 @@ export function useRefArt(): (ref: string) => RefArt {
 export function useRefLabel(ref: string): string {
   const project = useProjectStore((s) => s.project)
   return useMemo(() => {
-    const t = ref.trim()
+    const t = splitAxis(ref.trim()).ref
     if (!t) return 'Pick a block'
     const vanilla = getVanillaRegistry(project?.meta.targetBta ?? '8.0.1')
     if (t.startsWith('block:')) {
@@ -66,6 +67,16 @@ export function useRefLabel(ref: string): string {
     const entry = project ? projectRegistryEntries(project).find((e) => e.registryName === t) : undefined
     return entry?.displayName ?? t
   }, [ref, project])
+}
+
+export function applyStamp(
+  added: Record<string, string>,
+  onApply: (added: Record<string, string>) => void,
+  onClose: () => void
+): void {
+  if (Object.keys(added).length === 0) return
+  onApply(added)
+  onClose()
 }
 
 export function WorkshopBlockPicker(props: {
@@ -82,7 +93,7 @@ export function WorkshopBlockPicker(props: {
   const vanillaEntries = useMemo<PickerEntry[]>(
     () =>
       vanilla.blocks
-        .filter((e) => e.field !== 'AIR' && !isCrossPlantField(e.field))
+        .filter((e) => e.field !== 'AIR')
         .map((e) => ({
           id: `block:${e.field}`,
           label: e.name,
@@ -97,9 +108,8 @@ export function WorkshopBlockPicker(props: {
 
   const modEntries = useMemo<PickerEntry[]>(() => {
     if (!project) return []
-    const kindOf = new Map(project.elements.map((e) => [e.id, e.kind]))
     return projectRegistryEntries(project)
-      .filter((r) => r.kind === 'block' && kindOf.get(r.elementId) !== 'plant')
+      .filter((r) => r.kind === 'block')
       .map((r) => ({
         id: r.registryName,
         label: r.displayName,
@@ -114,7 +124,7 @@ export function WorkshopBlockPicker(props: {
   return (
     <PickerDialog
       title="Pick a building block"
-      subtitle="What the build is made of. Plants are their own element and stay out of builds."
+      subtitle="What the build is made of. Plants and other shaped blocks draw with their real models."
       tabs={[
         { id: 'vanilla', label: 'Vanilla (BTA)', entries: vanillaEntries },
         {

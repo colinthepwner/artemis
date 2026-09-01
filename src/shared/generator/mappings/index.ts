@@ -177,6 +177,9 @@ export interface BtaMapping {
 
     placeLineIfAir: string
 
+    placeLineMeta: string
+    placeLineIfAirMeta: string
+
     treeGuard: string
   }
   mob: Record<string, string> & {

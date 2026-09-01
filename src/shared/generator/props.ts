@@ -268,6 +268,28 @@ export const DIMENSION_DEFAULTS: DimensionProps = {
   portalFrame: 'block:OBSIDIAN'
 }
 
+export type LogAxis = 'x' | 'z'
+
+export function splitAxis(value: string): { ref: string; axis: LogAxis | null } {
+  const at = value.lastIndexOf('@')
+  if (at === -1) return { ref: value, axis: null }
+  const suffix = value.slice(at + 1)
+  if (suffix === 'x' || suffix === 'z') return { ref: value.slice(0, at), axis: suffix }
+  return { ref: value, axis: null }
+}
+
+export function withAxis(ref: string, axis: LogAxis | null): string {
+  return axis ? `${ref}@${axis}` : ref
+}
+
+export function axisMeta(axis: LogAxis | null): number {
+  return axis === 'x' ? 2 : axis === 'z' ? 1 : 0
+}
+
+export function isAxisCapable(ref: string): boolean {
+  return splitAxis(ref).ref.trim().startsWith('block:LOG_')
+}
+
 export interface BuildVariant {
 
   id: string

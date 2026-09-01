@@ -24,10 +24,12 @@ const audit = harness()
 const check = audit.check
 
 const CUBE = 34
+
+const GROUND_RES = 2
 const groundOffset = (x: number, z: number): { offsetX: number; offsetY: number } => ({
 
-  offsetX: (x + HALF) * CUBE + CUBE / 2,
-  offsetY: (z + HALF) * CUBE + CUBE / 2
+  offsetX: ((x + HALF) * CUBE + CUBE / 2) * GROUND_RES,
+  offsetY: ((z + HALF) * CUBE + CUBE / 2) * GROUND_RES
 })
 
 let seq = 0
@@ -72,10 +74,17 @@ function openWorkshop(): ProbeRoot {
 
 const groundOf = (root: ProbeRoot): ProbeNode => {
   const node = root.find(
-    (n) => n.type === 'div' && typeof n.props.onClick === 'function' && n.props.style?.width === (HALF * 2 + 1) * CUBE
+    (n) =>
+      n.type === 'div' &&
+      typeof n.props.onContextMenu === 'function' &&
+      n.props.style?.width === (HALF * 2 + 1) * CUBE * GROUND_RES
   )
   if (!node) throw new Error('the workshop has no ground plane')
   return node
+}
+
+const buildOnGround = (root: ProbeRoot, x: number, z: number): void => {
+  root.contextMenu(groundOf(root), { nativeEvent: groundOffset(x, z) })
 }
 
 const buttonTitled = (root: ProbeRoot, title: string): ProbeNode => {
@@ -92,11 +101,24 @@ const buttonTitled = (root: ProbeRoot, title: string): ProbeNode => {
 }
 
 function facesAt(root: ProbeRoot, x: number, y: number, z: number): ProbeNode[] {
-  const want = `translate3d(${x * CUBE}px, ${-y * CUBE - CUBE / 2}px, ${z * CUBE}px)`
-  const cube = root.find((n) => n.props.style?.transform === want)
-  if (!cube) return []
-  return cube.children.filter((c) => typeof c.props.onClick === 'function')
+  const s = CUBE
+  const centers = [
+    [x * s, -(y * s + s), z * s],
+    [x * s, -(y * s), z * s],
+    [x * s, -(y * s + s / 2), z * s + s / 2],
+    [x * s, -(y * s + s / 2), z * s - s / 2],
+    [x * s + s / 2, -(y * s + s / 2), z * s],
+    [x * s - s / 2, -(y * s + s / 2), z * s]
+  ].map(([cx, cy, cz]) => `translate3d(${cx}px, ${cy}px, ${cz}px)`)
+  return root.findAll(
+    (n) =>
+      typeof n.props.onClick === 'function' &&
+      typeof n.props.onContextMenu === 'function' &&
+      centers.some((c) => String(n.props.style?.transform ?? '').startsWith(c))
+  )
 }
+
+const faceMiddle = { nativeEvent: { offsetX: CUBE * 2, offsetY: CUBE * 2 } }
 
 function placingAndErasing(): void {
   console.log('\n[workshop] a click puts a block where it was aimed')
@@ -107,31 +129,30 @@ function placingAndErasing(): void {
   })
   const w = openWorkshop()
 
-  const ground = groundOf(w)
-  w.click(ground, { nativeEvent: groundOffset(2, -3) })
+  buildOnGround(w, 2, -3)
   const after = blocksOf('v1')
   check(
-    'clicking the ground places one block, at the cell that was clicked',
+    'right-clicking the ground places one block, at the cell that was clicked',
     Object.keys(after).length === 1 && keyOf(2, 0, -3) in after,
     JSON.stringify(after)
   )
   const placedRef = after[keyOf(2, 0, -3)]
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(0, 0) })
+  buildOnGround(w, 0, 0)
   check(
     'a second click adds a second block and leaves the first',
     Object.keys(blocksOf('v1')).length === 2 && keyOf(2, 0, -3) in blocksOf('v1'),
     JSON.stringify(blocksOf('v1'))
   )
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(0, 0) })
+  buildOnGround(w, 0, 0)
   check(
     'clicking a cell that already holds that block is not an edit',
     Object.keys(blocksOf('v1')).length === 2,
     JSON.stringify(blocksOf('v1'))
   )
 
-  w.click(groundOf(w), { nativeEvent: { offsetX: -400, offsetY: -400 } })
+  w.contextMenu(groundOf(w), { nativeEvent: { offsetX: -400, offsetY: -400 } })
   check(
     'a click outside the buildable grid places nothing',
     Object.keys(blocksOf('v1')).length === 2,
@@ -139,11 +160,11 @@ function placingAndErasing(): void {
   )
 
   const faces = facesAt(w, 0, 0, 0)
-  check('the block that was placed is drawn as a cube with faces', faces.length > 0, `${faces.length} faces`)
+  check('the block that was placed is drawn with faces', faces.length > 0, `${faces.length} faces`)
   if (faces.length > 0) {
-    w.contextMenu(faces[0])
+    w.click(faces[0], faceMiddle)
     check(
-      'right-clicking a face erases exactly that block',
+      'left-clicking a face breaks exactly that block',
       !(keyOf(0, 0, 0) in blocksOf('v1')) && keyOf(2, 0, -3) in blocksOf('v1'),
       JSON.stringify(blocksOf('v1'))
     )
@@ -165,9 +186,9 @@ function undoAndRedo(): void {
   })
   const w = openWorkshop()
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(1, 1) })
-  w.click(groundOf(w), { nativeEvent: groundOffset(2, 2) })
-  w.click(groundOf(w), { nativeEvent: groundOffset(3, 3) })
+  buildOnGround(w, 1, 1)
+  buildOnGround(w, 2, 2)
+  buildOnGround(w, 3, 3)
   check('three clicks, three blocks', Object.keys(blocksOf('v1')).length === 3, JSON.stringify(blocksOf('v1')))
 
   w.click(buttonTitled(w, 'Undo'))
@@ -211,8 +232,8 @@ function theStackIsPerVariant(): void {
   })
   const w = openWorkshop()
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(1, 1) })
-  w.click(groundOf(w), { nativeEvent: groundOffset(2, 2) })
+  buildOnGround(w, 1, 1)
+  buildOnGround(w, 2, 2)
   check('two blocks in the first variant', Object.keys(blocksOf('v1')).length === 2)
 
   const row = w.find((n) => n.type === 'button' && nodeText(n).includes('B'))
@@ -232,7 +253,7 @@ function theStackIsPerVariant(): void {
     JSON.stringify(blocksOf('v1'))
   )
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(4, 4) })
+  buildOnGround(w, 4, 4)
   check('a block in the second variant', Object.keys(blocksOf('v2')).length === 1, JSON.stringify(blocksOf('v2')))
 
   w.click(buttonTitled(w, 'Undo'))
@@ -271,9 +292,9 @@ function theEyedropper(): void {
   const faces = facesAt(w, 0, 0, 0)
   check('the block to pick from is on screen', faces.length > 0)
   if (faces.length === 0) return
-  w.click(faces[0])
+  w.click(faces[0], faceMiddle)
 
-  w.click(groundOf(w), { nativeEvent: groundOffset(-3, -3) })
+  buildOnGround(w, -3, -3)
   const placed = blocksOf('v1')[keyOf(-3, 0, -3)]
   check(
     'the next block placed is the one that was picked',
@@ -297,7 +318,7 @@ function buildingATreeSwitchesItToBuilt(): void {
   })
   check('the tree starts on its grown shape', subject().design === 'grown', String(subject().design))
   const w = openWorkshop()
-  w.click(groundOf(w), { nativeEvent: groundOffset(0, 0) })
+  buildOnGround(w, 0, 0)
   check(
     'the first block built switches the tree to its built shape',
     subject().design === 'built',
@@ -525,6 +546,147 @@ function theRectangularSelection(): void {
   )
 }
 
+function theProjectStack(): void {
+  console.log('\n[project] one undo stack behind the sidebar and the forms')
+  const store = (): ReturnType<typeof useProjectStore.getState> => useProjectStore.getState()
+  const names = (): string[] => (store().project?.elements ?? []).map((e) => e.name)
+  const groups = (): string[] => (store().project?.groups ?? []).map((g) => g.name)
+
+  store().newProject('Undo Test', 'undotest')
+  check('a new project has nothing to undo', !store().canUndo && !store().canRedo, 'stack not empty')
+
+  const a = store().createElement('block')
+
+  const b = store().createElement('block')
+  check('two elements exist', names().length === 2, names().join())
+
+  store().undo()
+  check('undo takes back the second element only', names().length === 1, names().join())
+  store().undo()
+  check('a second undo takes back the first', names().length === 0, names().join())
+  check('and then there is nothing left to undo', !store().canUndo, 'still offering an undo')
+
+  store().undo()
+  check('undoing past the start is harmless', names().length === 0, names().join())
+
+  store().redo()
+  store().redo()
+  check('redo puts both back', names().length === 2, names().join())
+  check('and then there is nothing left to redo', !store().canRedo, 'still offering a redo')
+
+  const g = store().createGroup('Ores')
+  store().setElementGroup(a, g)
+  store().setElementGroup(b, g)
+  check('both elements joined the group', membersOf(g).length === 2, JSON.stringify(membersOf(g)))
+
+  store().undo()
+  check('undo takes an element back out of a group', membersOf(g).length === 1, JSON.stringify(membersOf(g)))
+  store().undo()
+  store().undo()
+  check('undo removes the group itself', groups().length === 0, groups().join())
+
+  store().redo()
+  store().redo()
+  store().redo()
+  check('redo rebuilds the group and its members', groups().length === 1 && membersOf(g).length === 2, groups().join())
+
+  const before = names()[0]
+  for (const name of ['R', 'Ru', 'Rub', 'Ruby']) store().updateElement(a, { name })
+  check('the rename landed', names().includes('Ruby'), names().join())
+  store().undo()
+  check(
+    'one undo takes back the whole typed word, not one letter',
+    names().includes(before) && !names().includes('Ruby'),
+    names().join()
+  )
+
+  store().updateElement(a, { name: 'One' })
+  store().updateElement(b, { name: 'Two' })
+  store().undo()
+  check(
+    'renaming a different element starts its own step',
+    names().includes('One') && !names().includes('Two'),
+    names().join()
+  )
+
+  store().updateElement(a, { name: 'Three' })
+  store().removeElement(b)
+  check('the element is gone', names().length === 1, names().join())
+  store().undo()
+  check('undo brings back a deleted element on its own step', names().length === 2, names().join())
+
+  store().undo()
+  check('there is a redo waiting', store().canRedo, 'no redo offered')
+  store().createElement('block')
+  check('editing after an undo drops the redo', !store().canRedo, 'redo survived a new edit')
+
+  store().newProject('Second', 'second')
+  check('opening a project clears the history', !store().canUndo && !store().canRedo, 'history survived a load')
+
+  useProjectStore.setState({ dirty: false })
+  store().createElement('block')
+  store().undo()
+  check('an undo leaves the project needing a save', store().dirty, 'undo left the project clean')
+
+  store().closeProject()
+}
+
+function membersOf(groupId: string): string[] {
+  const found = (useProjectStore.getState().project?.groups ?? []).find((g) => g.id === groupId)
+  return found ? found.members : []
+}
+
+function actionsThatChangeNothingChangeNothing(): void {
+  console.log('\n[project] an action with nothing to do touches nothing')
+  const store = (): ReturnType<typeof useProjectStore.getState> => useProjectStore.getState()
+  store().newProject('No Ops', 'no_ops')
+  const held = store().createElement('block')
+  const group = store().createGroup('Group')
+
+  const nothing: [string, () => void][] = [
+    ['clearing a code override that was never set', () => store().setCodeOverride('Foo.java', null)],
+    ['editing an element that is not there', () => store().updateElement('nope', { name: 'x' })],
+    ['deleting an element that is not there', () => store().removeElement('nope')],
+    ['duplicating an element that is not there', () => void store().duplicateElement('nope')],
+    ['editing a group that is not there', () => store().updateGroup('nope', { name: 'x' })],
+    ['deleting a group that is not there', () => store().removeGroup('nope')],
+    ['grouping an element that is not there', () => store().setElementGroup('nope', group)],
+    ['ungrouping an element that was never grouped', () => store().setElementGroup(held, null)],
+    ['reordering inside a group that is not there', () => store().moveInGroup('nope', 0, 1)],
+    ['moving a group to where it already is', () => store().moveGroup(0, 0)],
+    ['editing a texture that is not there', () => store().updateTexture('nope', { name: 'x' })],
+    ['promoting from an element that is not there', () => void store().promoteGenerated('nope', 'x')]
+  ]
+
+  for (const [what, run] of nothing) {
+    const before = store().project
+    useProjectStore.setState({ dirty: false })
+    run()
+    const after = store().project
+    check(
+      what,
+      after === before && !store().dirty,
+      after === before ? 'it marked the project unsaved' : 'it replaced the project'
+    )
+  }
+
+  store().undo()
+  check(
+    'the first undo takes back the group, not a no-op',
+    (store().project?.groups ?? []).length === 0,
+    JSON.stringify(store().project?.groups)
+  )
+  store().undo()
+  check(
+    'the second takes back the element',
+    (store().project?.elements ?? []).length === 0,
+    JSON.stringify((store().project?.elements ?? []).map((e) => e.name))
+  )
+  check('and the stack is empty, with nothing left over', !store().canUndo, 'a step survived')
+
+  store().closeProject()
+}
+
 async function main(): Promise<void> {
   placingAndErasing()
   undoAndRedo()
@@ -532,6 +694,8 @@ async function main(): Promise<void> {
   theEyedropper()
   theRectangularSelection()
   buildingATreeSwitchesItToBuilt()
+  theProjectStack()
+  actionsThatChangeNothingChangeNothing()
   await theLayerStack()
   await savingLandsInTheSlotItWasAimedAt()
 

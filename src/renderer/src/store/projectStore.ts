@@ -59,6 +59,11 @@ interface ProjectState {
   filePath: string | null
   dirty: boolean
 
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
+
   newProject: (name: string, modId: string, targetBta?: string) => void
   openProject: () => Promise<void>
   openProjectByPath: (path: string) => Promise<void>
@@ -153,19 +158,110 @@ function reorder<T>(list: T[], from: number, to: number): T[] {
   return next
 }
 
+const HISTORY_LIMIT = 50
+const COALESCE_MS = 450
+
+const past: ArtemisProject[] = []
+const future: ArtemisProject[] = []
+
+let replaying = false
+let lastEditAt = 0
+let lastEditKey: string | null = null
+
+function resetHistory(): void {
+  past.length = 0
+  future.length = 0
+  lastEditKey = null
+}
+
+function singleDiff<T>(a: readonly T[], b: readonly T[]): number {
+  if (a.length !== b.length) return -1
+  let found = -1
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) continue
+    if (found !== -1) return -1
+    found = i
+  }
+  return found
+}
+
+function editKey(prev: ArtemisProject, next: ArtemisProject): string | null {
+  if (prev.elements !== next.elements) {
+    const i = singleDiff(prev.elements, next.elements)
+    return i === -1 ? null : `element:${next.elements[i].id}`
+  }
+  if (prev.groups !== next.groups) {
+    const groups = next.groups ?? []
+    const before = prev.groups ?? []
+    const i = singleDiff(before, groups)
+    if (i === -1) return null
+
+    return before[i].members === groups[i].members ? `group:${groups[i].id}` : null
+  }
+  if (prev.textures !== next.textures) {
+    const i = singleDiff(prev.textures, next.textures)
+    return i === -1 ? null : `texture:${next.textures[i].id}`
+  }
+  if (prev.meta !== next.meta) return 'meta'
+  return null
+}
+
+function syncFlags(): void {
+  const { canUndo, canRedo } = useProjectStore.getState()
+  const nextUndo = past.length > 0
+  const nextRedo = future.length > 0
+  if (canUndo !== nextUndo || canRedo !== nextRedo) {
+    useProjectStore.setState({ canUndo: nextUndo, canRedo: nextRedo })
+  }
+}
+
+function step(from: ArtemisProject[], to: ArtemisProject[]): void {
+  const { project } = useProjectStore.getState()
+  if (!project || from.length === 0) return
+  const restored = from.pop() as ArtemisProject
+  to.push(project)
+  replaying = true
+  try {
+    useProjectStore.setState({ project: restored, dirty: true })
+  } finally {
+    replaying = false
+  }
+
+  lastEditKey = null
+  syncFlags()
+}
+
+function load(apply: () => void): void {
+  replaying = true
+  try {
+    apply()
+  } finally {
+    replaying = false
+    resetHistory()
+    syncFlags()
+  }
+}
+
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: null,
   filePath: null,
   dirty: false,
+  canUndo: false,
+  canRedo: false,
+
+  undo: () => step(past, future),
+  redo: () => step(future, past),
 
   newProject: (name, modId, targetBta) =>
-    set({ project: createEmptyProject(name, modId, targetBta), filePath: null, dirty: true }),
+    load(() =>
+      set({ project: createEmptyProject(name, modId, targetBta), filePath: null, dirty: true })
+    ),
 
   openProject: async () => {
     const res = await window.artemis.project.open()
     if (!res) return
     const parsed = normalize(JSON.parse(res.json) as ArtemisProject)
-    set({ project: parsed, filePath: res.path, dirty: false })
+    load(() => set({ project: parsed, filePath: res.path, dirty: false }))
     rememberRecent(parsed, res.path)
   },
 
@@ -177,7 +273,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       throw new Error('That project file could not be opened. It may have been moved or deleted.')
     }
     const parsed = normalize(JSON.parse(res.json) as ArtemisProject)
-    set({ project: parsed, filePath: res.path, dirty: false })
+    load(() => set({ project: parsed, filePath: res.path, dirty: false }))
     rememberRecent(parsed, res.path)
   },
 
@@ -192,7 +288,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  closeProject: () => set({ project: null, filePath: null, dirty: false }),
+  closeProject: () => load(() => set({ project: null, filePath: null, dirty: false })),
 
   updateMeta: (patch) =>
     set((s) =>
@@ -257,7 +353,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((s) => {
       if (!s.project) return s
       const el = s.project.elements.find((e) => e.id === id)
-      const slotKeys = el ? textureSlotsForElement(el).map((slot) => slot.key) : []
+
+      if (!el) return s
+      const slotKeys = textureSlotsForElement(el).map((slot) => slot.key)
       const slotSet = new Set(slotKeys)
 
       const orphans = new Set<string>()
@@ -271,7 +369,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (!slotSet.has(key)) orphans.delete(texId)
       }
 
-      const freed = el?.name
+      const freed = el.name
       const elements = s.project.elements
         .filter((e) => e.id !== id)
         .map((e) =>
@@ -427,27 +525,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   updateGroup: (id, patch) =>
-    set((st) =>
-      st.project
-        ? {
-            project: {
-              ...st.project,
-              groups: (st.project.groups ?? []).map((g) => (g.id === id ? { ...g, ...patch } : g))
-            },
-            dirty: true
-          }
-        : st
-    ),
+    set((st) => {
+      if (!st.project) return st
+      const groups = st.project.groups ?? []
+      if (!groups.some((g) => g.id === id)) return st
+      return {
+        project: { ...st.project, groups: groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) },
+        dirty: true
+      }
+    }),
 
   removeGroup: (id) =>
-    set((st) =>
-      st.project
-        ? {
-            project: { ...st.project, groups: (st.project.groups ?? []).filter((g) => g.id !== id) },
-            dirty: true
-          }
-        : st
-    ),
+    set((st) => {
+      if (!st.project) return st
+      const groups = st.project.groups ?? []
+      const kept = groups.filter((g) => g.id !== id)
+      if (kept.length === groups.length) return st
+      return { project: { ...st.project, groups: kept }, dirty: true }
+    }),
 
   canJoinGroup: (elementId, groupId) => {
     const project = get().project
@@ -488,35 +583,60 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           delete g.props
         }
       }
+
+      const before = st.project.groups ?? []
+      const unchanged =
+        groups.length === before.length &&
+        groups.every((g, i) => {
+          const was = before[i]
+          return (
+            g.kind === was.kind &&
+            g.props === was.props &&
+            g.members.length === was.members.length &&
+            g.members.every((m, j) => m === was.members[j])
+          )
+        })
+      if (unchanged) return st
       return { project: { ...st.project, groups }, dirty: true }
     }),
 
   moveInGroup: (groupId, from, to) =>
     set((st) => {
       if (!st.project) return st
+      const groups = st.project.groups ?? []
+      const group = groups.find((g) => g.id === groupId)
+      if (!group) return st
+
+      const members = reorder(group.members, from, to)
+      if (members === group.members) return st
       return {
         project: {
           ...st.project,
-          groups: (st.project.groups ?? []).map((g) => {
-            if (g.id !== groupId) return g
-            return { ...g, members: reorder(g.members, from, to) }
-          })
+          groups: groups.map((g) => (g.id === groupId ? { ...g, members } : g))
         },
         dirty: true
       }
     }),
 
   moveGroup: (from, to) =>
-    set((st) =>
-      st.project ? { project: { ...st.project, groups: reorder(st.project.groups ?? [], from, to) }, dirty: true } : st
-    ),
+    set((st) => {
+      if (!st.project) return st
+      const groups = st.project.groups ?? []
+      const moved = reorder(groups, from, to)
+      if (moved === groups) return st
+      return { project: { ...st.project, groups: moved }, dirty: true }
+    }),
 
   elementsOf: (kind) => get().project?.elements.filter((el) => el.kind === kind) ?? [],
 
   setCodeOverride: (path, content) =>
     set((s) => {
       if (!s.project) return s
-      const overrides = { ...s.project.codeOverrides }
+
+      const current = s.project.codeOverrides
+      const held = path in current
+      if (content === null ? !held : held && current[path] === content) return s
+      const overrides = { ...current }
       if (content === null) delete overrides[path]
       else overrides[path] = content
       return { project: { ...s.project, codeOverrides: overrides }, dirty: true }
@@ -544,7 +664,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   updateTexture: (id, patch) =>
     set((s) =>
-      s.project
+      s.project && s.project.textures.some((t) => t.id === id)
         ? {
             project: {
               ...s.project,
@@ -655,3 +775,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   textureById: (id) => (id ? get().project?.textures.find((t) => t.id === id) : undefined)
 }))
+
+useProjectStore.subscribe((state, prev) => {
+  if (replaying) return
+  if (state.project === prev.project) return
+
+  if (!prev.project || !state.project) {
+    resetHistory()
+    syncFlags()
+    return
+  }
+
+  future.length = 0
+
+  const now = Date.now()
+  const key = editKey(prev.project, state.project)
+  const merges = key !== null && key === lastEditKey && now - lastEditAt < COALESCE_MS
+  lastEditKey = key
+  lastEditAt = now
+
+  if (!merges) {
+    past.push(prev.project)
+    if (past.length > HISTORY_LIMIT) past.shift()
+  }
+  syncFlags()
+})

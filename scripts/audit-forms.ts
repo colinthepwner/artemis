@@ -28,6 +28,7 @@ import { SettingsSection } from '../src/renderer/src/sections/SettingsSection'
 import { ExportSection } from '../src/renderer/src/sections/ExportSection'
 import { ElementSection } from '../src/renderer/src/sections/ElementSection'
 import { UpdateBar } from '../src/renderer/src/components/layout/UpdateBar'
+import { StuckUpdateNotice } from '../src/renderer/src/components/layout/StuckUpdateNotice'
 import { CreateMenu } from '../src/renderer/src/components/layout/CreateMenu'
 import { PixelEditorOverlay } from '../src/renderer/src/components/pixel/PixelEditor'
 import { VoxelEditorOverlay } from '../src/renderer/src/components/workshop/VoxelEditor'
@@ -1203,6 +1204,69 @@ function theUpdateBar(): void {
   check('and it keeps quiet while the app is still starting', booting.text().trim() === '',
     booting.text())
   booting.unmount()
+  useAppStore.setState({ bootPhase: 'ready' })
+
+  resetBridge()
+  useAppStore.setState({ bootPhase: 'ready', startupNoticeOpen: false })
+  const stuckRoot = renderProbe(h(StuckUpdateNotice))
+  const state = (value: Record<string, unknown>): void => {
+    emitBridge('update.state', value as never)
+    stuckRoot.flush()
+  }
+
+  check('it says nothing before any check has run', stuckRoot.text().trim() === '', stuckRoot.text())
+
+  state({ status: 'available', version: '9.9.9', page: 'https://example.invalid/r' })
+  check(
+    'and nothing for an ordinary update, which the bar already offers',
+    stuckRoot.text().trim() === '',
+    stuckRoot.text()
+  )
+
+  state({ status: 'available', version: '9.9.9', page: 'https://example.invalid/r', selfInstall: false })
+  check(
+    'and nothing for a build that never could install itself',
+    stuckRoot.text().trim() === '',
+    stuckRoot.text()
+  )
+
+  state({ status: 'available', version: '9.9.9', page: 'https://example.invalid/r', stuck: true })
+  check('an update that did not take says so', stuckRoot.text().includes('take'), stuckRoot.text())
+  check('and names the version that is waiting', stuckRoot.text().includes('9.9.9'), stuckRoot.text())
+  check(
+    'and tells them to fetch it themselves',
+    /by hand|manual/i.test(stuckRoot.text()),
+    stuckRoot.text()
+  )
+
+  check(
+    'and holds back whatever would animate behind it',
+    useAppStore.getState().startupNoticeOpen,
+    'the wordmark would type itself where nobody can see it'
+  )
+  const away = stuckRoot.clickable().find((n) => nodeText(n).includes('Not now'))
+  check('it can be put away', !!away)
+  if (away) {
+    stuckRoot.click(away)
+    stuckRoot.flush()
+    check('and stays away once it has been', stuckRoot.text().trim() === '', stuckRoot.text())
+    check(
+      'and lets go of what it was holding back',
+      !useAppStore.getState().startupNoticeOpen,
+      'dismissed, but the landing page is still waiting on it'
+    )
+  }
+
+  state({ status: 'available', version: '9.9.10', page: 'https://example.invalid/r', stuck: true })
+  check('a newer stuck release asks again', stuckRoot.text().includes('9.9.10'), stuckRoot.text())
+  stuckRoot.unmount()
+
+  useAppStore.setState({ bootPhase: 'boot' })
+  const early = renderProbe(h(StuckUpdateNotice))
+  emitBridge('update.state', { status: 'available', version: '9.9.11', stuck: true } as never)
+  early.flush()
+  check('and waits for the window to finish opening', early.text().trim() === '', early.text())
+  early.unmount()
   useAppStore.setState({ bootPhase: 'ready' })
 }
 

@@ -60,6 +60,7 @@ const api: ArtemisApi = {
     dragMove: (dx, dy) => record('window.dragMove', dx, dy)
   },
   sound: { importAudio: async () => { record('sound.importAudio'); return null } },
+  feedback: { send: async (kind, message) => { record('feedback.send', kind, message); return { ok: true } } },
   texture: {
     exportFile: async () => { record('texture.exportFile'); return null },
     exportClipboard: async () => { record('texture.exportClipboard'); return false }

@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { InspectorPanel } from '@/components/layout/InspectorPanel'
 import { useAppStore } from '@/store/appStore'
 import { useSystemMenu } from '@/components/layout/useSystemMenu'
+import { useProjectUndo } from '@/lib/useProjectUndo'
 import { SetupScreen } from '@/components/layout/SetupScreen'
 import { useProjectStore } from '@/store/projectStore'
 import { useTestStore } from '@/store/testStore'
@@ -21,6 +22,8 @@ import { CreateMenu } from '@/components/layout/CreateMenu'
 import { GroupDialog } from '@/components/layout/GroupDialog'
 import { BootScreen } from '@/components/layout/BootScreen'
 import { ConstructionNotice } from '@/components/layout/ConstructionNotice'
+import { FeedbackDialog } from '@/components/layout/FeedbackDialog'
+import { StuckUpdateNotice } from '@/components/layout/StuckUpdateNotice'
 import { UpdateBar } from '@/components/layout/UpdateBar'
 import { Tutorial } from '@/components/tutorial/Tutorial'
 import { useDismissDistantMenus, useMenuOpenFlag } from '@/components/ui/dismissDistant'
@@ -117,6 +120,7 @@ export default function App(): JSX.Element {
   }, [discordPresence, presenceName, presenceBta])
 
   useSystemMenu()
+  useProjectUndo()
 
   const savingMode = useAppStore((s) => s.savingMode)
   const dirty = useProjectStore((s) => s.dirty)
@@ -187,7 +191,12 @@ export default function App(): JSX.Element {
       )}
       <PixelEditorOverlay />
       <VoxelEditorOverlay />
+      <FeedbackDialog />
       <ConstructionNotice />
+      {
+
+}
+      <StuckUpdateNotice />
       {}
       <Tutorial />
       <BootScreen />

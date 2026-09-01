@@ -320,17 +320,14 @@ function SettingsMenu(): JSX.Element {
   const setAutoCapitalize = useAppStore((s) => s.setAutoCapitalize)
   const bundleTestMods = useAppStore((s) => s.bundleTestMods)
   const setBundleTestMods = useAppStore((s) => s.setBundleTestMods)
-  const inspectorOpen = useAppStore((s) => s.inspectorOpen)
-  const toggleInspector = useAppStore((s) => s.toggleInspector)
   const reduceAnimations = useAppStore((s) => s.reduceAnimations)
   const setReduceAnimations = useAppStore((s) => s.setReduceAnimations)
-  const showCheckerGrid = useAppStore((s) => s.showCheckerGrid)
-  const setShowCheckerGrid = useAppStore((s) => s.setShowCheckerGrid)
   const discordPresence = useAppStore((s) => s.discordPresence)
   const setDiscordPresence = useAppStore((s) => s.setDiscordPresence)
   const savingMode = useAppStore((s) => s.savingMode)
   const setSavingMode = useAppStore((s) => s.setSavingMode)
   const startTutorial = useAppStore((s) => s.startTutorial)
+  const setFeedbackOpen = useAppStore((s) => s.setFeedbackOpen)
 
   return (
     <Menu.Root modal={false} open={open} onOpenChange={setOpen}>
@@ -356,23 +353,14 @@ function SettingsMenu(): JSX.Element {
             checked={autoCapitalize}
             onChange={setAutoCapitalize}
           />
-          <CheckItem
-            label="Show the code preview"
-            hint="The generated Java, beside the editor."
-            checked={inspectorOpen}
-            onChange={toggleInspector}
-          />
+          {
+
+}
           <CheckItem
             label="Reduce animations"
             hint="Panels and popups arrive without the movement."
             checked={reduceAnimations}
             onChange={setReduceAnimations}
-          />
-          <CheckItem
-            label="Show checkered grid"
-            hint="The squares behind a texture, marking what is see-through."
-            checked={showCheckerGrid}
-            onChange={setShowCheckerGrid}
           />
           <CheckItem
             label="Show what you are modding on Discord"
@@ -407,6 +395,7 @@ function SettingsMenu(): JSX.Element {
           {
 }
           <MenuItem label="Take the tour again" onSelect={() => startTutorial(WELCOME_TOUR)} />
+          <MenuItem label="Send feedback…" onSelect={() => setFeedbackOpen(true)} />
           <MenuSep />
           <CheckItem
             label="Bundle ModMenu with the test client"

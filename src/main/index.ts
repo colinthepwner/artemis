@@ -29,6 +29,7 @@ import {
   watchForUpdates
 } from './updater'
 import { registerVanillaIpc } from './vanillaTextures'
+import { registerFeedbackIpc } from './feedback'
 import { flushWindowState, loadWindowState, rememberWindowState } from './windowState'
 import { claimSingleInstance, serveTakeovers } from './singleInstance'
 import { registerPresenceIpc } from './discordPresence'
@@ -285,6 +286,7 @@ async function start(): Promise<void> {
   registerExportIpc()
   registerTestIpc()
   registerVanillaIpc()
+  registerFeedbackIpc()
   registerPresenceIpc()
   registerBootIpc()
 

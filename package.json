@@ -1,7 +1,7 @@
 {
   "name": "artemis",
   "productName": "Artemis",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "A visual modding environment for Better Than Adventure!",
   "author": "Colin",
   "private": true,

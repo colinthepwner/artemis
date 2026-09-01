@@ -1,5 +1,6 @@
 import { Component, useEffect, useState, type ReactNode } from 'react'
-import { AlertTriangle, Copy, Check, RotateCcw } from 'lucide-react'
+import { AlertTriangle, Copy, Check, RotateCcw, Send } from 'lucide-react'
+import { cn } from '@/lib/cn'
 
 interface CrashInfo {
   message: string
@@ -32,11 +33,30 @@ export function CrashScreen(props: { crash: CrashInfo; onDismiss?: () => void })
   const { crash } = props
   const [copied, setCopied] = useState(false)
 
+  const [report, setReport] = useState<'idle' | 'sending' | 'sent' | 'failed' | 'duplicate'>(
+    'idle'
+  )
+
   const copy = (): void => {
     void navigator.clipboard.writeText(buildReport(crash)).then(() => {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
     })
+  }
+
+  const sendReport = (): void => {
+    if (report === 'sending' || report === 'sent' || report === 'duplicate') return
+
+    const bridge = window.artemis?.feedback
+    if (!bridge) {
+      setReport('failed')
+      return
+    }
+    setReport('sending')
+    void bridge
+      .send('error', buildReport(crash))
+      .then((r) => setReport(r.ok ? 'sent' : r.reason === 'duplicate' ? 'duplicate' : 'failed'))
+      .catch(() => setReport('failed'))
   }
 
   return (
@@ -72,6 +92,24 @@ export function CrashScreen(props: { crash: CrashInfo; onDismiss?: () => void })
           >
             {copied ? <Check size={12} /> : <Copy size={12} />}
             {copied ? 'Copied' : 'Copy details'}
+          </button>
+          <button
+            onClick={sendReport}
+            disabled={report === 'sending' || report === 'sent' || report === 'duplicate'}
+            title="Sends this crash report to the developer. Nothing is sent unless you click."
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 rounded-md bg-ink-750 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide transition-colors',
+              report === 'sent' || report === 'duplicate'
+                ? 'text-gold-400'
+                : 'text-mist-300 hover:bg-ink-700'
+            )}
+          >
+            {report === 'sent' || report === 'duplicate' ? <Check size={12} /> : <Send size={12} />}
+            {report === 'idle' && 'Send crash report'}
+            {report === 'sending' && 'Sending…'}
+            {report === 'sent' && 'Report sent'}
+            {report === 'duplicate' && 'Already reported'}
+            {report === 'failed' && 'Failed, try again'}
           </button>
           <div className="flex-1" />
           {props.onDismiss && (

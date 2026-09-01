@@ -220,6 +220,8 @@
     "variantMethod": "\n\t/** {{name}} */\n\tprivate void place{{i}}(World world, int x, int y, int z) {\n{{lines}}\n\t}",
     "placeLine": "\t\tworld.setBlockWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id());",
     "placeLineIfAir": "\t\tif (world.getBlockId({{X}}, {{Y}}, {{Z}}) == 0) world.setBlockWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id());",
+    "placeLineMeta": "\t\tworld.setBlockAndMetadataWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id(), {{meta}});",
+    "placeLineIfAirMeta": "\t\tif (world.getBlockId({{X}}, {{Y}}, {{Z}}) == 0) world.setBlockAndMetadataWithNotify({{X}}, {{Y}}, {{Z}}, {{block}}.id(), {{meta}});",
     "treeGuard": "\t\t// The same gate every vanilla tree uses (javap'd from\n\t\t// WorldFeatureTree.place). The heightmap counts leaves, so placement\n\t\t// attempts land on canopy tops; without this a tree happily plants\n\t\t// on another tree. A canopy is not ground that GROWS_TREES.\n\t\t//\n\t\t// The surfaces of the biomes that claim this tree are added to the gate\n\t\t// because nothing else can add them. GROWS_TREES is a vanilla tag and a\n\t\t// block this mod invented does not carry it, so a tree claiming a biome\n\t\t// whose floor is one of this mod's own blocks refuses every column of it\n\t\t// and can never grow there. Tagging the block instead would say \"every\n\t\t// tree in the game may grow on this\", which is a much larger claim than\n\t\t// the modder made.\n\t\tint groundId = world.getBlockId(x, y - 1, z);\n\t\tif (!Blocks.hasTag(groundId, BlockTags.GROWS_TREES){{extraGround}}) {\n\t\t\treturn false;\n\t\t}\n\n"
   },
   "mob": {

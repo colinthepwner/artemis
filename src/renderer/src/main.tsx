@@ -61,6 +61,8 @@ if (!window.artemis) {
     },
     prefs: { load: async () => ({}), save: () => {} },
 
+    feedback: { send: async () => ({ ok: false, reason: 'network' as const }) },
+
     sound: { importAudio: async () => null },
 
     texture: { exportFile: async () => null, exportClipboard: async () => false },

@@ -17,7 +17,7 @@ import { elementRegistryEntries } from '@shared/generator/registry'
 import { titleCase } from '@shared/generator/templates/block'
 import { TexturePicker } from '@/components/pixel/TexturePicker'
 import { ScenePanel } from '@/components/preview/ScenePreview'
-import { Select, Switch } from '@/components/ui/controls'
+import { Select } from '@/components/ui/controls'
 import { shelfLabel } from './shelves'
 import { useAppStore } from '@/store/appStore'
 import { GlideList } from '@/components/ui/glide'
@@ -313,8 +313,8 @@ function duplicateMessage(name: string, dup: DupInfo): string {
 function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo> }): JSX.Element {
   const { element, taken } = props
   const updateElement = useProjectStore((s) => s.updateElement)
+
   const autoCapitalize = useAppStore((s) => s.autoCapitalize)
-  const setAutoCapitalize = useAppStore((s) => s.setAutoCapitalize)
   const displayName = (element.properties['displayName'] as string) ?? ''
 
   const [linked, setLinked] = useState(
@@ -367,14 +367,6 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
           placeholder={titleCase(element.name)}
           onChange={(e) => setDisplay(e.target.value)}
         />
-        <div className="mt-2">
-          <Switch
-            checked={autoCapitalize}
-            onChange={setAutoCapitalize}
-            label="Capitalize each word"
-            hint="Type “wood block”, get “Wood Block”. Words you capitalize yourself are left alone."
-          />
-        </div>
       </div>
       <div>
         <label className="label-base">ID</label>

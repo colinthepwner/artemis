@@ -113,6 +113,8 @@ interface AppState {
 
   discordPresence: boolean
 
+  feedbackOpen: boolean
+
   startupNoticeOpen: boolean
 
   activeTour: string | null
@@ -147,6 +149,7 @@ interface AppState {
   setReduceAnimations: (v: boolean) => void
   setShowCheckerGrid: (v: boolean) => void
   setDiscordPresence: (v: boolean) => void
+  setFeedbackOpen: (v: boolean) => void
   setStartupNoticeOpen: (v: boolean) => void
   startTutorial: (tour: string) => void
   endTutorial: () => void
@@ -182,6 +185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reduceAnimations: false,
   showCheckerGrid: true,
   discordPresence: true,
+  feedbackOpen: false,
   startupNoticeOpen: true,
   activeTour: null,
   bootPhase: 'boot',
@@ -252,6 +256,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setReduceAnimations: (reduceAnimations) => set({ reduceAnimations }),
   setShowCheckerGrid: (showCheckerGrid) => set({ showCheckerGrid }),
   setDiscordPresence: (discordPresence) => set({ discordPresence }),
+  setFeedbackOpen: (feedbackOpen) => set({ feedbackOpen }),
   setStartupNoticeOpen: (startupNoticeOpen) => set({ startupNoticeOpen }),
 
   startTutorial: (tour) => set((s) => (s.activeTour ? {} : { activeTour: tour })),

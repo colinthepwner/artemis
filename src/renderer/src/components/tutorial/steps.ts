@@ -219,7 +219,7 @@ const WORKSHOP: TourStep[] = [
     id: 'palette',
     title: 'Pick a block, then build',
     anchor: 'workshop-palette',
-    body: 'Click to place one, right click to take one away, drag to turn the camera.',
+    body: 'Right click builds, left click breaks, the way the game does it. Fly with WASD, drag to look around.',
     made: 'The blocks on offer are yours and the ones in the game, mixed together.'
   },
   {
@@ -233,7 +233,7 @@ const WORKSHOP: TourStep[] = [
     id: 'slice',
     title: 'Working inside',
     anchor: 'workshop-slice',
-    body: 'Slice hides everything above a height, so you can build under a roof you made.',
+    body: 'Fly straight through a wall to build indoors. Cutaway hides everything above a height, if you would rather see a floor plan.',
     made: 'Done closes this. The build is kept as you go, so there is nothing to save.'
   }
 ]

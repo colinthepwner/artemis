@@ -6,35 +6,46 @@ import { Switch } from '@/components/ui/controls'
 import { newSeed } from '@/components/pixel/stencils'
 import { applyStamp, useRefArt, useRefLabel, WorkshopBlockPicker, type RefArt } from './refArt'
 import { VoxelSprite } from './VoxelSprite'
-import { TREE_TEMPLATES, templateSilhouette, type TreeTemplate } from './treeTemplates'
+import {
+  STRUCTURE_TEMPLATES,
+  structureSilhouette,
+  type StructureTemplate
+} from './structureTemplates'
 import { cn } from '@/lib/cn'
 
-export function TreeTemplateDialog(props: {
+export function StructureTemplateDialog(props: {
 
   current: Record<string, string>
-  defaultTrunk: string
-  defaultLeaves: string
   onApply: (added: Record<string, string>) => void
   onClose: () => void
 }): JSX.Element {
-  const [templateId, setTemplateId] = useState(TREE_TEMPLATES[0].id)
-  const template = TREE_TEMPLATES.find((t) => t.id === templateId) ?? TREE_TEMPLATES[0]
+  const [templateId, setTemplateId] = useState(STRUCTURE_TEMPLATES[0].id)
+  const template = STRUCTURE_TEMPLATES.find((t) => t.id === templateId) ?? STRUCTURE_TEMPLATES[0]
   const [seed, setSeed] = useState(() => newSeed())
-  const [trunkRef, setTrunkRef] = useState(props.defaultTrunk)
-  const [leavesRef, setLeavesRef] = useState(props.defaultLeaves)
 
-  const [trunkTouched, setTrunkTouched] = useState(false)
+  const [refs, setRefs] = useState<Record<string, string>>(() =>
+    Object.fromEntries(STRUCTURE_TEMPLATES[0].slots.map((s) => [s.key, s.defaultRef]))
+  )
 
-  const selectTemplate = (t: TreeTemplate): void => {
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({})
+  const isOn = (key: string): boolean => enabled[key] ?? true
+
+  const selectTemplate = (t: StructureTemplate): void => {
     setTemplateId(t.id)
-    if (!trunkTouched) setTrunkRef(t.suggestedTrunk ?? props.defaultTrunk)
+    setRefs((prev) => {
+      const next = { ...prev }
+      for (const s of t.slots) {
+        if (!touched[s.key] || !(s.key in next)) next[s.key] = s.defaultRef
+      }
+      return next
+    })
   }
-  const [placeTrunk, setPlaceTrunk] = useState(true)
-  const [placeLeaves, setPlaceLeaves] = useState(true)
-  const [pickerFor, setPickerFor] = useState<'trunk' | 'leaves' | null>(null)
+  const [pickerFor, setPickerFor] = useState<string | null>(null)
 
   const silhouettes = useMemo(
-    () => new Map(TREE_TEMPLATES.map((t) => [t.id, templateSilhouette(t.build(7)) ])),
+    () => new Map(STRUCTURE_TEMPLATES.map((t) => [t.id, structureSilhouette(t.build(7), t.slots)])),
     []
   )
 
@@ -42,23 +53,21 @@ export function TreeTemplateDialog(props: {
 
   const added = useMemo(() => {
     const out: Record<string, string> = {}
-    if (placeTrunk) {
-      for (const k of cells.trunk) {
-        if (!(k in props.current)) out[k] = trunkRef
-      }
-    }
-    if (placeLeaves) {
-      for (const k of cells.leaves) {
-        if (!(k in props.current) && !(k in out)) out[k] = leavesRef
+    for (const slot of template.slots) {
+      if (!(enabled[slot.key] ?? true)) continue
+      const ref = refs[slot.key] ?? slot.defaultRef
+      for (const k of cells[slot.key] ?? []) {
+        if (!(k in props.current) && !(k in out)) out[k] = ref
       }
     }
     return out
-  }, [cells, placeTrunk, placeLeaves, trunkRef, leavesRef, props.current])
+  }, [cells, template, enabled, refs, props.current])
 
   const preview = useMemo(() => ({ ...props.current, ...added }), [props.current, added])
   const addedCount = Object.keys(added).length
   const keptCount =
-    (placeTrunk ? cells.trunk.length : 0) + (placeLeaves ? cells.leaves.length : 0) - addedCount
+    template.slots.reduce((n, s) => n + (isOn(s.key) ? (cells[s.key]?.length ?? 0) : 0), 0) -
+    addedCount
 
   const refArt = useRefArt()
 
@@ -66,7 +75,7 @@ export function TreeTemplateDialog(props: {
 
   const apply = (): void => applyStamp(added, props.onApply, props.onClose)
 
-  const groups: TreeTemplate['group'][] = ['BTA', 'Artemis']
+  const groups: StructureTemplate['group'][] = ['BTA', 'Artemis']
 
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
@@ -85,10 +94,10 @@ export function TreeTemplateDialog(props: {
       >
         <div className="flex items-start gap-2 border-b border-white/[0.04] px-5 py-3.5">
           <div className="min-w-0">
-            <h2 className="text-[13px] font-semibold tracking-tight">Tree shapes</h2>
+            <h2 className="text-[13px] font-semibold tracking-tight">Structure shapes</h2>
             <p className="mt-0.5 text-2xs text-mist-500">
-              A ready-made silhouette, stamped on top of your build. Cells you already placed are
-              left alone.
+              A ready-made build, stamped on top of yours. Cells you already placed are left
+              alone.
             </p>
           </div>
           <div className="flex-1" />
@@ -111,7 +120,7 @@ export function TreeTemplateDialog(props: {
                   </span>
                   <span className="h-px flex-1 bg-white/[0.05]" />
                 </div>
-                {TREE_TEMPLATES.filter((t) => t.group === group).map((t) => (
+                {STRUCTURE_TEMPLATES.filter((t) => t.group === group).map((t) => (
                   <button
                     key={t.id}
                     onClick={() => selectTemplate(t)}
@@ -139,8 +148,6 @@ export function TreeTemplateDialog(props: {
 
           {}
           <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 bg-ink-900/50 p-4">
-            {
-}
             <VoxelSprite
               blocks={preview}
               size={330}
@@ -155,7 +162,7 @@ export function TreeTemplateDialog(props: {
             <p className="text-2xs text-mist-500">
               {addedCount === 0 ? (
                 <span className="text-ember-400/90">
-                  Nothing to add — every cell is filled or both halves are off.
+                  Nothing to add: every cell is filled or every part is off.
                 </span>
               ) : (
                 <>
@@ -170,7 +177,7 @@ export function TreeTemplateDialog(props: {
           </div>
 
           {}
-          <div className="flex w-[240px] shrink-0 flex-col gap-3 border-l border-white/[0.04] p-4">
+          <div className="flex w-[240px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-white/[0.04] p-4">
             <div>
               <div className="text-[13px] font-medium text-mist-100">{template.name}</div>
               <p className="mt-0.5 text-2xs leading-relaxed text-mist-500">{template.desc}</p>
@@ -179,39 +186,33 @@ export function TreeTemplateDialog(props: {
             <button
               onClick={() => setSeed(newSeed())}
               className="flex items-center justify-center gap-1.5 rounded-md bg-ink-750 px-3 py-1.5 text-2xs text-mist-200 transition-colors hover:bg-ink-700"
-              title="Same species, different tree"
+              title="Same shape, different build"
             >
               <Dices size={13} /> Reroll the shape
             </button>
 
             <div className="flex flex-col gap-2 border-t border-white/[0.04] pt-3">
-              <RefChip
-                label="Trunk"
-                refValue={trunkRef}
-                art={refArt(trunkRef)}
-                dim={!placeTrunk}
-                onClick={() => setPickerFor('trunk')}
-              />
-              {trunkRef === 'block:CACTUS' && (
-                <p className="text-2xs leading-relaxed text-mist-600">
-                  Vanilla cactus refuses to stand touching other blocks in-game, so wide shapes
-                  fall apart. A block of your own wearing the cactus texture holds any shape.
-                </p>
-              )}
-              <Switch checked={placeTrunk} onChange={setPlaceTrunk} label="Place the trunk" />
-              <RefChip
-                label="Leaves"
-                refValue={leavesRef}
-                art={refArt(leavesRef)}
-                dim={!placeLeaves}
-                onClick={() => setPickerFor('leaves')}
-              />
-              <Switch
-                checked={placeLeaves}
-                onChange={setPlaceLeaves}
-                label="Place the leaves"
-                hint={cells.leaves.length === 0 ? 'This shape has no leaves to place.' : undefined}
-              />
+              {template.slots.map((slot) => (
+                <div key={slot.key} className="flex flex-col gap-2">
+                  <RefChip
+                    label={slot.label}
+                    refValue={refs[slot.key] ?? slot.defaultRef}
+                    art={refArt(refs[slot.key] ?? slot.defaultRef)}
+                    dim={!isOn(slot.key)}
+                    onClick={() => setPickerFor(slot.key)}
+                  />
+                  <Switch
+                    checked={isOn(slot.key)}
+                    onChange={(v) => setEnabled((prev) => ({ ...prev, [slot.key]: v }))}
+                    label={`Place the ${slot.label.toLowerCase()}`}
+                    hint={
+                      (cells[slot.key]?.length ?? 0) === 0
+                        ? 'This roll has none of these to place.'
+                        : undefined
+                    }
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="flex-1" />
@@ -238,12 +239,8 @@ export function TreeTemplateDialog(props: {
         <WorkshopBlockPicker
           onClose={() => setPickerFor(null)}
           onPick={(ref) => {
-            if (pickerFor === 'trunk') {
-              setTrunkRef(ref)
-              setTrunkTouched(true)
-            } else {
-              setLeavesRef(ref)
-            }
+            setRefs((prev) => ({ ...prev, [pickerFor]: ref }))
+            setTouched((prev) => ({ ...prev, [pickerFor]: true }))
             setPickerFor(null)
           }}
         />
@@ -263,7 +260,7 @@ function RefChip(props: {
   return (
     <button
       onClick={props.onClick}
-      title={`${props.label}: ${name} — click to change`}
+      title={`${props.label}: ${name} (click to change)`}
       className={cn(
         'flex w-full items-center gap-2 rounded-md bg-ink-750 px-2 py-1.5 text-left transition-all hover:bg-ink-700',
         props.dim && 'opacity-45'

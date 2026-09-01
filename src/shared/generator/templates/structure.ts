@@ -1,6 +1,13 @@
 import type { ArtemisElement } from '../../project'
 import { toPascalCase } from '../../project'
-import { STRUCTURE_DEFAULTS, type BuildVariant, type StructureProps } from '../props'
+import {
+  axisMeta,
+  splitAxis,
+  STRUCTURE_DEFAULTS,
+  type BuildVariant,
+  type LogAxis,
+  type StructureProps
+} from '../props'
 import { render, JavaWriter } from '../template'
 import { biomeGuard, extraGroundTest } from '../biomeFilter'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
@@ -20,11 +27,13 @@ export function builtVariants(variants: BuildVariant[] | undefined): BuildVarian
 
 export function variantCells(
   variant: BuildVariant
-): { x: number; y: number; z: number; ref: string }[] {
+): { x: number; y: number; z: number; ref: string; axis: LogAxis | null }[] {
   return Object.entries(variant.blocks ?? {})
-    .map(([key, ref]) => {
+    .map(([key, value]) => {
       const [x, y, z] = key.split(',').map(Number)
-      return { x, y, z, ref }
+
+      const { ref, axis } = splitAxis(value)
+      return { x, y, z, ref, axis }
     })
     .filter((c) => [c.x, c.y, c.z].every(Number.isFinite))
     .sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x)
@@ -52,9 +61,12 @@ export function variantFeatureWriter(
           X: offsetExpr('x', c.x),
           Y: offsetExpr('y', c.y),
           Z: offsetExpr('z', c.z),
-          block: ctx.blockExpr(c.ref, w)
+          block: ctx.blockExpr(c.ref, w),
+          meta: String(axisMeta(c.axis))
         }
         const guarded = isTree && !(c.x === 0 && c.z === 0)
+
+        if (c.axis) return render(guarded ? s.placeLineIfAirMeta : s.placeLineMeta, vars)
         return render(guarded ? s.placeLineIfAir : s.placeLine, vars)
       })
       .join('\n')

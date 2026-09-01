@@ -44,6 +44,8 @@ export const IPC = {
 
   VanillaArt: 'vanilla:art',
 
+  FeedbackSend: 'feedback:send',
+
   PresenceUpdate: 'presence:update',
 
   UpdateState: 'update:state',
@@ -102,6 +104,8 @@ export interface UpdateState {
   page?: string
 
   selfInstall?: boolean
+
+  stuck?: boolean
 
   notes?: string
 }
@@ -167,25 +171,31 @@ export type MenuCommand =
   | 'file.open'
   | 'file.save'
   | 'file.export'
+  | 'edit.undo'
+  | 'edit.redo'
   | 'settings.autoCapitalize'
-  | 'settings.inspector'
   | 'settings.reduceAnimations'
-  | 'settings.checkerGrid'
   | 'settings.discordPresence'
   | 'settings.bundleTestMods'
   | 'settings.saving.manual'
   | 'settings.saving.periodic'
   | 'settings.saving.onChange'
   | 'help.tour'
+  | 'help.feedback'
 
 export type SavingMode = 'manual' | 'periodic' | 'onChange'
+
+export type FeedbackKind = 'suggestion' | 'bug' | 'error'
+
+export interface FeedbackResult {
+  ok: boolean
+  reason?: 'duplicate' | 'tooFast' | 'network' | 'invalid'
+}
 
 export interface MenuState {
   hasProject: boolean
   autoCapitalize: boolean
-  inspectorOpen: boolean
   reduceAnimations: boolean
-  showCheckerGrid: boolean
   discordPresence: boolean
   bundleTestMods: boolean
   savingMode: SavingMode
@@ -310,6 +320,10 @@ export interface ArtemisApi {
   presence: {
 
     update(state: PresenceState): void
+  }
+  feedback: {
+
+    send(kind: FeedbackKind, message: string): Promise<FeedbackResult>
   }
   vanilla: {
 

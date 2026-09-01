@@ -79,6 +79,9 @@ const api: ArtemisApi = {
   presence: {
     update: (state) => ipcRenderer.send(IPC.PresenceUpdate, state)
   },
+  feedback: {
+    send: (kind, message) => ipcRenderer.invoke(IPC.FeedbackSend, kind, message)
+  },
   test: {
     start: (projectJson, options) => ipcRenderer.invoke(IPC.TestStart, projectJson, options),
     stop: () => ipcRenderer.send(IPC.TestStop),

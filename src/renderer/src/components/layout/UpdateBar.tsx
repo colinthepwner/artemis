@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowUpCircle, Check, ExternalLink, Save, X } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { useUpdateState } from '@/lib/useUpdateState'
 import { useProjectStore } from '@/store/projectStore'
-import type { UpdateState } from '@shared/ipc'
 
 export function UpdateBar(): JSX.Element | null {
-  const [update, setUpdate] = useState<UpdateState>({ status: 'idle' })
+  const update = useUpdateState()
   const [dismissed, setDismissed] = useState(false)
 
   const [showNotes, setShowNotes] = useState(false)
@@ -18,13 +18,6 @@ export function UpdateBar(): JSX.Element | null {
   const dirty = useProjectStore((s) => s.dirty)
   const saveProject = useProjectStore((s) => s.saveProject)
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    const listen = window.artemis.update.onState
-
-    if (typeof listen !== 'function') return
-    return listen(setUpdate)
-  }, [])
 
   const version = update.version
   useEffect(() => {

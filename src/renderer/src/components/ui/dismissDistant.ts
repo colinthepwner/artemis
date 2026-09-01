@@ -82,3 +82,17 @@ export function useMenuOpenFlag(): void {
     }
   }, [])
 }
+
+export function useDismissOnKey(active: boolean, dismiss: () => void): void {
+
+  const latest = useRef(dismiss)
+  latest.current = dismiss
+  useEffect(() => {
+    if (!active) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' || e.key === 'Enter') latest.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active])
+}

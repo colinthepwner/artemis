@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HardHat, MessageSquare } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { useDismissOnKey } from '@/components/ui/dismissDistant'
 
 const SEEN_KEY = 'artemis.construction-notice.seen'
 
@@ -49,16 +50,7 @@ export function ConstructionNotice(): JSX.Element | null {
     setStartupNoticeOpen(false)
   }
 
-  useEffect(() => {
-
-    if (!open || bootPhase !== 'ready') return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' || e.key === 'Enter') dismiss()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-
-  }, [open, bootPhase])
+  useDismissOnKey(open && bootPhase === 'ready', dismiss)
 
   if (window.artemis.app.skipOnboarding) return null
   if (!open || bootPhase !== 'ready') return null
