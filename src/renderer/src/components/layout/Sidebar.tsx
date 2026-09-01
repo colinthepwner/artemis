@@ -1,34 +1,65 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronRight,
   Copy,
+  FolderPlus,
+  Folder,
+  FolderOpen,
+  FolderMinus,
   Hammer,
   LayoutDashboard,
   Images,
+  LayoutGrid,
   PackageOpen,
-  Play,
   Palette,
+  Play,
   Pencil,
   Plus,
   Settings,
+  Settings2,
   Trash2,
   Wand2,
   type LucideIcon
 } from 'lucide-react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
-import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context'
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub
+} from '@/components/ui/context'
 import { useAppStore, type SectionId } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import { KIND_LABELS } from '@/sections/forms/registry'
+import { GROUP_SHELVES, shelfLabel } from '@/sections/forms/shelves'
 import { ContentThumb, SlotThumb } from '@/components/ui/ContentThumb'
 import { GlideList } from '@/components/ui/glide'
-import { KIND_COLORS, KIND_ICONS } from '@/lib/kindIcons'
-import { ELEMENT_KINDS, type ArtemisElement, type ElementKind } from '@shared/project'
+import { GROUP_COLORS, KIND_COLORS, KIND_ICONS } from '@/lib/kindIcons'
+import {
+  ELEMENT_KINDS,
+  groupedElementIds,
+  type ArtemisElement,
+  type ElementGroup,
+  type ElementKind
+} from '@shared/project'
 import { elementRegistryEntries, type RegistryEntry } from '@shared/generator/registry'
 import { titleCase } from '@shared/generator/templates/block'
 import { cn } from '@/lib/cn'
 
 export { KIND_ICONS }
+
+interface DropTarget {
+  groupId: string | null
+  index?: number
+}
+
+const EMPTY_GROUPS: ElementGroup[] = []
+
+const LOOSE: DropTarget = { groupId: null }
+
+function sameTarget(a: DropTarget | null, b: DropTarget): boolean {
+  return !!a && a.groupId === b.groupId && a.index === b.index
+}
 
 export function Sidebar(): JSX.Element {
   const section = useAppStore((s) => s.section)
@@ -39,13 +70,26 @@ export function Sidebar(): JSX.Element {
   const requestTestRun = useAppStore((s) => s.requestTestRun)
   const project = useProjectStore((s) => s.project)
   const elements = useProjectStore((s) => s.project?.elements)
+  const contentGroups = useProjectStore((s) => s.project?.groups)
   const createElement = useProjectStore((s) => s.createElement)
   const removeElement = useProjectStore((s) => s.removeElement)
   const duplicateElement = useProjectStore((s) => s.duplicateElement)
+  const createGroup = useProjectStore((s) => s.createGroup)
+  const setElementGroup = useProjectStore((s) => s.setElementGroup)
 
-  const groups = useMemo(() => {
+  const byId = useMemo(() => {
+    const map = new Map<string, ArtemisElement>()
+    for (const el of elements ?? []) map.set(el.id, el)
+    return map
+  }, [elements])
+
+  const groups = contentGroups ?? EMPTY_GROUPS
+
+  const kinds = useMemo(() => {
+    const claimed = groupedElementIds({ groups: contentGroups })
     const byKind = new Map<ElementKind, ArtemisElement[]>()
     for (const el of elements ?? []) {
+      if (claimed.has(el.id)) continue
       const list = byKind.get(el.kind) ?? []
       list.push(el)
       byKind.set(el.kind, list)
@@ -55,7 +99,7 @@ export function Sidebar(): JSX.Element {
       kind: k,
       items: byKind.get(k)!
     }))
-  }, [elements])
+  }, [elements, contentGroups])
 
   const openElement = (el: ArtemisElement): void => {
     navigate(el.kind)
@@ -67,27 +111,60 @@ export function Sidebar(): JSX.Element {
     openEditor(createElement(kind))
   }
 
-  const [collapsed, setCollapsed] = useState<Set<ElementKind>>(new Set())
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggle = (key: string): void =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   useEffect(() => {
     if (!(ELEMENT_KINDS as readonly string[]).includes(section)) return
+    const home = editingId
+      ? (contentGroups ?? []).find((g) => g.members.includes(editingId))
+      : undefined
     setCollapsed((prev) => {
-      if (!prev.has(section as ElementKind)) return prev
+      if (!prev.has(section) && !(home && prev.has(`g:${home.id}`))) return prev
       const next = new Set(prev)
-      next.delete(section as ElementKind)
+      next.delete(section)
+      if (home) next.delete(`g:${home.id}`)
       return next
     })
-  }, [section, editingId])
-  const toggleKind = (kind: ElementKind): void =>
+  }, [section, editingId, contentGroups])
+
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [drop, setDrop] = useState<DropTarget | null>(null)
+
+  const finishDrag = (): void => {
+    setDragId(null)
+    setDrop(null)
+  }
+
+  const canJoinGroup = useProjectStore((s) => s.canJoinGroup)
+
+  const dropAllowed = (target: DropTarget): boolean =>
+    !!dragId && (target.groupId === null || canJoinGroup(dragId, target.groupId))
+
+  const commitDrop = (target: DropTarget): void => {
+    if (dragId && dropAllowed(target)) setElementGroup(dragId, target.groupId, target.index)
+    finishDrag()
+  }
+
+  const newGroupWith = (elementId?: string | null): void => {
+    const id = createGroup()
+    if (elementId) setElementGroup(elementId, id)
     setCollapsed((prev) => {
       const next = new Set(prev)
-      if (next.has(kind)) next.delete(kind)
-      else next.add(kind)
+      next.delete(`g:${id}`)
       return next
     })
+  }
 
   return (
-    <nav className="panel flex w-[232px] shrink-0 flex-col border-r border-white/[0.04]">
+
+    <nav className="panel relative z-10 flex w-[232px] shrink-0 flex-col border-r border-white/[0.04] shadow-panel-edge">
       <div className="px-3 pt-3">
         <NavGroup section={section} ids={['dashboard', 'gallery', 'workshop']}>
           <NavButton
@@ -108,9 +185,11 @@ export function Sidebar(): JSX.Element {
             entry={{ id: 'workshop', label: 'Workshop', icon: Hammer }}
             active={section === 'workshop'}
             disabled={!project}
+
             count={
               project
-                ? project.elements.filter((e) => e.kind === 'tree' || e.kind === 'structure').length
+                ? project.elements.filter((e) => e.kind === 'tree' || e.kind === 'structure')
+                    .length + (project.sounds?.length ?? 0)
                 : undefined
             }
             onClick={() => navigate('workshop')}
@@ -132,7 +211,36 @@ export function Sidebar(): JSX.Element {
       </div>
 
       <div data-tour="sidebar-content" className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        <div className="label-base mb-1.5 mt-4 px-2">Mod Content</div>
+        <div className="mb-1.5 mt-4 flex items-center gap-1 px-2">
+          {
+
+}
+          <span className="label-base mb-0">Mod Content</span>
+          {project && (
+
+            <button
+              onClick={() => newGroupWith(null)}
+              onDragOver={(e) => {
+                if (!dragId) return
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                newGroupWith(dragId)
+                finishDrag()
+              }}
+              title="New group"
+              aria-label="New group"
+              className={cn(
+                'ml-auto rounded p-1 transition-colors hover:bg-ink-750 hover:text-mist-200',
+                dragId ? 'text-gold-400' : 'text-mist-600'
+              )}
+            >
+              <FolderPlus size={12} />
+            </button>
+          )}
+        </div>
 
         {!project && (
           <p className="px-2 text-2xs leading-relaxed text-mist-600">
@@ -140,22 +248,63 @@ export function Sidebar(): JSX.Element {
           </p>
         )}
 
-        {project && groups.length === 0 && (
+        {project && groups.length === 0 && kinds.length === 0 && (
           <p className="px-2 text-2xs leading-relaxed text-mist-600">
             Nothing yet. Hit <span className="text-gold-400">Create</span> to add your first
             block, ore, or mob.
           </p>
         )}
 
-        {groups.map(({ kind, items }) => (
-          <div key={kind} className="mb-2">
+        {}
+        {groups.map((group) => (
+          <GroupFolder
+            key={group.id}
+            group={group}
+            byId={byId}
+            open={!collapsed.has(`g:${group.id}`)}
+            onToggle={() => toggle(`g:${group.id}`)}
+            editingId={editingId}
+            section={section}
+            onOpenElement={openElement}
+            onDuplicate={duplicateElement}
+            onDelete={removeElement}
+            navigate={navigate}
+            openEditor={openEditor}
+            dragId={dragId}
+            drop={drop}
+            setDrop={setDrop}
+            onDragStart={setDragId}
+            onDragEnd={finishDrag}
+            onDrop={commitDrop}
+            accepts={dropAllowed({ groupId: group.id })}
+          />
+        ))}
+
+        {}
+        {kinds.map(({ kind, items }) => (
+          <div
+            key={kind}
+            className="mb-2"
+            onDragOver={(e) => {
+
+              if (!dragId) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              if (!sameTarget(drop, LOOSE)) setDrop(LOOSE)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              commitDrop(LOOSE)
+            }}
+          >
             <GroupHeader
               kind={kind}
               count={items.length}
               active={section === kind && editingId === null}
               open={!collapsed.has(kind)}
+              highlight={!!dragId && drop?.groupId === null}
               onNavigate={() => navigate(kind)}
-              onToggle={() => toggleKind(kind)}
+              onToggle={() => toggle(kind)}
               onCreate={() => createIn(kind)}
             />
             {
@@ -180,6 +329,8 @@ export function Sidebar(): JSX.Element {
                       }
                     }}
                     onDelete={() => removeElement(el.id)}
+                    onDragStart={() => setDragId(el.id)}
+                    onDragEnd={finishDrag}
                   />
                 ))}
               </div>
@@ -221,11 +372,253 @@ export function Sidebar(): JSX.Element {
   )
 }
 
+function GroupFolder(props: {
+  group: ElementGroup
+  byId: Map<string, ArtemisElement>
+  open: boolean
+  onToggle: () => void
+  editingId: string | null
+  section: SectionId
+  onOpenElement: (el: ArtemisElement) => void
+  onDuplicate: (id: string) => string | null
+  onDelete: (id: string) => void
+  navigate: (s: SectionId) => void
+  openEditor: (id: string) => void
+  dragId: string | null
+  drop: DropTarget | null
+  setDrop: (t: DropTarget | null) => void
+  onDragStart: (id: string) => void
+  onDragEnd: () => void
+  onDrop: (t: DropTarget) => void
+
+  accepts: boolean
+}): JSX.Element {
+  const { group, byId, dragId, drop } = props
+  const updateGroup = useProjectStore((s) => s.updateGroup)
+  const removeGroup = useProjectStore((s) => s.removeGroup)
+  const setGroupEditor = useAppStore((s) => s.setGroupEditor)
+  const setElementGroup = useProjectStore((s) => s.setElementGroup)
+  const [renaming, setRenaming] = useState(false)
+
+  const members = group.members.map((id) => byId.get(id)).filter((e): e is ArtemisElement => !!e)
+  const onto = dragId && drop?.groupId === group.id
+
+  const gapFrom = (e: React.DragEvent<HTMLElement>, index: number): number => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.clientY - r.top < r.height / 2 ? index : index + 1
+  }
+
+  return (
+    <div
+      className="mb-2"
+      onDragOver={(e) => {
+        if (!dragId) return
+
+        if (!props.accepts) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'none'
+          return
+        }
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+
+        if (drop?.groupId !== group.id) props.setDrop({ groupId: group.id })
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        props.onDrop(drop?.groupId === group.id ? drop : { groupId: group.id })
+      }}
+    >
+      <ContextMenu.Root>
+        <ContextMenu.Trigger asChild>
+          <div
+            className={cn(
+              'flex w-full items-center gap-1 rounded-md pr-2 text-2xs font-semibold uppercase tracking-wider transition-colors',
+              onto && 'bg-ink-750'
+            )}
+            style={{ color: group.color }}
+          >
+            <button
+              onClick={props.onToggle}
+              title={props.open ? 'Collapse' : 'Expand'}
+              className="rounded p-1 opacity-70 transition-opacity hover:opacity-100"
+            >
+              <ChevronRight
+                size={11}
+                className={cn('transition-transform duration-150', props.open && 'rotate-90')}
+              />
+            </button>
+            {renaming ? (
+              <RenameField
+                value={group.name}
+                onCommit={(v) => {
+                  if (v.trim()) updateGroup(group.id, { name: v.trim() })
+                  setRenaming(false)
+                }}
+                onCancel={() => setRenaming(false)}
+              />
+            ) : (
+              <button
+                onClick={props.onToggle}
+
+                onDoubleClick={() => setGroupEditor(group.id)}
+                title={
+                  group.shelf
+                    ? `Creative shelf: ${shelfLabel(group.shelf)}`
+                    : 'Organize only. Members keep their own creative shelf.'
+                }
+                className="flex min-w-0 flex-1 items-center gap-2 py-1"
+              >
+                {props.open ? (
+                  <FolderOpen size={12} strokeWidth={2} className="shrink-0" />
+                ) : (
+                  <Folder size={12} strokeWidth={2} className="shrink-0" />
+                )}
+                <span className="truncate">{group.name}</span>
+                <span
+                  className="ml-auto rounded-full px-1.5 font-mono text-[10px] font-normal"
+                  style={{ background: `${group.color}14` }}
+                >
+                  {members.length}
+                </span>
+              </button>
+            )}
+          </div>
+        </ContextMenu.Trigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            label="Group settings"
+            icon={Settings2}
+            onSelect={() => setGroupEditor(group.id)}
+          />
+          <ContextMenuItem label="Rename" icon={Pencil} onSelect={() => setRenaming(true)} />
+          <ContextMenuSub label="Creative shelf" icon={LayoutGrid}>
+            {GROUP_SHELVES.map((s) => (
+              <ContextMenuItem
+                key={s.value || 'none'}
+                label={s.label}
+                checked={(group.shelf ?? '') === s.value}
+                onSelect={() => updateGroup(group.id, { shelf: s.value })}
+              />
+            ))}
+          </ContextMenuSub>
+          <ContextMenuSub label="Color" icon={Palette}>
+            {GROUP_COLORS.map((c) => (
+              <ContextMenuItem
+                key={c}
+                label={c}
+                swatch={c}
+                checked={group.color === c}
+                onSelect={() => updateGroup(group.id, { color: c })}
+              />
+            ))}
+          </ContextMenuSub>
+          <ContextMenuSeparator />
+          {
+}
+          <ContextMenuItem
+            label="Ungroup"
+            icon={FolderMinus}
+            danger
+            onSelect={() => removeGroup(group.id)}
+          />
+        </ContextMenuContent>
+      </ContextMenu.Root>
+
+      {props.open && (
+        <div
+          className="ml-[13px] border-l pl-1.5 pt-0.5"
+          style={{ borderColor: `${group.color}2e` }}
+        >
+          {members.length === 0 && (
+            <p className="px-1.5 py-1 text-[10px] leading-relaxed text-mist-600">
+              Empty. Drag content here, or right-click a row to file it.
+            </p>
+          )}
+          {members.map((el, i) => (
+            <div
+              key={el.id}
+              onDragOver={(e) => {
+                if (!dragId) return
+                e.preventDefault()
+                e.stopPropagation()
+                if (!props.accepts) {
+                  e.dataTransfer.dropEffect = 'none'
+                  return
+                }
+                e.dataTransfer.dropEffect = 'move'
+
+                const next = { groupId: group.id, index: gapFrom(e, i) }
+                if (!sameTarget(drop, next)) props.setDrop(next)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                props.onDrop({ groupId: group.id, index: gapFrom(e, i) })
+              }}
+              className={cn(
+
+                'border-y border-transparent',
+                onto && drop?.index === i && 'border-t-gold-400',
+                onto && drop?.index === i + 1 && 'border-b-gold-400'
+              )}
+            >
+              <ElementRow
+                element={el}
+                active={props.section === el.kind && props.editingId === el.id}
+                dimmed={dragId === el.id}
+                onClick={() => props.onOpenElement(el)}
+                onDuplicate={() => {
+                  const copy = props.onDuplicate(el.id)
+                  if (copy) {
+                    props.navigate(el.kind)
+                    props.openEditor(copy)
+                  }
+                }}
+                onDelete={() => props.onDelete(el.id)}
+                onUngroup={() => setElementGroup(el.id, null)}
+                onDragStart={() => props.onDragStart(el.id)}
+                onDragEnd={props.onDragEnd}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RenameField(props: {
+  value: string
+  onCommit: (v: string) => void
+  onCancel: () => void
+}): JSX.Element {
+  const [draft, setDraft] = useState(props.value)
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => ref.current?.select(), [])
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      autoFocus
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => props.onCommit(draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') props.onCommit(draft)
+        if (e.key === 'Escape') props.onCancel()
+      }}
+      className="min-w-0 flex-1 rounded border border-white/10 bg-ink-800 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-mist-100 outline-none focus:border-gold-500/50"
+    />
+  )
+}
+
 function GroupHeader(props: {
   kind: ElementKind
   count: number
   active: boolean
   open: boolean
+
+  highlight?: boolean
   onNavigate: () => void
   onToggle: () => void
   onCreate: () => void
@@ -238,6 +631,7 @@ function GroupHeader(props: {
         <div
           className={cn(
             'flex w-full items-center gap-1 rounded-md pr-2 text-2xs font-semibold uppercase tracking-wider transition-colors',
+            props.highlight && 'bg-ink-750',
             props.active ? 'text-gold-400' : 'text-mist-500 hover:text-mist-300'
           )}
         >
@@ -281,9 +675,15 @@ function GroupHeader(props: {
 function ElementRow(props: {
   element: ArtemisElement
   active: boolean
+
+  dimmed?: boolean
   onClick: () => void
   onDuplicate: () => void
   onDelete: () => void
+
+  onUngroup?: () => void
+  onDragStart: () => void
+  onDragEnd: () => void
 }): JSX.Element {
   const { element } = props
   const openTextureEditor = useAppStore((s) => s.openTextureEditor)
@@ -316,9 +716,18 @@ function ElementRow(props: {
         <ContextMenu.Trigger asChild>
           <button
             onClick={props.onClick}
+            draggable
+            onDragStart={(e) => {
+
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', element.name)
+              props.onDragStart()
+            }}
+            onDragEnd={props.onDragEnd}
             className={cn(
 
               'group flex w-full items-center gap-2 rounded-md py-[3px] pl-1.5 pr-2 text-xs transition-colors',
+              props.dimmed && 'opacity-40',
               props.active
                 ? 'bg-ink-750 text-mist-50 shadow-panel'
                 : 'text-mist-400 hover:bg-ink-750/60 hover:text-mist-200'
@@ -331,6 +740,8 @@ function ElementRow(props: {
         <ContextMenuContent>
           <ContextMenuItem label="Edit" icon={Pencil} onSelect={props.onClick} />
           <ContextMenuItem label="Duplicate" icon={Copy} onSelect={props.onDuplicate} />
+          <ContextMenuSeparator />
+          <GroupPicker elementId={element.id} onUngroup={props.onUngroup} />
           <ContextMenuSeparator />
           <ContextMenuItem label="Delete" icon={Trash2} danger onSelect={props.onDelete} />
         </ContextMenuContent>
@@ -385,6 +796,44 @@ function ElementRow(props: {
         </div>
       )}
     </>
+  )
+}
+
+function GroupPicker(props: { elementId: string; onUngroup?: () => void }): JSX.Element {
+  const groups = useProjectStore((s) => s.project?.groups) ?? []
+  const setElementGroup = useProjectStore((s) => s.setElementGroup)
+  const canJoinGroup = useProjectStore((s) => s.canJoinGroup)
+  const createGroup = useProjectStore((s) => s.createGroup)
+  const home = groups.find((g) => g.members.includes(props.elementId))
+  return (
+    <ContextMenuSub label="Group" icon={Folder}>
+      {
+
+}
+      {groups.map((g) => (
+        <ContextMenuItem
+          key={g.id}
+          label={g.name}
+          swatch={g.color}
+          checked={home?.id === g.id}
+          disabled={!canJoinGroup(props.elementId, g.id)}
+          onSelect={() => setElementGroup(props.elementId, g.id)}
+        />
+      ))}
+      {groups.length > 0 && <ContextMenuSeparator />}
+      <ContextMenuItem
+        label="New group"
+        icon={FolderPlus}
+        onSelect={() => setElementGroup(props.elementId, createGroup())}
+      />
+      {home && (
+        <ContextMenuItem
+          label="Remove from group"
+          icon={FolderMinus}
+          onSelect={() => (props.onUngroup ?? (() => setElementGroup(props.elementId, null)))()}
+        />
+      )}
+    </ContextMenuSub>
   )
 }
 

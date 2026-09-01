@@ -17,17 +17,27 @@ export function emitPlant(el: ArtemisElement, ctx: EmitContext): EmitContributio
   const w = new JavaWriter(`${ctx.pkg}.block`, ctx.mapping.imports)
   w.use('Block', 'BlockLogicFlower')
 
-  const grounds = (p.growsOn ?? []).map((ref) => ref.trim()).filter(Boolean)
-  const tests = grounds.map((ref) => `ground == ${ctx.blockExpr(ref, w)}`)
+  const anywhere = p.groundMode === 'any'
+  let test = 'true'
+  if (!anywhere) {
 
-  if (growing) tests.push('ground == this.block')
-  const test = tests.length ? tests.join(' || ') : 'false /* TODO: pick ground */'
+    const grounds = (p.growsOn ?? []).map((ref) => ref.trim()).filter(Boolean)
+    const tests = grounds.map((ref) => `ground == ${ctx.blockExpr(ref, w)}`)
+
+    if (growing) tests.push('ground == this.block')
+    test = tests.length ? tests.join(' || ') : 'false /* TODO: pick ground */'
+  }
 
   const extras: string[] = []
 
   if (growing) {
     w.use('World', 'TilePos', 'TilePosc', 'Random')
     extras.push(render(pl.growth, { maxHeight }))
+  }
+
+  if (p.growsInDark) {
+    w.use('World', 'TilePos', 'TilePosc')
+    extras.push(pl.canStayAnyLight)
   }
 
   const dropsItem = p.drops === 'item' && p.dropItem.trim()

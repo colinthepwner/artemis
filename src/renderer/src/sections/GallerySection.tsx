@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Copy, Images, Paintbrush } from 'lucide-react'
+import { AlertTriangle, Plus, Trash2, Copy, ImagePlus, Images, Paintbrush } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import { textureSlotsFor, type TextureSlot } from '@shared/generator/textures'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context'
-import type { ProjectTexture } from '@shared/project'
+import { resolveTextureName, toRegistryName, type ProjectTexture } from '@shared/project'
+import { fileToTexture } from '@/lib/importImage'
 import { cn } from '@/lib/cn'
 
 type Shelf = 'block' | 'item'
@@ -18,6 +19,8 @@ export function GallerySection(): JSX.Element {
   const addTexture = useProjectStore((s) => s.addTexture)
   const openTextureEditor = useAppStore((s) => s.openTextureEditor)
   const [shelf, setShelf] = useState<Shelf>('block')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importError, setImportError] = useState<string | null>(null)
 
   const usage = useMemo(() => {
     const counts = new Map<string, number>()
@@ -50,6 +53,34 @@ export function GallerySection(): JSX.Element {
     for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${t.name}_copy_${i}`
     const id = addTexture(name, t.data, t.kind ?? 'block')
     openTextureEditor({ textureId: id })
+  }
+
+  const onFiles = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const files = [...(e.target.files ?? [])]
+
+    e.target.value = ''
+    if (files.length === 0) return
+    setImportError(null)
+    const failed: string[] = []
+    let last: string | null = null
+    for (const file of files) {
+      try {
+        const data = await fileToTexture(file)
+        const stem = file.name.replace(/\.[^.]+$/, '')
+        const wanted = toRegistryName(stem) || 'texture'
+        const name = resolveTextureName(wanted, shelf, useProjectStore.getState().project?.textures ?? [], null)
+        if (!name) {
+          failed.push(`${file.name} (no free name)`)
+          continue
+        }
+        last = addTexture(name, data, shelf)
+      } catch (err) {
+        failed.push(err instanceof Error ? err.message : String(err))
+      }
+    }
+    if (failed.length) setImportError(failed.join(' '))
+
+    if (files.length === 1 && last) openTextureEditor({ textureId: last })
   }
 
   const paintSlot = (slot: TextureSlot): void => {
@@ -104,6 +135,24 @@ export function GallerySection(): JSX.Element {
         </div>
 
         <div className="flex-1" />
+        {
+
+}
+        <button
+          onClick={() => fileRef.current?.click()}
+          title="Bring in image files and scale them to 16 by 16"
+          className="flex items-center gap-1.5 rounded-md bg-ink-750 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-mist-200 transition-colors hover:bg-ink-700"
+        >
+          <ImagePlus size={13} strokeWidth={2.2} /> Import
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => void onFiles(e)}
+          className="hidden"
+        />
         <button
           data-tour="gallery-new"
           onClick={() => openTextureEditor({ textureId: null, kind: shelf })}
@@ -114,6 +163,12 @@ export function GallerySection(): JSX.Element {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        {importError && (
+          <div className="mb-4 flex items-start gap-2 rounded-md bg-ember-500/10 p-3">
+            <AlertTriangle size={13} className="mt-px shrink-0 text-ember-400" />
+            <p className="text-2xs leading-relaxed text-mist-300">{importError}</p>
+          </div>
+        )}
         {shelfTextures.length === 0 && missing.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ink-800 shadow-panel">

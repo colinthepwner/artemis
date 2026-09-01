@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -10,14 +10,15 @@ import {
   X
 } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
-import type { ArtemisElement, ElementKind } from '@shared/project'
-import { capitalizeWords, toRegistryName } from '@shared/project'
+import type { ArtemisElement, ElementGroup, ElementKind } from '@shared/project'
+import { capitalizeWords, groupOfElement, toRegistryName } from '@shared/project'
 import { textureSlotsForElement } from '@shared/generator/textures'
 import { elementRegistryEntries } from '@shared/generator/registry'
 import { titleCase } from '@shared/generator/templates/block'
 import { TexturePicker } from '@/components/pixel/TexturePicker'
 import { ScenePanel } from '@/components/preview/ScenePreview'
-import { Switch } from '@/components/ui/controls'
+import { Select, Switch } from '@/components/ui/controls'
+import { shelfLabel } from './shelves'
 import { useAppStore } from '@/store/appStore'
 import { GlideList } from '@/components/ui/glide'
 import { PANE_ENTER } from '@/components/ui/enter'
@@ -105,25 +106,28 @@ export function FormShell(props: {
   ]
   const allOk = reviewChecks.every((c) => c.ok)
 
-  const steps: WizardStep[] = [
-    {
-      id: 'name',
-      title: 'Name',
-      desc: 'What players will see in-game.',
-      done: nameOk,
-      content: <NameFields element={element} taken={takenNames} />
-    },
-    ...props.steps.map((s) =>
-      s.id === PAINT_STEP_ID ? { ...s, done: paintable.length > 0 ? texturesOk : s.done } : s
-    ),
-    {
-      id: 'check',
-      title: 'Check',
-      desc: "What's still missing.",
-      done: allOk,
-      content: null
-    }
-  ]
+  const shared = useSharedGroup() !== null
+  const steps: WizardStep[] = shared
+    ? props.steps.filter((s) => s.id !== PAINT_STEP_ID).map((s) => ({ ...s, done: true }))
+    : [
+        {
+          id: 'name',
+          title: 'Name',
+          desc: 'What players will see in-game.',
+          done: nameOk,
+          content: <NameFields element={element} taken={takenNames} />
+        },
+        ...props.steps.map((s) =>
+          s.id === PAINT_STEP_ID ? { ...s, done: paintable.length > 0 ? texturesOk : s.done } : s
+        ),
+        {
+          id: 'check',
+          title: 'Check',
+          desc: "What's still missing.",
+          done: allOk,
+          content: null
+        }
+      ]
 
   const [rawIdx, setRawIdx] = useState(0)
   const idx = Math.min(rawIdx, steps.length - 1)
@@ -138,6 +142,10 @@ export function FormShell(props: {
       {
 
 }
+      {
+
+}
+      {!shared && (
       <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/[0.04] px-5 py-2.5">
         <button
           onClick={props.onClose}
@@ -159,6 +167,7 @@ export function FormShell(props: {
           <Trash2 size={13} /> Delete
         </button>
       </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {}
@@ -395,6 +404,7 @@ function NameFields(props: { element: ArtemisElement; taken: Map<string, DupInfo
           </p>
         </div>
       )}
+      <GroupField element={element} />
       {shownDup && (
         <div className="flex items-start gap-2 rounded-md bg-ember-500/10 p-3">
           <AlertTriangle size={13} className="mt-px shrink-0 text-ember-400" />
@@ -480,12 +490,163 @@ export function usePropEditor<P extends object>(
   defaults: P
 ): [P, <K extends keyof P>(key: K, value: P[K]) => void, (updates: Partial<P>) => void] {
   const updateElement = useProjectStore((s) => s.updateElement)
-  const props = { ...defaults, ...(element.properties as Partial<P>) } as P
+  const updateGroup = useProjectStore((s) => s.updateGroup)
+  const project = useProjectStore((s) => s.project)
+  const editing = useSharedTarget()
+
+  if (editing) {
+    const shared = (editing.group.props ?? {}) as Partial<P>
+    const write = (updates: Partial<P>): void =>
+      updateGroup(editing.group.id, {
+        props: { ...(editing.group.props ?? {}), ...(updates as Record<string, unknown>) }
+      })
+    return [
+      { ...defaults, ...shared } as P,
+      (key, value) => write({ [key]: value } as unknown as Partial<P>),
+      write
+    ]
+  }
+
+  const shared = project ? groupOfElement(project, element.id)?.props : undefined
+  const props = { ...defaults, ...(element.properties as Partial<P>), ...(shared as Partial<P>) } as P
+
+  const home = project ? groupOfElement(project, element.id) : undefined
   const patch = <K extends keyof P>(key: K, value: P[K]): void => {
+    if (home?.props && key in home.props) {
+      updateGroup(home.id, { props: { ...home.props, [key as string]: value } })
+      return
+    }
     updateElement(element.id, { properties: { ...element.properties, [key]: value } })
   }
   const patchMany = (updates: Partial<P>): void => {
+    const sharedKeys = Object.keys(updates).filter((k) => home?.props && k in home.props)
+    if (sharedKeys.length && home) {
+      const toGroup: Record<string, unknown> = {}
+      const toElement: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(updates)) {
+        if (sharedKeys.includes(k)) toGroup[k] = v
+        else toElement[k] = v
+      }
+      updateGroup(home.id, { props: { ...home.props, ...toGroup } })
+      if (Object.keys(toElement).length) {
+        updateElement(element.id, { properties: { ...element.properties, ...toElement } })
+      }
+      return
+    }
     updateElement(element.id, { properties: { ...element.properties, ...updates } })
   }
   return [props, patch, patchMany]
+}
+
+const SharedTargetContext = createContext<{ group: ElementGroup } | null>(null)
+
+export function SharedTargetProvider(props: {
+  group: ElementGroup
+  children: React.ReactNode
+}): JSX.Element {
+  const value = useMemo(() => ({ group: props.group }), [props.group])
+  return <SharedTargetContext.Provider value={value}>{props.children}</SharedTargetContext.Provider>
+}
+
+export function useSharedGroup(): ElementGroup | null {
+  return useContext(SharedTargetContext)?.group ?? null
+}
+
+function useSharedTarget(): { group: ElementGroup } | null {
+  return useContext(SharedTargetContext)
+}
+
+export function GroupField(props: { element: ArtemisElement }): JSX.Element | null {
+  const project = useProjectStore((s) => s.project)
+  const setElementGroup = useProjectStore((s) => s.setElementGroup)
+  const createGroup = useProjectStore((s) => s.createGroup)
+  if (!project) return null
+
+  const groups = project.groups ?? []
+  const home = groupOfElement(project, props.element.id)
+  const NEW = '\u0000new'
+
+  return (
+    <div>
+      <label className="label-base">Group</label>
+      <Select
+        value={home?.id ?? ''}
+        onChange={(v) => {
+          if (v === NEW) setElementGroup(props.element.id, createGroup())
+          else setElementGroup(props.element.id, v || null)
+        }}
+        options={[
+          { value: '', label: 'None' },
+          ...groups.map((g) => ({ value: g.id, label: g.name })),
+          { value: NEW, label: 'New group\u2026' }
+        ]}
+      />
+      <p className="mt-1.5 text-2xs leading-relaxed text-mist-600">
+        {home
+          ? home.shelf
+            ? `Members of ${home.name} sit together on the ${shelfLabel(home.shelf)} shelf, in the order the sidebar lists them.`
+            : `${home.name} organizes the sidebar only. Everything in it keeps its own creative shelf.`
+          : 'Groups keep related content together in the sidebar and, if you give the group a shelf, side by side in the creative menu.'}
+      </p>
+    </div>
+  )
+}
+
+export function ShelfField(props: {
+  element: ArtemisElement
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  hint?: string
+}): JSX.Element {
+  const project = useProjectStore((s) => s.project)
+  const setElementGroup = useProjectStore((s) => s.setElementGroup)
+  const editingGroup = useSharedGroup()
+
+  if (editingGroup) {
+    return (
+      <div>
+        <label className="label-base">Creative Shelf</label>
+        <p className="rounded-md bg-ink-800 px-3 py-2 text-xs text-mist-400">
+          Set by the group, above. Every member lands there together.
+        </p>
+      </div>
+    )
+  }
+
+  const home = project ? groupOfElement(project, props.element.id) : undefined
+
+  if (home?.shelf) {
+    return (
+      <div>
+        <label className="label-base">Creative Shelf</label>
+        <div className="flex items-center gap-2 rounded-md bg-ink-800 px-3 py-2 text-xs text-mist-300">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ background: home.color }}
+          />
+          <span className="truncate">{shelfLabel(home.shelf)}</span>
+          <button
+            onClick={() => setElementGroup(props.element.id, null)}
+            className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-2xs text-mist-500 transition-colors hover:bg-ink-750 hover:text-mist-200"
+          >
+            Leave group
+          </button>
+        </div>
+        <p className="mt-1.5 text-2xs leading-relaxed text-mist-600">
+          Set by the {home.name} group, so its members stay together on the shelf.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <label className="label-base">Creative Shelf</label>
+      <Select value={props.value} onChange={props.onChange} options={props.options} />
+      {props.hint && (
+        <p className="mt-1.5 text-2xs leading-relaxed text-mist-600">{props.hint}</p>
+      )}
+    </div>
+  )
 }

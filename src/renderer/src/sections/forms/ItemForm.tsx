@@ -4,7 +4,14 @@ import { Sparkles, Wand2 } from 'lucide-react'
 import type { ArtemisElement } from '@shared/project'
 import { useAppStore } from '@/store/appStore'
 import type { ElementFormProps } from './registry'
-import { FormShell, TextureStrip, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
+import {
+  FormShell,
+  ShelfField,
+  TextureStrip,
+  usePropEditor,
+  type ReviewCheck,
+  type WizardStep
+} from './FormShell'
 import { Field, NumberInput, Select, Switch, SwitchList } from '@/components/ui/controls'
 import { ITEM_DEFAULTS, itemTypeOf, type ItemProps, type AnySetProps } from '@shared/generator/props'
 import { useProjectStore } from '@/store/projectStore'
@@ -18,13 +25,8 @@ import {
   suggestKitAccent
 } from '@/components/pixel/kitGenerator'
 import { BlockUsesFields } from './BlockUsesFields'
-
-const CATEGORY_OPTIONS = [
-  { value: 'material', label: 'Materials' },
-  { value: 'drop', label: 'Drops' },
-  { value: 'food', label: 'Food' },
-  { value: 'misc', label: 'Miscellaneous' }
-]
+import { ITEM_SHELVES } from './shelves'
+import { groupOfElement } from '@shared/project'
 
 export function ItemForm({ element, onClose }: ElementFormProps): JSX.Element | null {
   if (!element) return null
@@ -188,13 +190,13 @@ function ItemFormInner({
                   />
                 </Field>
               </div>
-              <Field label="Creative Shelf">
-                <Select
-                  value={p.category}
-                  onChange={(v) => patch('category', v)}
-                  options={CATEGORY_OPTIONS}
-                />
-              </Field>
+              {}
+              <ShelfField
+                element={element}
+                value={p.category}
+                onChange={(v) => patch('category', v)}
+                options={ITEM_SHELVES}
+              />
             </div>
           )
         },
@@ -207,18 +209,17 @@ function ItemFormInner({
             title: 'Right-click',
             desc: 'What happens when this is used on a block.',
             content: (
-              <BlockUsesFields
-                rules={p.blockUses ?? []}
-                cost={p.blockUseCost ?? 0}
-                onChange={(v) => patch('blockUses', v)}
-                onCostChange={(v) => patch('blockUseCost', v)}
-              />
+              <BlockUsesFields rules={p.blockUses ?? []} onChange={(v) => patch('blockUses', v)} />
             )
           }
         ]),
   ]
 
-  const spendsNothing = (p.blockUseCost ?? 0) > 0 && (p.durability ?? 0) === 0
+  const spendsNothing =
+    (p.durability ?? 0) === 0 &&
+    (p.blockUses ?? []).some((r) =>
+      (r.effects ?? []).some((e) => e.kind === 'cost' && Math.round(e.amount) > 0)
+    )
   const checks: ReviewCheck[] = [
     {
       label: 'Durability cost can be paid',

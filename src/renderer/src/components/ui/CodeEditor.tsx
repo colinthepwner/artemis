@@ -32,54 +32,59 @@ import { buildCompletions, type CompletionItem } from '@shared/generator/complet
 
 const artemisTheme = EditorView.theme(
   {
-    '&': { color: '#c3cad6', backgroundColor: 'transparent', height: '100%' },
+    '&': { color: '#cccccc', backgroundColor: 'transparent', height: '100%' },
     '.cm-content': {
-      fontFamily: '"JetBrains Mono Variable", Consolas, monospace',
+
+      fontFamily: '"Recursive Variable", Consolas, monospace',
+      fontVariationSettings: "'MONO' 1, 'CASL' 0",
       fontSize: '12px',
       padding: '12px 0'
     },
-    '.cm-gutters': { backgroundColor: 'transparent', color: '#4a5464', border: 'none' },
+    '.cm-gutters': { backgroundColor: 'transparent', color: '#575757', border: 'none' },
     '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.03)' },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: '#8b96a8' },
+    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: '#999999' },
     '.cm-cursor': { borderLeftColor: '#e6ad55' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
       backgroundColor: 'rgba(230,173,85,0.18)'
     },
     '.cm-selectionMatch': { backgroundColor: 'rgba(230,173,85,0.12)' },
-    '.cm-panels': { backgroundColor: '#10141a', color: '#c3cad6' },
+    '.cm-panels': { backgroundColor: '#141414', color: '#cccccc' },
     '.cm-panel input, .cm-panel button': {
-      backgroundColor: '#151a21',
-      color: '#c3cad6',
+      backgroundColor: '#1c1c1c',
+      color: '#cccccc',
       border: 'none',
       borderRadius: '4px',
       padding: '2px 6px'
     },
     '.cm-tooltip': {
-      backgroundColor: '#1a2029',
+      backgroundColor: '#212121',
       border: 'none',
       borderRadius: '6px',
       boxShadow: '0 8px 24px rgba(0,0,0,0.45)'
     },
     '.cm-tooltip-autocomplete ul li[aria-selected]': {
-      backgroundColor: '#2c3644',
-      color: '#eef1f6'
+      backgroundColor: '#383838',
+      color: '#f2f2f2'
     },
-    '.cm-completionLabel': { fontFamily: '"JetBrains Mono Variable", Consolas, monospace' },
-    '.cm-completionDetail': { color: '#667183', fontStyle: 'normal', marginLeft: '1rem' },
+    '.cm-completionLabel': {
+      fontFamily: '"Recursive Variable", Consolas, monospace',
+      fontVariationSettings: "'MONO' 1, 'CASL' 0"
+    },
+    '.cm-completionDetail': { color: '#757575', fontStyle: 'normal', marginLeft: '1rem' },
     '.cm-scroller': { overflow: 'auto' }
   },
   { dark: true }
 )
 
 const artemisHighlight = HighlightStyle.define([
-  { tag: [t.comment, t.lineComment, t.blockComment], color: '#4a5464', fontStyle: 'italic' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: '#575757', fontStyle: 'italic' },
   { tag: [t.string, t.character], color: '#7fb069' },
   { tag: [t.number, t.bool, t.null], color: '#d0879b' },
   { tag: [t.keyword, t.modifier, t.operatorKeyword], color: '#e6ad55' },
   { tag: [t.typeName, t.className, t.namespace], color: '#6aaee8' },
   { tag: [t.annotation, t.meta], color: '#6aaee8' },
-  { tag: [t.definition(t.variableName)], color: '#c3cad6' },
-  { tag: [t.propertyName], color: '#8b96a8' }
+  { tag: [t.definition(t.variableName)], color: '#cccccc' },
+  { tag: [t.propertyName], color: '#999999' }
 ])
 
 const KIND_MAP: Record<CompletionItem['kind'], string> = {

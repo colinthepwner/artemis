@@ -391,21 +391,32 @@ export function Tutorial(): JSX.Element | null {
 
 }
       {halo ? (
-        <motion.div
-          className="pointer-events-none absolute rounded-lg ring-2 ring-gold-400/70"
+        <>
+          {
 
-          initial={reduceAnimations ? false : { opacity: 0, ...halo }}
+}
+          <motion.div
+            className="pointer-events-none absolute rounded-lg"
+            initial={reduceAnimations ? false : { opacity: 0, ...halo }}
+            animate={{ opacity: 1, ...halo }}
+            transition={{ duration: reduceAnimations ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{ boxShadow: '0 0 0 9999px rgba(6, 8, 11, 0.66)' }}
+          />
+          <motion.div
+            className="pointer-events-none absolute rounded-lg ring-2 ring-gold-400/70"
 
-          animate={{ opacity: waiting && !reduceAnimations ? [1, 0.4, 1] : 1, ...halo }}
-          transition={{
-            duration: reduceAnimations ? 0 : 0.22,
-            ease: [0.22, 1, 0.36, 1],
-            opacity: waiting && !reduceAnimations
-              ? { duration: 1.7, repeat: Infinity, ease: 'easeInOut' }
-              : { duration: reduceAnimations ? 0 : 0.22 }
-          }}
-          style={{ boxShadow: '0 0 0 9999px rgba(6, 8, 11, 0.66)' }}
-        />
+            initial={reduceAnimations ? false : { opacity: 0, ...halo }}
+
+            animate={{ opacity: waiting && !reduceAnimations ? [1, 0.4, 1] : 1, ...halo }}
+            transition={{
+              duration: reduceAnimations ? 0 : 0.22,
+              ease: [0.22, 1, 0.36, 1],
+              opacity: waiting && !reduceAnimations
+                ? { duration: 1.7, repeat: Infinity, ease: 'easeInOut' }
+                : { duration: reduceAnimations ? 0 : 0.22 }
+            }}
+          />
+        </>
       ) : waiting ? null : (
         <div
           className="pointer-events-none absolute inset-0"

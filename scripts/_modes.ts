@@ -70,31 +70,68 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
       displayName: 'Test Chisel',
       durability: 128,
       stackSize: 64,
-      blockUseCost: 1,
-      blockUses: [{ target: 'block:STONE', becomes: 'block:COBBLE_STONE', drops: '', dropCount: 1 }]
+      blockUses: [
+        {
+          id: 'wear-1',
+          on: 'block',
+          target: 'block:STONE',
+          effects: [
+            { kind: 'becomes', block: 'block:COBBLE_STONE' },
+
+            { kind: 'cost', amount: 1 }
+          ]
+        }
+      ]
     },
 
     'right-click rules': {
       displayName: 'Test Chisel',
-      blockUseCost: 1,
       blockUses: [
         {
+          id: 'ring-1',
+          on: 'block',
           target: 'block:STONE',
-          becomes: 'block:STONE_CARVED',
-          drops: '',
-          dropCount: 1,
-          particle: 'smoke',
-          particleCount: 6,
-          sound: 'block.clang'
+          effects: [
+            { kind: 'becomes', block: 'block:STONE_CARVED' },
+            { kind: 'sound', event: 'block.clang' },
+            { kind: 'particles', name: 'smoke', count: 6 },
+            { kind: 'cost', amount: 1 }
+          ]
         },
         {
+          id: 'ring-2',
+          on: 'block',
           target: 'block:STONE_CARVED',
-          becomes: 'block:STONE',
-          drops: 'probe_item',
-          dropCount: 2,
-          particle: '',
-          particleCount: 8,
-          sound: ''
+          effects: [
+            { kind: 'becomes', block: 'block:STONE' },
+            { kind: 'drops', item: 'probe_item', count: 2 },
+            { kind: 'cost', amount: 1 }
+          ]
+        }
+      ]
+    },
+
+    'rules with no block to name': {
+      displayName: 'Test Wand',
+      durability: 64,
+      blockUses: [
+        {
+          id: 'any-1',
+          on: 'anyBlock',
+          target: '',
+          effects: [
+            { kind: 'particles', name: 'flame', count: 4 },
+            { kind: 'cost', amount: 1 }
+          ]
+        },
+        {
+          id: 'self-1',
+          on: 'item',
+          target: '',
+          effects: [
+            { kind: 'sound', event: 'random.pop' },
+            { kind: 'drops', item: 'probe_item', count: 1 }
+          ]
         }
       ]
     }
@@ -129,6 +166,28 @@ export const MODES: Record<ElementKind, Record<string, Record<string, unknown>>>
       drops: 'self',
       shearsOnly: true,
       maxHeight: 1,
+      patchesPerChunk: 0,
+      biomes: []
+    },
+
+    'grows anywhere, in the dark': {
+      displayName: 'Test Cave Plant',
+      groundMode: 'any',
+      growsInDark: true,
+      growsOn: [V.dirt],
+      drops: 'self',
+      maxHeight: 1,
+      patchesPerChunk: 2,
+      biomes: []
+    },
+
+    'picky ground, dark cave': {
+      displayName: 'Test Gloom Bell',
+      groundMode: 'listed',
+      growsInDark: true,
+      growsOn: ['probe_block'],
+      drops: 'self',
+      maxHeight: 2,
       patchesPerChunk: 0,
       biomes: []
     }

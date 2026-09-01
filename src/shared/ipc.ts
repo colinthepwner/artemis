@@ -203,7 +203,13 @@ export interface ArtemisApi {
 
   sound: {
 
-    importOgg: () => Promise<{ name: string; ogg: string; bytes: number } | null>
+    importAudio: () => Promise<{
+      name: string
+      ext: string
+
+      data: string
+      bytes: number
+    } | null>
   }
   texture: {
 
@@ -311,6 +317,8 @@ export interface ArtemisApi {
       blocks: Record<string, string>
       items: Record<string, string>
       tops: Record<string, string>
+
+      particles?: Record<string, string>
     }>
   }
 }

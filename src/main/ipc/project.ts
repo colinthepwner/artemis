@@ -3,6 +3,7 @@ import { access, mkdir, readFile, readdir, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { gzipSync } from 'zlib'
 import { IPC, type RecentProject } from '../../shared/ipc'
+import { AUDIO_EXTENSIONS } from '../../shared/audio'
 
 const ARTEMIS_FILTER = [{ name: 'Artemis Project', extensions: ['artemis'] }]
 
@@ -142,15 +143,21 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle(IPC.SoundImport, async () => {
     const res = await dialog.showOpenDialog({
-      filters: [{ name: 'Ogg Vorbis', extensions: ['ogg'] }],
+      filters: [
+        { name: 'Audio', extensions: AUDIO_EXTENSIONS },
+        { name: 'All files', extensions: ['*'] }
+      ],
       properties: ['openFile']
     })
     if (res.canceled || res.filePaths.length === 0) return null
     const path = res.filePaths[0]
     const raw = await readFile(path)
+    const file = basename(path)
+    const dot = file.lastIndexOf('.')
     return {
-      name: basename(path).replace(/\.ogg$/i, ''),
-      ogg: gzipSync(raw, { level: 9 }).toString('base64'),
+      name: dot > 0 ? file.slice(0, dot) : file,
+      ext: dot > 0 ? file.slice(dot + 1).toLowerCase() : '',
+      data: raw.toString('base64'),
       bytes: raw.length
     }
   })

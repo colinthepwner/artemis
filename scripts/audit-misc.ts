@@ -577,6 +577,33 @@ console.log('how a dead game is described (a build-tool death is not a mod death
   )
 }
 
+console.log('no store selector mints a value (the infinite render loop)')
+
+{
+  const SELECTOR = /use[A-Z]\w*Store\(\s*\((\w*)\)\s*=>\s*([^\n]*?)\)(?=\s*[,);]|\s*$)/g
+  const MINTS =
+    /(\?\?|\|\|)\s*(\[\s*\]|\{\s*\})|\.(map|filter|slice|concat|flat|flatMap|sort)\(|\bnew (Set|Map)\b|Object\.(keys|values|entries|fromEntries|assign)\(/
+  const offenders: string[] = []
+  for (const file of walkTs(join(process.cwd(), 'src/renderer'))) {
+    const text = readFileSync(file, 'utf-8')
+    for (const m of text.matchAll(SELECTOR)) {
+      if (!MINTS.test(m[2])) continue
+      const line = text.slice(0, m.index ?? 0).split('\n').length
+      const rel = file.replace(process.cwd() + sep, '').replace(/\\/g, '/')
+      offenders.push(`${rel}:${line}  ${m[2].trim().slice(0, 70)}`)
+    }
+  }
+  check('no store selector builds the value it returns', offenders.length === 0, offenders.join('\n       '))
+
+  const bait = 'const s = useProjectStore((s) => s.project?.sounds ?? [])'
+  const caught = [...bait.matchAll(SELECTOR)].some((m) => MINTS.test(m[2]))
+  check('and the sweep still catches the line that shipped', caught, bait)
+
+  const fixed = 'const s = useProjectStore((s) => s.project?.sounds) ?? NONE'
+  const clear = [...fixed.matchAll(SELECTOR)].every((m) => !MINTS.test(m[2]))
+  check('and leaves the fixed form alone', clear, fixed)
+}
+
 console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
 console.log(audit.failures === 0 ? 'MISC PASS' : 'MISC: see above')
 if (audit.failures > 0) process.exitCode = 1

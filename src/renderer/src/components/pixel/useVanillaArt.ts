@@ -8,10 +8,12 @@ export interface VanillaArt {
 
   tops: Record<string, string>
 
+  particles?: Record<string, string>
+
   tints?: Record<string, string>
 }
 
-const EMPTY: VanillaArt = { blocks: {}, items: {}, tops: {} }
+const EMPTY: VanillaArt = { blocks: {}, items: {}, tops: {}, particles: {} }
 
 const inFlight = new Map<string, Promise<VanillaArt>>()
 

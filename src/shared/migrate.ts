@@ -1,6 +1,14 @@
 import { titleCase } from './project'
 import type { ArtemisElement, ArtemisProject } from './project'
-import type { AnySetProps, BlockProps, ItemProps, OreProps } from './generator/props'
+import type {
+  AnySetProps,
+  BlockProps,
+  ItemProps,
+  LegacyBlockUseRule,
+  OreProps,
+  UseEffect,
+  UseRule
+} from './generator/props'
 
 const LEGACY_GROUND: Record<string, string[]> = {
   grass: ['block:GRASS', 'block:DIRT'],
@@ -22,6 +30,31 @@ interface LegacyOreProps extends Partial<BlockProps> {
   biomes?: string[]
   generateSet?: boolean
   set?: Partial<AnySetProps>
+}
+
+function migrateUseRules(legacy: LegacyBlockUseRule[], cost: number, seed: string): UseRule[] {
+  return legacy.map((r, i) => {
+    const effects: UseEffect[] = []
+    if ((r.becomes ?? '').trim()) effects.push({ kind: 'becomes', block: r.becomes })
+    if ((r.drops ?? '').trim()) {
+      effects.push({ kind: 'drops', item: r.drops, count: Math.max(1, Math.round(r.dropCount || 1)) })
+    }
+    if ((r.sound ?? '').trim()) effects.push({ kind: 'sound', event: r.sound })
+    if ((r.particle ?? '').trim()) {
+      effects.push({
+        kind: 'particles',
+        name: r.particle,
+        count: Math.max(1, Math.round(r.particleCount || 8))
+      })
+    }
+    if (cost > 0) effects.push({ kind: 'cost', amount: Math.round(cost) })
+
+    return { id: `${seed}-use-${i}`, on: 'block' as const, target: r.target ?? '', effects }
+  })
+}
+
+function isLegacyUseRule(r: unknown): r is LegacyBlockUseRule {
+  return !!r && typeof r === 'object' && !Array.isArray((r as { effects?: unknown }).effects)
 }
 
 export function migrateProject(project: ArtemisProject): ArtemisProject {
@@ -141,6 +174,24 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
       continue
     }
 
+    const props = el.properties as Partial<ItemProps> & { blockUseCost?: number }
+    if (Array.isArray(props.blockUses) && props.blockUses.some(isLegacyUseRule)) {
+      out.push({
+        ...el,
+        properties: {
+          ...props,
+          blockUses: migrateUseRules(
+            props.blockUses as unknown as LegacyBlockUseRule[],
+            props.blockUseCost ?? 0,
+            el.id
+          ),
+
+          blockUseCost: undefined
+        }
+      } as ArtemisElement)
+      continue
+    }
+
     out.push(el)
   }
 
@@ -156,7 +207,51 @@ export function migrateProject(project: ArtemisProject): ArtemisProject {
   project.elements = out
   migrateSpawns(project)
   migrateTreeFeature(project)
+  migrateGroups(project)
+  migrateSounds(project)
   return project
+}
+
+function migrateSounds(project: ArtemisProject): void {
+  for (const sound of project.sounds ?? []) {
+    const legacy = sound as unknown as { ogg?: string }
+    if (typeof legacy.ogg !== 'string') continue
+    sound.audio ??= legacy.ogg
+    sound.format ??= 'ogg'
+    delete legacy.ogg
+  }
+}
+
+function migrateGroups(project: ArtemisProject): void {
+  if (!project.groups) return
+  const kindOf = new Map(project.elements.map((e) => [e.id, e.kind]))
+
+  const claimed = new Set<string>()
+  for (const g of project.groups) {
+    g.name ||= 'Group'
+    g.shelf ??= ''
+    g.color ||= '#e6ad55'
+
+    const members: string[] = []
+    let kind = g.kind
+    for (const id of g.members ?? []) {
+      const memberKind = kindOf.get(id)
+      if (!memberKind || claimed.has(id)) continue
+      kind ??= memberKind
+      if (memberKind !== kind) continue
+      claimed.add(id)
+      members.push(id)
+    }
+    g.members = members
+
+    if (members.length === 0) {
+      delete g.kind
+      delete g.props
+    } else {
+      g.kind = kind
+      if (g.props && Object.keys(g.props).length === 0) delete g.props
+    }
+  }
 }
 
 function migrateTreeFeature(project: ArtemisProject): void {

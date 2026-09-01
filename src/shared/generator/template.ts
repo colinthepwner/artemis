@@ -67,6 +67,13 @@ export function indent(text: string, tabs = 1): string {
     .join('\n')
 }
 
+export function dropBlankLines(text: string): string {
+  return text
+    .split('\n')
+    .filter((l) => l.trim().length > 0)
+    .join('\n')
+}
+
 export function javaString(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }

@@ -1,5 +1,12 @@
 import type { ElementFormProps } from './registry'
-import { FormShell, TextureStrip, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
+import {
+  FormShell,
+  ShelfField,
+  TextureStrip,
+  usePropEditor,
+  type ReviewCheck,
+  type WizardStep
+} from './FormShell'
 import { DropsFields } from './DropsFields'
 import { Field, Select, Switch, SwitchList } from '@/components/ui/controls'
 import {
@@ -12,9 +19,11 @@ import {
   isToolTag
 } from '@/components/pixel/blockControls'
 import { useSwatchedOptions } from '@/components/pixel/blockSwatches'
+import { BLOCK_SHELVES } from './shelves'
 import { BLOCK_DEFAULTS, type BlockProps } from '@shared/generator/props'
 import { getMapping } from '@shared/generator/mappings'
 import { useProjectStore } from '@/store/projectStore'
+import type { ArtemisElement } from '@shared/project'
 import { titleCase } from '@shared/generator/templates/block'
 
 export function useMappingOptions() {
@@ -36,25 +45,16 @@ export function useMappingOptions() {
   }
 }
 
+const REDSTONE_ROW = 'emitsRedstone'
+
 interface BlockFieldProps {
   p: BlockProps
   patch: <K extends keyof BlockProps>(key: K, value: BlockProps[K]) => void
-}
 
-const SHELF_OPTIONS = [
-  { value: 'block', label: 'Placeables' },
-  { value: 'basics', label: 'Basics' },
-  { value: 'stone', label: 'Stone' },
-  { value: 'logs', label: 'Logs' },
-  { value: 'wood', label: 'Wood' },
-  { value: 'organic', label: 'Organic' },
-  { value: 'natural', label: 'Natural' },
-  { value: 'ore', label: 'Ore' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'workbenches', label: 'Workbenches' },
-  { value: 'redstone', label: 'Redstone' },
-  { value: 'misc', label: 'Miscellaneous' }
-]
+  patchMany: (updates: Partial<BlockProps>) => void
+
+  element?: ArtemisElement
+}
 
 const LAYOUT_OPTIONS = [
   { value: 'all', label: 'Same on all sides' },
@@ -62,7 +62,7 @@ const LAYOUT_OPTIONS = [
   { value: 'perFace', label: 'Every face its own' }
 ]
 
-export function TextureLayoutSelect({ p, patch }: BlockFieldProps): JSX.Element {
+export function TextureLayoutSelect({ p, patch }: Omit<BlockFieldProps, 'patchMany'>): JSX.Element {
 
   const options = useSwatchedOptions(LAYOUT_OPTIONS)
   return (
@@ -76,7 +76,7 @@ export function TextureLayoutSelect({ p, patch }: BlockFieldProps): JSX.Element 
   )
 }
 
-export function MaterialFeelFields({ p, patch }: BlockFieldProps): JSX.Element {
+export function MaterialFeelFields({ p, patch }: Omit<BlockFieldProps, 'patchMany'>): JSX.Element {
   const { materials, sounds } = useMappingOptions()
 
   const materialOptions = useSwatchedOptions(materials)
@@ -120,9 +120,13 @@ export function MaterialFeelFields({ p, patch }: BlockFieldProps): JSX.Element {
   )
 }
 
-export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
+export function MiningFields({ p, patch, patchMany, element }: BlockFieldProps): JSX.Element {
   const { behaviorTags } = useMappingOptions()
-  const behaviorOptions = useSwatchedOptions(behaviorTags)
+
+  const behaviorRows = useSwatchedOptions([
+    ...behaviorTags,
+    { value: REDSTONE_ROW, label: 'Powers Redstone' }
+  ])
   return (
     <>
       <Field label="Mined With" hint="The tool this block answers to. Blocks have one, not several.">
@@ -143,30 +147,39 @@ export function MiningFields({ p, patch }: BlockFieldProps): JSX.Element {
 }
       <Field label="Behavior" hint="Optional. Most blocks want none of these.">
         <SwitchList
-          options={behaviorOptions}
-          selected={p.tags.filter((t) => !isToolTag(t))}
-          onChange={(v) => patch('tags', [...p.tags.filter(isToolTag), ...v])}
+          options={behaviorRows}
+          selected={[
+            ...p.tags.filter((t) => !isToolTag(t)),
+            ...(p.emitsRedstone ? [REDSTONE_ROW] : [])
+          ]}
+          onChange={(v) =>
+            patchMany({
+              tags: [...p.tags.filter(isToolTag), ...v.filter((t) => t !== REDSTONE_ROW)],
+              emitsRedstone: v.includes(REDSTONE_ROW)
+            })
+          }
         />
       </Field>
       {
 
 }
-      <Switch
-        checked={p.emitsRedstone ?? false}
-        onChange={(v) => patch('emitsRedstone', v)}
-        label="Powers redstone"
-        hint="Like a block of redstone: it powers whatever is next to it, at full strength. BTA has no in-between, so there is no dial."
-      />
-      {
-
-}
-      <Field label="Creative Shelf" hint="Which page of the creative menu it appears on.">
-        <Select
+      {element ? (
+        <ShelfField
+          element={element}
           value={p.creativeCategory ?? 'block'}
           onChange={(v) => patch('creativeCategory', v)}
-          options={SHELF_OPTIONS}
+          options={BLOCK_SHELVES}
+          hint="Which page of the creative menu it appears on."
         />
-      </Field>
+      ) : (
+        <Field label="Creative Shelf" hint="Which page of the creative menu it appears on.">
+          <Select
+            value={p.creativeCategory ?? 'block'}
+            onChange={(v) => patch('creativeCategory', v)}
+            options={BLOCK_SHELVES}
+          />
+        </Field>
+      )}
       <Switch
         checked={p.notInCreativeMenu}
         onChange={(v) => patch('notInCreativeMenu', v)}
@@ -188,7 +201,7 @@ function BlockFormInner({
   element: NonNullable<ElementFormProps['element']>
   onClose: () => void
 }): JSX.Element {
-  const [p, patch] = usePropEditor<BlockProps>(element, BLOCK_DEFAULTS)
+  const [p, patch, patchMany] = usePropEditor<BlockProps>(element, BLOCK_DEFAULTS)
 
   const steps: WizardStep[] = [
     {
@@ -212,7 +225,7 @@ function BlockFormInner({
       id: 'mining',
       title: 'Mining',
       desc: 'How players break it and what they get.',
-      content: <MiningFields p={p} patch={patch} />
+      content: <MiningFields p={p} patch={patch} patchMany={patchMany} element={element} />
     }
   ]
 

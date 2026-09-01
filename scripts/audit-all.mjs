@@ -27,6 +27,10 @@ const STEPS = [
   ['updater', process.execPath, ['scripts/run.mjs', 'scripts/audit-updater.ts']],
   ['gradle', process.execPath, ['scripts/run.mjs', 'scripts/audit-gradle.ts']],
   ['migrate', process.execPath, ['scripts/run.mjs', 'scripts/migrate-smoke.ts']],
+
+  ['groups', process.execPath, ['scripts/run.mjs', 'scripts/groups-smoke.ts']],
+
+  ['schematic', process.execPath, ['scripts/run.mjs', 'scripts/schematic-smoke.ts']],
   ['templates', process.execPath, ['scripts/run.mjs', 'scripts/templates-smoke.ts']],
   ['export', process.execPath, ['scripts/run.mjs', 'scripts/audit-export.ts']],
 

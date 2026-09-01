@@ -19,7 +19,7 @@ function report(why: string, detail?: string): void {
   panel.setAttribute(
     'style',
     'margin:0;display:flex;align-items:center;justify-content:center;height:100vh;' +
-      'background:#07090c;color:#e6e8eb;font:14px/1.6 system-ui,Segoe UI,sans-serif'
+      'background:#0a0a0a;color:#f2f2f2;font:14px/1.6 system-ui,Segoe UI,sans-serif'
   )
   const inner = document.createElement('div')
   inner.setAttribute('style', 'max-width:34rem;padding:2rem')

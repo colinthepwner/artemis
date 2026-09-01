@@ -490,14 +490,15 @@ ${obfuscate ? obfuscationTask() : ''}`,
       const name = sound.name.trim()
       const event = sound.event.trim()
       if (!name || !event) continue
+      const ext = sound.format ?? 'ogg'
       await writeBytes(
         root,
-        `src/main/resources/assets/${meta.modId}/sounds/${name}.ogg`,
-        gunzipSync(Buffer.from(sound.ogg, 'base64')),
+        `src/main/resources/assets/${meta.modId}/sounds/${name}.${ext}`,
+        gunzipSync(Buffer.from(sound.audio, 'base64')),
         generated
       )
 
-      manifest[event] = { sounds: [`${name}.ogg`] }
+      manifest[event] = { sounds: [`${name}.${ext}`] }
     }
     if (Object.keys(manifest).length) {
       await write(

@@ -13,10 +13,14 @@ export interface VanillaArt {
   items: Record<string, string>
 
   tops: Record<string, string>
+
+  particles?: Record<string, string>
 }
 
 const BLOCK_DIR = 'assets/minecraft/textures/block/'
 const ITEM_DIR = 'assets/minecraft/textures/item/'
+
+const PARTICLE_DIR = 'assets/minecraft/textures/particle/'
 
 const SKIP = /\.(emiss|cmask)\.|_overlay|_fancy|\bstage\d/
 
@@ -132,7 +136,7 @@ const EXTRA_ITEM_TEXTURES: Record<string, string> = {
   RUBYGLASS: 'rubyglass_crystal.png'
 }
 
-const EXTRACT_REVISION = 7
+const EXTRACT_REVISION = 8
 
 function extractionTag(btaVersion: string): string {
   const table = (t: Record<string, string>): string =>
@@ -314,7 +318,10 @@ export async function loadVanillaArt(btaVersion: string): Promise<VanillaArt> {
   const buf = readFileSync(jar)
   const entries = readCentralDirectory(buf).filter(
     (e) =>
-      e.name.endsWith('.png') && (e.name.startsWith(BLOCK_DIR) || e.name.startsWith(ITEM_DIR))
+      e.name.endsWith('.png') &&
+      (e.name.startsWith(BLOCK_DIR) ||
+        e.name.startsWith(ITEM_DIR) ||
+        e.name.startsWith(PARTICLE_DIR))
   )
 
   const byName = new Map(entries.map((e) => [e.name, e]))
@@ -335,7 +342,16 @@ export async function loadVanillaArt(btaVersion: string): Promise<VanillaArt> {
   }
 
   const registry = getVanillaRegistry(btaVersion)
-  const art: VanillaArt = { blocks: {}, items: {}, tops: {} }
+
+  const particles: Record<string, string> = {}
+
+  for (const e of entries) {
+    if (!e.name.startsWith(PARTICLE_DIR)) continue
+    const url = dataUrl(e.name)
+    if (url) particles[e.name.slice(PARTICLE_DIR.length, -'.png'.length)] = url
+  }
+
+  const art: VanillaArt = { blocks: {}, items: {}, tops: {}, particles }
 
   for (const item of registry.items) {
     const url = dataUrl(`${ITEM_DIR}${item.field.toLowerCase()}.png`)
@@ -395,7 +411,7 @@ export function registerVanillaIpc(): void {
       return await loadVanillaArt(btaVersion)
     } catch {
 
-      return { blocks: {}, items: {}, tops: {} }
+      return { blocks: {}, items: {}, tops: {}, particles: {} }
     }
   })
 }

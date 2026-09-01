@@ -225,6 +225,8 @@ function menusOn(root: ProbeRoot): Array<{ rows: ProbeNode[] }> {
 const snapshot = (): string =>
   JSON.stringify({
     elements: live().elements,
+
+    groups: live().groups,
     assignments: live().textureAssignments,
     textures: live().textures.map((t) => ({ id: t.id, name: t.name })),
     meta: live().meta,
@@ -1257,9 +1259,8 @@ function fakeClock(): FakeClock {
 }
 
 function typedSoFar(root: ProbeRoot): string {
-  const title = root.find(
-    (n) => typeof n.props.className === 'string' && n.props.className.includes('pixel-title')
-  )
+
+  const title = root.find((n) => n.props['data-typed-line'] !== undefined)
   if (!title) return ''
   return title.children
     .filter((c) => {

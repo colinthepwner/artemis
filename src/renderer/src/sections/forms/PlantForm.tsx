@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react'
 import type { ElementFormProps } from './registry'
 import { FormShell, TextureStrip, usePropEditor, type ReviewCheck, type WizardStep } from './FormShell'
-import { Field, NumberInput, Select } from '@/components/ui/controls'
+import { Field, NumberInput, Select, Switch } from '@/components/ui/controls'
 import { HarvestLevelSlider, LightSlider } from '@/components/pixel/blockControls'
 import { ItemRefField } from '@/components/pixel/ItemRefPicker'
 import { BiomesField } from './BiomesField'
@@ -11,6 +11,11 @@ import { PLANT_DEFAULTS, type PlantProps } from '@shared/generator/props'
 const HARVEST_OPTIONS = [
   { value: 'hand', label: 'Anything, even bare hands' },
   { value: 'shears', label: 'Shears only' }
+]
+
+const GROUND_OPTIONS = [
+  { value: 'listed', label: 'Only the blocks I pick' },
+  { value: 'anything', label: 'Anything at all' }
 ]
 
 export function PlantForm({ element, onClose }: ElementFormProps): JSX.Element | null {
@@ -27,6 +32,7 @@ function Inner({
 }): JSX.Element {
   const [p, patch] = usePropEditor<PlantProps>(element, PLANT_DEFAULTS)
   const growsOn = p.growsOn ?? []
+  const anywhere = p.groundMode === 'any'
 
   const steps: WizardStep[] = [
     {
@@ -43,10 +49,34 @@ function Inner({
         <>
           <Field
             label="Grows On"
-            hint="Every block it can be planted on, your own blocks included. It pops off anything else."
+            hint={
+              anywhere
+                ? 'It can be planted on any block in the game, yours and the game’s alike.'
+                : 'Every block it can be planted on, your own blocks included. It pops off anything else.'
+            }
           >
-            <GrowsOnList value={growsOn} onChange={(v) => patch('growsOn', v)} />
+            <Select
+              value={anywhere ? 'anything' : 'listed'}
+              onChange={(v) => patch('groundMode', v === 'anything' ? 'any' : 'listed')}
+              options={GROUND_OPTIONS}
+            />
           </Field>
+          {
+}
+          {!anywhere && (
+            <Field label="Ground Blocks" hint="Anything not on this list pops the plant off.">
+              <GrowsOnList value={growsOn} onChange={(v) => patch('growsOn', v)} />
+            </Field>
+          )}
+          {
+
+}
+          <Switch
+            checked={p.growsInDark ?? false}
+            onChange={(v) => patch('growsInDark', v)}
+            label="Survives in the dark"
+            hint="Plants normally need light level 8 or a view of the sky, and are torn up when they lose it. Turn this on for a cave plant."
+          />
           <Field
             label="Max Height"
             hint="1 is an ordinary flower. Higher and it grows upward over time like sugarcane, up to this many blocks."
@@ -123,8 +153,8 @@ function Inner({
   const checks: ReviewCheck[] = [
     {
       label: 'Ground picked',
-      ok: growsOn.some((r) => r.trim()),
-      detail: 'It has nowhere it can be planted. Add at least one ground block.',
+      ok: anywhere || growsOn.some((r) => r.trim()),
+      detail: 'It has nowhere it can be planted. Add a ground block, or let it grow on anything.',
       stepId: 'behavior'
     },
     {

@@ -103,19 +103,6 @@ function ItemRefPicker(props: {
 
   const vanillaEntries = useMemo<PickerEntry[]>(() => {
     const rows: PickerEntry[] = []
-    if (props.filter !== 'item') {
-      rows.push(
-        ...vanilla.blocks.map((e) => ({
-          id: `block:${e.field}`,
-          label: e.name,
-          sub: e.field,
-          kind: 'block' as const,
-          icon: vanillaIcon(e.field, 'block'),
-          image: art.blocks[e.field],
-          group: 'Blocks'
-        }))
-      )
-    }
     if (props.filter !== 'block') {
       rows.push(
         ...vanilla.items.map((e) => ({
@@ -129,6 +116,19 @@ function ItemRefPicker(props: {
         }))
       )
     }
+    if (props.filter !== 'item') {
+      rows.push(
+        ...vanilla.blocks.map((e) => ({
+          id: `block:${e.field}`,
+          label: e.name,
+          sub: e.field,
+          kind: 'block' as const,
+          icon: vanillaIcon(e.field, 'block'),
+          image: art.blocks[e.field],
+          group: 'Blocks'
+        }))
+      )
+    }
     return rows
   }, [vanilla, art, props.filter])
 
@@ -136,6 +136,8 @@ function ItemRefPicker(props: {
     if (!project) return []
     return projectRegistryEntries(project)
       .filter((r) => (props.filter ? r.kind === props.filter : true))
+
+      .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'item' ? -1 : 1))
       .map((r) => ({
         id: r.registryName,
         label: r.displayName,

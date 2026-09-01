@@ -59,20 +59,43 @@ export const LIQUID_DEFAULTS: LiquidProps = {
   luminance: 0
 }
 
-export interface BlockUseRule {
+export type UseEffect =
+
+  | { kind: 'becomes'; block: string }
+
+  | { kind: 'drops'; item: string; count: number }
+
+  | { kind: 'sound'; event: string }
+
+  | { kind: 'particles'; name: string; count: number }
+
+  | { kind: 'cost'; amount: number }
+
+export type UseEffectKind = UseEffect['kind']
+
+export type UseTrigger = 'block' | 'anyBlock' | 'item'
+
+export interface UseRule {
+
+  id: string
+
+  on: UseTrigger
 
   target: string
+  effects: UseEffect[]
+}
 
+export function effectAllowedOn(kind: UseEffectKind, on: UseTrigger): boolean {
+  return kind === 'becomes' ? on !== 'item' : true
+}
+
+export interface LegacyBlockUseRule {
+  target: string
   becomes: string
-
   drops: string
-
   dropCount: number
-
   sound: string
-
   particle: string
-
   particleCount: number
 }
 
@@ -99,9 +122,7 @@ export interface ItemProps {
 
   burnTime: number
 
-  blockUses: BlockUseRule[]
-
-  blockUseCost: number
+  blockUses: UseRule[]
 
   generateSet: boolean
   set: AnySetProps
@@ -164,7 +185,6 @@ export const ITEM_DEFAULTS: ItemProps = {
   tags: [],
   burnTime: 0,
   blockUses: [],
-  blockUseCost: 0,
   generateSet: false,
   set: ANYSET_DEFAULTS
 }
@@ -199,6 +219,10 @@ export interface PlantProps {
 
   growsOn: string[]
 
+  groundMode?: 'listed' | 'any'
+
+  growsInDark?: boolean
+
   maxHeight: number
 
   shearsOnly: boolean
@@ -218,6 +242,8 @@ export const PLANT_DEFAULTS: PlantProps = {
   luminance: 0,
   harvestLevel: 0,
   growsOn: ['block:GRASS', 'block:DIRT'],
+  groundMode: 'listed',
+  growsInDark: false,
   maxHeight: 1,
   shearsOnly: false,
   drops: 'self',

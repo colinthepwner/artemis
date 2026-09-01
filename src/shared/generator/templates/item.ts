@@ -1,5 +1,12 @@
 import type { ArtemisElement } from '../../project'
-import { ITEM_DEFAULTS, itemTypeOf, type BlockUseRule, type ItemProps } from '../props'
+import {
+  effectAllowedOn,
+  ITEM_DEFAULTS,
+  itemTypeOf,
+  type UseEffect,
+  type UseRule,
+  type ItemProps
+} from '../props'
 import { render, JavaWriter } from '../template'
 import { toPascalCase } from '../../project'
 import type { EmitContext, EmitContribution } from '../CodeGenerator'
@@ -8,8 +15,7 @@ import { TOOL_KINDS, ARMOR_KINDS, kitPieces, type ToolKind, type ArmorKind } fro
 
 function itemUseClass(
   registryName: string,
-  rules: BlockUseRule[],
-  cost: number,
+  rules: UseRule[],
   ctx: EmitContext
 ): { className: string; file: { relPath: string; writer: JavaWriter } } {
   const className = `Item${toPascalCase(registryName)}`
@@ -17,49 +23,114 @@ function itemUseClass(
   w.use('Item', 'ItemStack', 'World', 'Player', 'TilePosc', 'Side', 'Block')
 
   const iu = ctx.mapping.itemUse
-  const body = rules
-    .map((r) => {
 
-      let clientEffects = ''
-      if (r.particle?.trim()) {
-        clientEffects += render(iu.particle, {
-          name: r.particle.trim(),
-          count: Math.max(1, Math.min(64, Math.round(r.particleCount || 8)))
+  const bodies = (effects: UseEffect[], atPlayer: boolean): { client: string; server: string } => {
+    const client: string[] = []
+    const server: string[] = []
+    for (const e of effects) {
+      switch (e.kind) {
+        case 'particles':
+          client.push(
+            render(atPlayer ? iu.particleAtPlayer : iu.particle, {
+              name: e.name.trim(),
+              count: Math.max(1, Math.min(64, Math.round(e.count || 8)))
+            })
+          )
+          break
+        case 'sound':
+          w.use('SoundCategory')
+          client.push(
+            render(atPlayer ? iu.soundAtPlayer : iu.sound, { event: e.event.trim() })
+          )
+          break
+        case 'becomes':
+
+          if (!atPlayer) server.push(render(iu.becomes, { block: ctx.blockExpr(e.block, w) }))
+          break
+        case 'drops':
+          server.push(
+            render(atPlayer ? iu.dropsAtPlayer : iu.drops, {
+              stack: ctx.stackExpr(e.item, Math.max(1, Math.round(e.count || 1)), w)
+            })
+          )
+          break
+        case 'cost':
+          server.push(render(iu.cost, { amount: Math.max(1, Math.round(e.amount)) }))
+          break
+      }
+    }
+    return { client: client.join(''), server: server.join('') }
+  }
+
+  const allBlock = rules.filter((r) => r.on !== 'item')
+  const firstAny = allBlock.findIndex((r) => r.on === 'anyBlock')
+  const blockRules = firstAny === -1 ? allBlock : allBlock.slice(0, firstAny + 1)
+  const blockFallsThrough = firstAny === -1
+
+  const itemRules = rules.filter((r) => r.on === 'item')
+
+  const methods: string[] = []
+
+  if (blockRules.length) {
+    const emitted = blockRules
+      .map((r) => {
+        const { client, server } = bodies(r.effects, false)
+
+        const named = r.on === 'block'
+        return render(named ? iu.rule : iu.ruleAny, {
+          target: named ? ctx.blockExpr(r.target, w) : '',
+          clientEffects: client,
+          effects: server
         })
-      }
-      if (r.sound?.trim()) {
-        w.use('SoundCategory')
-        clientEffects += render(iu.sound, { event: r.sound.trim() })
-      }
+      })
+      .join('')
+    methods.push(
+      render(iu.blockMethod, { rules: emitted, tail: blockFallsThrough ? iu.blockTail : '' })
+    )
+  }
 
-      let effects = ''
-      if (r.becomes.trim()) {
-        effects += render(iu.becomes, { block: ctx.blockExpr(r.becomes, w) })
-      }
-      if (r.drops.trim()) {
-        effects += render(iu.drops, {
-          stack: ctx.stackExpr(r.drops, Math.max(1, Math.round(r.dropCount || 1)), w)
-        })
-      }
+  if (itemRules.length) {
+    const merged = bodies(itemRules.flatMap((r) => r.effects), true)
+    methods.push(
+      render(iu.itemMethod, {
+        rules: render(iu.itemRule, { clientEffects: merged.client, effects: merged.server }),
+        tail: ''
+      })
+    )
+  }
 
-      if (cost > 0) effects += render(iu.cost, { amount: Math.round(cost) })
-      return render(iu.rule, { target: ctx.blockExpr(r.target, w), clientEffects, effects })
-    })
-    .join('')
-
-  w.block(render(iu.className, { className, rules: body }))
+  w.block(render(iu.className, { className, methods: methods.join('') }))
   return { className, file: { relPath: `item/${className}.java`, writer: w } }
 }
 
-export function usableRules(rules: BlockUseRule[] | undefined): BlockUseRule[] {
-  return (rules ?? []).filter(
-    (r) =>
-      r.target.trim() !== '' &&
-      (r.becomes.trim() !== '' ||
-        r.drops.trim() !== '' ||
-        (r.sound ?? '').trim() !== '' ||
-        (r.particle ?? '').trim() !== '')
-  )
+export function usableRules(rules: UseRule[] | undefined): UseRule[] {
+  return (rules ?? [])
+    .map((r) => ({
+      ...r,
+      on: r.on ?? 'block',
+      effects: (r.effects ?? []).filter(
+        (e) => isFilledEffect(e) && effectAllowedOn(e.kind, r.on ?? 'block')
+      )
+    }))
+
+    .filter((r) => r.effects.length > 0 && !(r.on === 'block' && r.target.trim() === ''))
+}
+
+function isFilledEffect(e: UseEffect): boolean {
+  switch (e.kind) {
+    case 'becomes':
+      return e.block.trim() !== ''
+    case 'drops':
+      return e.item.trim() !== ''
+    case 'sound':
+      return e.event.trim() !== ''
+    case 'particles':
+      return e.name.trim() !== ''
+    case 'cost':
+      return Math.round(e.amount) > 0
+    default:
+      return false
+  }
 }
 
 export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution {
@@ -93,7 +164,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
         }),
         render(ctx.mapping.toolMaterial.standalone[tool], {
           ...setVars,
-          creative: ctx.creativeCall('tool')
+          creative: ctx.creativeCall({ category: 'tool', registryName: el.name, family: 'item' })
         })
       )
     } else if (armor) {
@@ -110,7 +181,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
         }),
         render(ctx.mapping.armorMaterial.standalone[armor], {
           ...setVars,
-          creative: ctx.creativeCall('armor')
+          creative: ctx.creativeCall({ category: 'armor', registryName: el.name, family: 'item' })
         })
       )
     }
@@ -143,7 +214,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
   }
 
   const rules = usableRules(p.blockUses)
-  const use = rules.length ? itemUseClass(el.name, rules, p.blockUseCost ?? 0, ctx) : null
+  const use = rules.length ? itemUseClass(el.name, rules, ctx) : null
 
   itemDecls.push(
     [
@@ -158,7 +229,7 @@ export function emitItem(el: ArtemisElement, ctx: EmitContext): EmitContribution
         eatTicks: Math.max(1, Math.round(p.eatTicks ?? 32)),
         wolfMeat: p.wolfMeat ? 'true' : 'false',
         stackSize,
-        creative: ctx.creativeCall(p.category)
+        creative: ctx.creativeCall({ category: p.category, registryName: el.name, family: 'item' })
       })
     ].join('\n')
   )

@@ -9,14 +9,80 @@ import { IsoBlock } from '../ui/ContentThumb'
 
 const LEVELS = 16
 
+const RAMP = (t: number): string => mix('#5c4a22', '#f2c77e', t)
+
+const UNLIT = '#161b22'
+
+const cellAt = (i: number, cells: number): string => `${((i * 2 + 1) / (cells * 2)) * 100}%`
+
+function SegmentedTrack(props: {
+
+  cells: number
+
+  index: number
+  onIndex: (i: number) => void
+
+  ramp?: (t: number) => string
+
+  glow?: boolean
+}): JSX.Element {
+  const { cells, index } = props
+  const ramp = props.ramp ?? RAMP
+  const last = cells - 1
+
+  return (
+    <SliderPrimitive.Root
+      value={[index]}
+      onValueChange={([v]) => props.onIndex(v)}
+      min={0}
+      max={last}
+      step={1}
+      className="relative flex h-8 w-full touch-none items-center"
+    >
+      <SliderPrimitive.Track
+        className="relative flex h-5 flex-1 overflow-hidden rounded-[3px] bg-ink-950 shadow-panel"
+        style={{
+          boxShadow:
+            props.glow && index > 0
+              ? `0 0 ${2 + index}px rgba(255,214,130,${(index / last) * 0.45}), 0 0 0 1px rgba(255,255,255,0.045)`
+              : undefined
+        }}
+      >
+        {Array.from({ length: cells }, (_, i) => {
+          const on = i > 0 && i <= index
+          return (
+            <span
+              key={i}
+              className="flex-1"
+              style={{
+                background: on ? ramp(i / last) : UNLIT,
+
+                boxShadow:
+                  'inset -1px 0 0 rgba(0,0,0,0.55)' + (on ? ', inset 0 -2px 0 rgba(0,0,0,0.28)' : '')
+              }}
+            />
+          )
+        })}
+      </SliderPrimitive.Track>
+      {
+
+}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 h-7 -translate-x-1/2 -translate-y-1/2 rounded-[4px] bg-mist-50/20 shadow-raised ring-2 ring-mist-50"
+        style={{ left: cellAt(index, cells), width: `${100 / cells}%` }}
+      />
+      <SliderPrimitive.Thumb className="block h-7 w-1 opacity-0" />
+    </SliderPrimitive.Root>
+  )
+}
+
 const LIGHT_MARKS: { at: number; swatch: string; label: string }[] = [
   { at: 1, swatch: 'mushroom', label: 'Brown mushroom' },
   { at: 7, swatch: 'torchRedstone', label: 'Redstone torch' },
   { at: 14, swatch: 'torch', label: 'Torch' },
   { at: 15, swatch: 'glowstone', label: 'Glowstone' }
 ]
-
-const cellCenter = (level: number): string => `${((level * 2 + 1) / (LEVELS * 2)) * 100}%`
 
 export function LightSlider(props: {
   value: number
@@ -28,52 +94,14 @@ export function LightSlider(props: {
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <SliderPrimitive.Root
-          value={[lit]}
-          onValueChange={([v]) => props.onChange(v)}
-          min={0}
-          max={LEVELS - 1}
-          step={1}
-          className="relative flex h-8 w-full touch-none items-center"
-        >
-          <SliderPrimitive.Track
-            className="relative flex h-5 flex-1 overflow-hidden rounded-[3px] bg-ink-950 shadow-panel"
-            style={{
+        <SegmentedTrack
+          cells={LEVELS}
+          index={lit}
+          onIndex={props.onChange}
 
-              boxShadow:
-                lit > 0
-                  ? `0 0 ${2 + lit}px rgba(255,214,130,${(lit / (LEVELS - 1)) * 0.45}), 0 0 0 1px rgba(255,255,255,0.045)`
-                  : undefined
-            }}
-          >
-            {Array.from({ length: LEVELS }, (_, i) => {
-              const on = i > 0 && i <= lit
-              return (
-                <span
-                  key={i}
-                  className="flex-1"
-                  style={{
-
-                    background: on ? mix('#8a4a12', '#fff3cd', i / (LEVELS - 1)) : '#161b22',
-
-                    boxShadow:
-                      'inset -1px 0 0 rgba(0,0,0,0.55)' +
-                      (on ? ', inset 0 -2px 0 rgba(0,0,0,0.28)' : '')
-                  }}
-                />
-              )
-            })}
-          </SliderPrimitive.Track>
-          {
-
-}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 h-7 -translate-x-1/2 -translate-y-1/2 rounded-[4px] bg-mist-50/20 shadow-raised ring-2 ring-mist-50"
-            style={{ left: cellCenter(lit), width: `${100 / LEVELS}%` }}
-          />
-          <SliderPrimitive.Thumb className="block h-7 w-1 opacity-0" />
-        </SliderPrimitive.Root>
+          ramp={(t) => mix('#8a4a12', '#fff3cd', t)}
+          glow
+        />
 
         {}
         <div className="relative mt-0 h-[26px]">
@@ -87,7 +115,7 @@ export function LightSlider(props: {
                 title={`${m.label}, light ${m.at}`}
 
                 className="absolute top-0 flex w-5 -translate-x-1/2 flex-col items-center gap-0.5"
-                style={{ left: cellCenter(m.at) }}
+                style={{ left: cellAt(m.at, LEVELS) }}
               >
                 <span className="h-[3px] w-px bg-mist-600" />
                 {swatch ? (
@@ -135,29 +163,24 @@ export function LightSlider(props: {
   )
 }
 
+const CLIMATE_CELLS = 21
+
 export function ClimateSlider(props: {
   value: number
   onChange: (v: number) => void
   marks: { at: number; swatch: string; label: string }[]
 }): JSX.Element {
   const art = useVanillaArt()
+  const cell = Math.round(props.value * (CLIMATE_CELLS - 1))
 
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <SliderPrimitive.Root
-          value={[props.value]}
-          onValueChange={([v]) => props.onChange(v)}
-          min={0}
-          max={1}
-          step={0.05}
-          className="relative flex h-8 w-full touch-none items-center"
-        >
-          <SliderPrimitive.Track className="relative flex h-[3px] flex-1 overflow-hidden rounded-full bg-ink-700 shadow-panel">
-            <SliderPrimitive.Range className="absolute h-full rounded-full bg-gold-500" />
-          </SliderPrimitive.Track>
-          <SliderPrimitive.Thumb className="block h-3 w-3 rounded-full bg-mist-50 shadow-raised transition-transform hover:scale-110" />
-        </SliderPrimitive.Root>
+        <SegmentedTrack
+          cells={CLIMATE_CELLS}
+          index={cell}
+          onIndex={(i) => props.onChange(i / (CLIMATE_CELLS - 1))}
+        />
 
         <div className="relative mt-0 h-[26px]">
           {props.marks.map((m) => {
@@ -169,7 +192,8 @@ export function ClimateSlider(props: {
                 onClick={() => props.onChange(m.at)}
                 title={m.label}
                 className="absolute top-0 flex w-5 -translate-x-1/2 flex-col items-center gap-0.5"
-                style={{ left: `${m.at * 100}%` }}
+
+                style={{ left: cellAt(Math.round(m.at * (CLIMATE_CELLS - 1)), CLIMATE_CELLS) }}
               >
                 <span className="h-[3px] w-px bg-mist-600" />
                 {swatch ? (
@@ -240,7 +264,9 @@ export const HARDNESS_MARKS: ScaleMark[] = [
   { at: 50, swatch: 'obsidian', label: 'Obsidian' }
 ]
 
-const STEPS = 1000
+const STEPS = 20
+
+const SCALE_CELLS = STEPS + 1
 
 function decimalsOf(step: number): number {
   const s = String(step)
@@ -283,26 +309,17 @@ export function ScaleSlider(props: {
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <SliderPrimitive.Root
-          value={[toPos(value)]}
-          onValueChange={([p]) => props.onChange(fromPos(p))}
-          min={0}
-          max={STEPS}
-          step={1}
-          className="relative flex h-6 w-full touch-none items-center"
-        >
-          <SliderPrimitive.Track className="relative h-1 flex-1 rounded-full bg-ink-700">
-            <SliderPrimitive.Range className="absolute h-full rounded-full bg-gold-500" />
-          </SliderPrimitive.Track>
-          <SliderPrimitive.Thumb className="block h-4 w-4 rounded-full bg-mist-50 shadow-raised transition-transform hover:scale-110" />
-        </SliderPrimitive.Root>
+        <SegmentedTrack
+          cells={SCALE_CELLS}
+          index={toPos(value)}
+          onIndex={(p) => props.onChange(fromPos(p))}
+        />
 
         {props.marks && props.marks.length > 0 && (
           <div className="relative mt-0 h-[26px]">
             {props.marks.map((m) => {
               const swatch = swatchFor(m.swatch, art)
 
-              const t = toPos(m.at) / STEPS
               return (
                 <button
                   key={`${m.swatch}-${m.at}`}
@@ -311,7 +328,7 @@ export function ScaleSlider(props: {
                   title={`${m.label}: ${m.at}`}
 
                   className="absolute top-0 flex w-5 -translate-x-1/2 flex-col items-center gap-0.5"
-                  style={{ left: `calc(8px + ${t} * (100% - 16px))` }}
+                  style={{ left: cellAt(toPos(m.at), SCALE_CELLS) }}
                 >
                   <span className="h-[3px] w-px bg-mist-600" />
                   {swatch ? (

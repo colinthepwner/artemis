@@ -170,17 +170,21 @@ export function unfinishedIn(project: ArtemisProject): Unfinished[] {
       }
     }
     if (el.kind === 'plant') {
+
+      const anywhere = p['groundMode'] === 'any'
       const grounds = Array.isArray(p['growsOn']) ? (p['growsOn'] as string[]) : []
-      checkRefs(grounds, 'Ground block')
-      if (!grounds.some((r) => r?.trim())) {
-        out.push({ ...base, label: 'has no ground it can grow on' })
+      if (!anywhere) {
+        checkRefs(grounds, 'Ground block')
+        if (!grounds.some((r) => r?.trim())) {
+          out.push({ ...base, label: 'has no ground it can grow on' })
+        }
       }
 
       const patches = Math.max(0, Math.round((p['patchesPerChunk'] as number | undefined) ?? 0))
       const named = (Array.isArray(p['biomes']) ? (p['biomes'] as string[]) : [])
         .map((r) => String(r ?? '').trim())
         .filter(Boolean)
-      if (patches > 0 && named.length > 0 && grounds.some((r) => r?.trim())) {
+      if (!anywhere && patches > 0 && named.length > 0 && grounds.some((r) => r?.trim())) {
         const floorOf = (b: { properties: Record<string, unknown> }): string =>
           String(b.properties['topBlock'] ?? '').trim()
         const barren = named

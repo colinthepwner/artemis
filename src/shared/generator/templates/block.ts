@@ -85,15 +85,14 @@ export function blockDecl(
     chain.push(render(bb.methods['tags'], { ...vars, value: uniqueTags.join(', ') }))
   }
 
-  chain.push(
-    render(ctx.mapping.creative.call, {
+  const placement = ctx.creativeCall({
 
-      category:
-        ctx.mapping.creative.categories[
-          options.creative ?? p.creativeCategory ?? 'block'
-        ] ?? ctx.mapping.creative.categories['block']
-    })
-  )
+    category: options.creative ?? p.creativeCategory ?? 'block',
+    registryName,
+    family: 'block',
+    hidden: p.notInCreativeMenu
+  })
+  if (placement) chain.push(placement)
 
   chain.push(...(options.extraMethods ?? []))
 

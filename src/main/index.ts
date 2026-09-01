@@ -93,9 +93,10 @@ function chromeOptions(): BrowserWindowConstructorOptions {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
 
-        color: '#07090c',
+        color: '#0a0a0a',
 
-        symbolColor: '#8b93a1',
+        symbolColor: '#999999',
+
         height: TITLEBAR_HEIGHT
       }
     }
@@ -122,7 +123,7 @@ function createWindow(): void {
     show: false,
 
     ...chromeOptions(),
-    backgroundColor: '#07090c',
+    backgroundColor: '#0a0a0a',
     title: 'Artemis',
 
     icon: join(
@@ -195,7 +196,7 @@ function createWindow(): void {
       'data:text/html;charset=utf-8,' +
         encodeURIComponent(
           `<body style="margin:0;display:flex;align-items:center;justify-content:center;` +
-            `height:100vh;background:#07090c;color:#e6e8eb;` +
+            `height:100vh;background:#0a0a0a;color:#f2f2f2;` +
             `font:14px/1.6 system-ui,Segoe UI,sans-serif">` +
             `<div style="max-width:34rem;padding:2rem">` +
             `<h1 style="font-size:1.1rem;margin:0 0 .75rem">Artemis could not open its window</h1>` +

@@ -159,3 +159,14 @@ export function tailLines(out: string, n = 40): string {
     .slice(-n)
     .join('\n')
 }
+
+export function dropAbsentDependencies(modJson: {
+  depends?: Record<string, unknown>
+}): string[] {
+  if (!modJson.depends) return []
+
+  const provided = ['fabricloader', 'fabric-loader', 'minecraft', 'java', 'halplibe']
+  const absent = Object.keys(modJson.depends).filter((id) => !provided.includes(id))
+  for (const id of absent) delete modJson.depends[id]
+  return absent
+}

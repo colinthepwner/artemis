@@ -19,7 +19,15 @@ import { SCENARIOS } from './audit-fixtures'
 import { probeWorkspace } from './_temp'
 import { GRADLE } from './_gradle'
 import { png16DataUrl } from './_canvas'
-import { harness, kitPieceNames, onGameClose, tailLines, treeKiller, type GameRun } from './_harness'
+import {
+  dropAbsentDependencies,
+  harness,
+  kitPieceNames,
+  onGameClose,
+  tailLines,
+  treeKiller,
+  type GameRun
+} from './_harness'
 import { javaNames, javaReport } from './_probe-java'
 
 const PORT = 25599
@@ -68,6 +76,8 @@ interface Expectations {
 
   spawns: { entityClass: string; weight: number; hostile: boolean; biomes: string[] }[]
   langKeys: string[]
+
+  langBlank: string[]
 }
 
 function expectationsFor(project: ArtemisProject, root: string): Expectations {
@@ -76,9 +86,13 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     root,
     `src/main/resources/assets/${project.meta.modId}/lang/en_US/${project.meta.modId}.lang`
   )
-  const langKeys = readFileSync(langPath, 'utf-8')
+  const langLines = readFileSync(langPath, 'utf-8')
     .split('\n')
     .filter((l) => l.includes('='))
+  const langKeys = langLines.map((l) => l.slice(0, l.indexOf('=')).trim())
+
+  const langBlank = langLines
+    .filter((l) => l.slice(l.indexOf('=') + 1).trim().length === 0)
     .map((l) => l.slice(0, l.indexOf('=')).trim())
 
   const namesUnder = (prefix: string): string[] => [
@@ -434,7 +448,8 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     structures,
     decoratorTrees: decoratorTreeRows,
     spawns,
-    langKeys
+    langKeys,
+    langBlank
   }
 }
 
@@ -469,6 +484,10 @@ ${javaList(e.biomes)}
 \t};
 \tprivate static final String[] LANG_KEYS = {
 ${javaList(e.langKeys)}
+\t};
+\t/** of those, the ones the export meant to leave blank */
+\tprivate static final String[] LANG_BLANK = {
+${javaList(e.langBlank)}
 \t};
 \tprivate static final String[] OVERWORLD_BIOMES = {
 ${javaList(e.overworldBiomes)}
@@ -4538,6 +4557,14 @@ async function main(): Promise<void> {
   const modJsonPath = join(root, 'src/main/resources/fabric.mod.json')
   const modJson = JSON.parse(readFileSync(modJsonPath, 'utf-8'))
   modJson.entrypoints.main.push('artemisprobe.ArtemisProbe')
+  const dropped = dropAbsentDependencies(modJson)
+  if (dropped.length > 0) {
+    console.log(
+      `dropped ${dropped.length} required dependency(s) the loader could not satisfy ` +
+        `(${dropped.join(', ')}); the manifest itself is checked in audit-export
+`
+    )
+  }
   writeFileSync(modJsonPath, JSON.stringify(modJson, null, 2))
 
   const runDir = join(root, 'run')

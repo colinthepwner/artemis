@@ -166,11 +166,17 @@ export function Select(props: {
   value: string
   onChange: (v: string) => void
   options: SelectOption[]
+
+  onPreview?: (value: string | null) => void
 }): JSX.Element {
   const current = props.options.find((o) => o.value === props.value)
   const { markOutside, onCloseAutoFocus } = useOutsideClose()
   return (
-    <Menu.Root modal={false}>
+    <Menu.Root
+      modal={false}
+
+      onOpenChange={(open) => !open && props.onPreview?.(null)}
+    >
       <Menu.Trigger asChild>
         <button className="input-base relative flex items-center justify-between gap-2 overflow-hidden text-left focus-visible:ring-0 data-[state=open]:shadow-glow-gold">
           <OptionTexture texture={current?.texture} strip={current?.strip} opacity={0.26} />
@@ -187,13 +193,19 @@ export function Select(props: {
           sideOffset={4}
           onPointerDownOutside={markOutside}
           onCloseAutoFocus={onCloseAutoFocus}
+          onPointerLeave={() => props.onPreview?.(null)}
 
-          className="z-50 flex max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] min-w-[180px] flex-col gap-1 overflow-y-auto rounded-md bg-ink-750 p-1.5 shadow-raised outline-none focus-visible:ring-0"
+          collisionPadding={8}
+
+          className="z-50 flex max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] min-w-[180px] flex-col gap-1 overflow-y-auto overscroll-contain rounded-md bg-ink-750 p-1.5 shadow-raised outline-none focus-visible:ring-0"
         >
           {props.options.map((o) => (
             <Menu.Item
               key={o.value}
               onSelect={() => props.onChange(o.value)}
+              onPointerEnter={() => props.onPreview?.(o.value)}
+
+              onFocus={() => props.onPreview?.(o.value)}
 
               className="relative flex shrink-0 items-center justify-between gap-2 overflow-hidden rounded px-2 py-1.5 text-[13px] text-mist-200 outline-none data-[highlighted]:bg-ink-600 data-[highlighted]:text-mist-50"
             >

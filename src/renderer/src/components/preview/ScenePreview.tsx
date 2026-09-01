@@ -51,8 +51,13 @@ export function ScenePreview(props: { element: ArtemisElement }): JSX.Element | 
   const kind = props.element.kind
   const isPlant = kind === 'plant'
 
-  const growsOn = (props.element.properties as Partial<PlantProps>).growsOn
-  const firstRef = (Array.isArray(growsOn) ? growsOn : []).find((r) => r?.trim())?.trim()
+  const plantProps = props.element.properties as Partial<PlantProps>
+  const growsOn = plantProps.growsOn
+
+  const firstRef =
+    plantProps.groundMode === 'any'
+      ? undefined
+      : (Array.isArray(growsOn) ? growsOn : []).find((r) => r?.trim())?.trim()
   const swatchKey = (firstRef && REF_SWATCH[firstRef]) ?? 'grass'
   const vanillaGround = useSwatch(isPlant ? swatchKey : 'grass')
   const modGroundEl =

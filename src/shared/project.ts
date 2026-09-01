@@ -76,7 +76,9 @@ export interface ProjectSound {
 
   event: string
 
-  ogg: string
+  format?: 'ogg' | 'wav'
+
+  audio: string
 
   bytes: number
   createdAt: string
@@ -98,10 +100,28 @@ export interface ProjectTexture {
   updatedAt: string
 }
 
+export interface ElementGroup {
+  id: string
+
+  name: string
+
+  shelf: string
+
+  members: string[]
+
+  color: string
+
+  kind?: ElementKind
+
+  props?: Record<string, unknown>
+}
+
 export interface ArtemisProject {
   formatVersion: 1
   meta: ProjectMeta
   elements: ArtemisElement[]
+
+  groups?: ElementGroup[]
 
   textures: ProjectTexture[]
 
@@ -129,10 +149,35 @@ export function createEmptyProject(
       obfuscate: true
     },
     elements: [],
+    groups: [],
     textures: [],
+
+    sounds: [],
     textureAssignments: {},
     codeOverrides: {}
   }
+}
+
+export function groupOfElement(
+  project: Pick<ArtemisProject, 'groups'>,
+  elementId: string
+): ElementGroup | undefined {
+  return (project.groups ?? []).find((g) => g.members.includes(elementId))
+}
+
+export function effectiveProperties(
+  project: Pick<ArtemisProject, 'groups'>,
+  element: Pick<ArtemisElement, 'id' | 'properties'>
+): Record<string, unknown> {
+  const shared = groupOfElement(project, element.id)?.props
+  if (!shared || Object.keys(shared).length === 0) return element.properties
+  return { ...element.properties, ...shared }
+}
+
+export function groupedElementIds(project: Pick<ArtemisProject, 'groups'>): Set<string> {
+  const out = new Set<string>()
+  for (const g of project.groups ?? []) for (const id of g.members) out.add(id)
+  return out
 }
 
 export function toRegistryName(display: string): string {

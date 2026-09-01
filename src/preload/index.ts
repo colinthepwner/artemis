@@ -16,7 +16,7 @@ const api: ArtemisApi = {
     dragMove: (dx, dy) => ipcRenderer.send(IPC.WindowDragMove, dx, dy)
   },
   sound: {
-    importOgg: () => ipcRenderer.invoke(IPC.SoundImport)
+    importAudio: () => ipcRenderer.invoke(IPC.SoundImport)
   },
   texture: {
     exportFile: (dataUrl, suggestedName) =>

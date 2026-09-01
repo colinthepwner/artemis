@@ -394,10 +394,17 @@ function theTitleBar(): void {
     check(`${platform}: the strip is still draggable`,
       String(header?.props.className ?? '').includes('drag-region'),
       String(header?.props.className))
+
+    const barPx = Number(header?.props.style?.height ?? 0)
     check(
-      `${platform}: and is still ${TITLEBAR_HEIGHT} pixels once the zoom is canceled`,
-      Math.abs(Number(header?.props.style?.height ?? 0) * UI_SCALE - TITLEBAR_HEIGHT) < 1e-9,
-      String(header?.props.style?.height)
+      `${platform}: the strip covers the whole ${TITLEBAR_HEIGHT} pixel overlay`,
+      barPx * UI_SCALE >= TITLEBAR_HEIGHT,
+      `${barPx} scales to ${barPx * UI_SCALE}`
+    )
+    check(
+      `${platform}: and stands exactly one hairline past it`,
+      barPx === Math.ceil(TITLEBAR_HEIGHT * TITLEBAR_UNSCALE) + 1,
+      `${barPx}, wanted ${Math.ceil(TITLEBAR_HEIGHT * TITLEBAR_UNSCALE) + 1}`
     )
 
     bar.unmount()

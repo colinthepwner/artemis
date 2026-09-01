@@ -14,6 +14,8 @@ import {
 } from '@shared/platform'
 
 const BAR_HEIGHT = TITLEBAR_HEIGHT
+
+const HAIRLINE = 1
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Hammer, Images } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -32,8 +34,10 @@ export function TitleBar(): JSX.Element {
   return (
 
     <header
-      className="drag-region z-50 shrink-0 overflow-hidden bg-ink-950"
-      style={{ height: BAR_HEIGHT * TITLEBAR_UNSCALE }}
+
+      className="drag-region relative z-50 shrink-0 overflow-hidden bg-ink-950 shadow-chrome-edge"
+
+      style={{ height: Math.ceil(BAR_HEIGHT * TITLEBAR_UNSCALE) + HAIRLINE }}
     >
       <div
 
@@ -78,6 +82,15 @@ export function TitleBar(): JSX.Element {
       {}
       {side === 'right' && <ControlsGap side="right" />}
       </div>
+
+      {
+
+}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-white/[0.04]"
+        style={{ height: HAIRLINE }}
+      />
     </header>
   )
 }

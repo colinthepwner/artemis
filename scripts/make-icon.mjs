@@ -323,6 +323,75 @@ const render = (renderer, icoName, pngName, icnsName) => {
 render(renderIcon, 'icon.ico', 'icon.png', 'icon.icns')
 render(renderDocIcon, 'file-icon.ico', 'file-icon.png', 'file-icon.icns')
 
+function encodeGrayPng(gray, w, h) {
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(w, 0)
+  ihdr.writeUInt32BE(h, 4)
+  ihdr[8] = 8
+  ihdr[9] = 0
+  const trns = Buffer.alloc(2)
+  const raw = Buffer.alloc(h * (w + 1))
+  for (let y = 0; y < h; y++) {
+    raw[y * (w + 1)] = 0
+    gray.copy(raw, y * (w + 1) + 1, y * w, (y + 1) * w)
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('tRNS', trns),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0))
+  ])
+}
+
+const INLINE_LIMIT = 4096
+const SPRITE = join(root, 'src/renderer/src/assets/logo-pixel.png')
+if (existsSync(SPRITE)) {
+  const sprite = await Jimp.read(SPRITE)
+  const sd = sprite.bitmap.data
+  const sw = sprite.bitmap.width
+  const sh = sprite.bitmap.height
+
+  let sMinX = sw
+  let sMinY = sh
+  let sMaxX = -1
+  let sMaxY = -1
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      if (sd[(y * sw + x) * 4 + 3] <= 110) continue
+      if (x < sMinX) sMinX = x
+      if (x > sMaxX) sMaxX = x
+      if (y < sMinY) sMinY = y
+      if (y > sMaxY) sMaxY = y
+    }
+  }
+  const gwCells = sMaxX - sMinX + 1
+  const ghCells = sMaxY - sMinY + 1
+
+  const grid = new Jimp({ width: bust.width, height: bust.height, data: Buffer.from(bust.data) })
+  grid.resize({ w: gwCells, h: ghCells })
+  const gd = grid.bitmap.data
+  const gray = Buffer.alloc(gwCells * ghCells)
+  for (let i = 0; i < gwCells * ghCells; i++) {
+    const o = i * 4
+
+    if (gd[o + 3] <= 110) continue
+    const l = 0.299 * gd[o] + 0.587 * gd[o + 1] + 0.114 * gd[o + 2]
+    gray[i] = 1 + Math.min(254, Math.round(l))
+  }
+  const gridPng = encodeGrayPng(gray, gwCells, ghCells)
+  writeFileSync(join(root, 'src/renderer/src/assets/logo-marble-grid.png'), gridPng)
+  console.log(`Wrote src/renderer/src/assets/logo-marble-grid.png (${gwCells}x${ghCells}, ${gridPng.length}B)`)
+  if (gridPng.length >= INLINE_LIMIT) {
+    console.warn(
+      `  WARNING: over Vite's ${INLINE_LIMIT}B inlining limit. It will be emitted as a separate` +
+        ' file and the landing page pixel effect will stop working in packaged builds.'
+    )
+  }
+} else {
+  console.warn('No src/renderer/src/assets/logo-pixel.png, skipping the marble grid.')
+}
+
 console.log(`Logo processed: bust cropped to ${bust.width}x${bust.height}`)
 console.log('Wrote src/renderer/src/assets/logo.png')
 console.log('Wrote resources/icon.{ico,png,icns} and resources/file-icon.{ico,png,icns}')

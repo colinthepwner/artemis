@@ -195,6 +195,8 @@ export const SWATCHES: Record<string, SwatchSpec> = {
     flat: true,
     scale: 100
   },
+
+  emitsRedstone: { field: 'BLOCK_REDSTONE', tint: '#a01e14' },
   notInCreativeMenu: {
     field: 'GLASS',
     stripField: 'GLASS_JOINED_X',

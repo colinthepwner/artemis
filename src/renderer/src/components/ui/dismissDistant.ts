@@ -21,6 +21,12 @@ export function useCloseOnEscape(onClose: () => void, blocked?: () => boolean): 
   }, [])
 }
 
+let distantAt = -Infinity
+
+export function dismissedByDistance(): boolean {
+  return performance.now() - distantAt < 300
+}
+
 export function useDismissDistantMenus(): void {
   useEffect(() => {
 
@@ -45,6 +51,7 @@ export function useDismissDistantMenus(): void {
       if (distance <= LEAVE_DISTANCE) return
       armed = false
 
+      distantAt = performance.now()
       menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     }
 

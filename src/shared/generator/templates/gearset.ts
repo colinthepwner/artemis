@@ -40,7 +40,11 @@ export function emitGearSet(el: ArtemisElement, ctx: EmitContext): EmitContribut
       itemDecls.push(
         render(ctx.mapping.toolMaterial.tools[piece.kind as ToolKind], {
           ...setVars,
-          creative: ctx.creativeCall('tool')
+          creative: ctx.creativeCall({
+            category: 'tool',
+            registryName: piece.name,
+            family: 'item'
+          })
         })
       )
       langLines.push(...itemLangLines(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))
@@ -66,7 +70,11 @@ export function emitGearSet(el: ArtemisElement, ctx: EmitContext): EmitContribut
       itemDecls.push(
         render(ctx.mapping.armorMaterial.pieces[piece.kind as ArmorKind], {
           ...setVars,
-          creative: ctx.creativeCall('armor')
+          creative: ctx.creativeCall({
+            category: 'armor',
+            registryName: piece.name,
+            family: 'item'
+          })
         })
       )
       langLines.push(...itemLangLines(piece.name, `${displayName} ${titleCase(piece.kind)}`, ctx))

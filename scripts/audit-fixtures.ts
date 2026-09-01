@@ -28,6 +28,19 @@ function mk(modId: string): {
   return { project, add }
 }
 
+function idsOf(project: ArtemisProject, kind: ElementKind, ...names: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const name of names) {
+    for (const el of project.elements) {
+      if (el.kind !== kind || el.name !== name || seen.has(el.id)) continue
+      seen.add(el.id)
+      out.push(el.id)
+    }
+  }
+  return out
+}
+
 export function scenario(name: string): Scenario {
   const found = SCENARIOS.find((s) => s.name === name)
   if (!found) throw new Error(`no fixture named "${name}"`)
@@ -695,7 +708,8 @@ export const SCENARIOS: Scenario[] = [
           id: 'snd-clang',
           name: 'clang',
           event: 'block.clang',
-          ogg: gzipSync(Buffer.from('OggS' + 'x'.repeat(2048), 'binary'), { level: 9 }).toString('base64'),
+          format: 'ogg',
+          audio: gzipSync(Buffer.from('OggS' + 'x'.repeat(2048), 'binary'), { level: 9 }).toString('base64'),
           bytes: 2052,
           createdAt: '2026-08-30T00:00:00Z',
           updatedAt: '2026-08-30T00:00:00Z'
@@ -714,10 +728,26 @@ export const SCENARIOS: Scenario[] = [
         displayName: 'Chisel',
         stackSize: 1,
         category: 'misc',
-        blockUseCost: 1,
         blockUses: [
-          { target: 'block:STONE', becomes: 'block:STONE_CARVED', drops: '', dropCount: 1 },
-          { target: 'block:STONE_CARVED', becomes: 'marble', drops: 'ash', dropCount: 1 }
+          {
+            id: 'chisel-1',
+            on: 'block',
+            target: 'block:STONE',
+            effects: [
+              { kind: 'becomes', block: 'block:STONE_CARVED' },
+              { kind: 'cost', amount: 1 }
+            ]
+          },
+          {
+            id: 'chisel-2',
+            on: 'block',
+            target: 'block:STONE_CARVED',
+            effects: [
+              { kind: 'becomes', block: 'marble' },
+              { kind: 'drops', item: 'ash', count: 1 },
+              { kind: 'cost', amount: 1 }
+            ]
+          }
         ]
       })
       add('block', 'marble', { displayName: 'Marble' })
@@ -774,6 +804,26 @@ export const SCENARIOS: Scenario[] = [
         fillerBlock: 'marble'
       })
       add('dimension', 'the_hollow', { biomes: ['hollow'], portalFrame: 'marble' })
+
+      project.groups = [
+        {
+          id: 'grp-ruby',
+          name: 'Ruby',
+          shelf: 'oreDrop',
+          kind: 'item',
+          members: idsOf(project, 'item', 'ash', 'ruby'),
+          color: '#e6ad55',
+          props: { stackSize: 16 }
+        },
+        {
+          id: 'grp-scenery',
+          name: 'Scenery',
+          shelf: '',
+          kind: 'block',
+          members: idsOf(project, 'block', 'kiln', 'marble'),
+          color: '#82ca70'
+        }
+      ]
       return project
     }
   },

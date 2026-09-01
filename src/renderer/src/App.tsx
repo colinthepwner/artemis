@@ -18,6 +18,7 @@ import { TestingSection } from '@/sections/TestingSection'
 import { PixelEditorOverlay } from '@/components/pixel/PixelEditor'
 import { VoxelEditorOverlay } from '@/components/workshop/VoxelEditor'
 import { CreateMenu } from '@/components/layout/CreateMenu'
+import { GroupDialog } from '@/components/layout/GroupDialog'
 import { BootScreen } from '@/components/layout/BootScreen'
 import { ConstructionNotice } from '@/components/layout/ConstructionNotice'
 import { UpdateBar } from '@/components/layout/UpdateBar'
@@ -33,6 +34,8 @@ export default function App(): JSX.Element {
   const section = useAppStore((s) => s.section)
   const inspectorOpen = useAppStore((s) => s.inspectorOpen)
   const createMenuOpen = useAppStore((s) => s.createMenuOpen)
+  const groupEditorId = useAppStore((s) => s.groupEditorId)
+  const setGroupEditor = useAppStore((s) => s.setGroupEditor)
   const closeCreateMenu = useAppStore((s) => s.closeCreateMenu)
 
   const isElementSection = (ELEMENT_KINDS as readonly string[]).includes(section)
@@ -179,6 +182,9 @@ export default function App(): JSX.Element {
       {
 }
       {createMenuOpen && <CreateMenu onClose={closeCreateMenu} />}
+      {groupEditorId && (
+        <GroupDialog groupId={groupEditorId} onClose={() => setGroupEditor(null)} />
+      )}
       <PixelEditorOverlay />
       <VoxelEditorOverlay />
       <ConstructionNotice />

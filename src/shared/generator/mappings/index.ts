@@ -47,12 +47,26 @@ export interface BtaMapping {
 
   itemUse: {
     className: string
+
+    blockMethod: string
+
+    blockTail: string
+
     rule: string
+
+    ruleAny: string
+
+    itemMethod: string
+    itemTail: string
+    itemRule: string
     becomes: string
     drops: string
+    dropsAtPlayer: string
     cost: string
     sound: string
+    soundAtPlayer: string
     particle: string
+    particleAtPlayer: string
   }
 
   blockLogic: { classTemplate: string; dropMethod: string; signalMethods: string }
@@ -68,9 +82,16 @@ export interface BtaMapping {
 
   liquid: Record<string, string>
 
-  plant: { logicClass: string; growth: string }
+  plant: { logicClass: string; growth: string; canStayAnyLight: string }
 
-  creative: { call: string; categories: Record<string, string> }
+  creative: {
+
+    call: string
+
+    registryHelper: string
+    registryPlace: string
+    categories: Record<string, string>
+  }
   recipes: Record<string, string>
 
   api: {

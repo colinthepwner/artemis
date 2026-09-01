@@ -171,13 +171,14 @@ console.log('what a right-click rule does, and which side does it')
     displayName: 'Chisel',
     blockUses: [
       {
+        id: 'clicky-1',
+        on: 'block',
         target: 'block:STONE',
-        becomes: 'block:STONE_CARVED',
-        drops: '',
-        dropCount: 1,
-        particle: 'smoke',
-        particleCount: 6,
-        sound: 'block.clang'
+        effects: [
+          { kind: 'becomes', block: 'block:STONE_CARVED' },
+          { kind: 'sound', event: 'block.clang' },
+          { kind: 'particles', name: 'smoke', count: 6 }
+        ]
       }
     ]
   })

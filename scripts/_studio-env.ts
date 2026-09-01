@@ -59,7 +59,7 @@ const api: ArtemisApi = {
     dragStart: () => record('window.dragStart'),
     dragMove: (dx, dy) => record('window.dragMove', dx, dy)
   },
-  sound: { importOgg: async () => { record('sound.importOgg'); return null } },
+  sound: { importAudio: async () => { record('sound.importAudio'); return null } },
   texture: {
     exportFile: async () => { record('texture.exportFile'); return null },
     exportClipboard: async () => { record('texture.exportClipboard'); return false }
@@ -157,7 +157,7 @@ const api: ArtemisApi = {
 
     art: async () => {
       record('vanilla.art')
-      return { blocks: {}, items: {}, tops: {} }
+      return { blocks: {}, items: {}, tops: {}, particles: {} }
     }
   }
 }

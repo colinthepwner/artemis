@@ -45,3 +45,14 @@ export const KIND_COLORS: Record<ElementKind, string> = {
   biome: '#63c6b0',
   dimension: '#b48af2'
 }
+
+export const GROUP_COLORS = [
+  '#e6ad55',
+  '#6fc7e8',
+  '#82ca70',
+  '#b48af2',
+  '#ea8070',
+  '#63c6b0',
+  '#e5c05a',
+  '#a8b4c6'
+]

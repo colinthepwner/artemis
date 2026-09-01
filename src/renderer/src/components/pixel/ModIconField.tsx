@@ -24,7 +24,7 @@ function readPixels(src: string): Promise<Uint8ClampedArray | null> {
 }
 
 function useAutoIcon(): { data: string; name: string } | null {
-  const textures = useProjectStore((s) => s.project?.textures ?? [])
+  const textures = useProjectStore((s) => s.project?.textures) ?? NONE
   const [chosen, setChosen] = useState<{ data: string; name: string } | null>(null)
 
   const key = textures.map((t) => `${t.id}:${t.data.length}`).join('|')
@@ -52,6 +52,8 @@ function useAutoIcon(): { data: string; name: string } | null {
 
   return chosen
 }
+
+const NONE: never[] = []
 
 export function ModIconField(): JSX.Element {
   const project = useProjectStore((s) => s.project)

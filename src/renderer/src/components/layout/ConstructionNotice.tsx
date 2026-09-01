@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 const SEEN_KEY = 'artemis.construction-notice.seen'
 
 const TAPE =
-  'repeating-linear-gradient(45deg, #e6ad55 0 14px, #07090c 14px 28px)'
+  'repeating-linear-gradient(45deg, #e6ad55 0 14px, #0a0a0a 14px 28px)'
 
 export function ConstructionNotice(): JSX.Element | null {
   const [open, setOpen] = useState(false)

@@ -1,18 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Boxes, Copy, Hammer, Plus, Settings2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Boxes, Copy, FileUp, Hammer, Music, Plus, Settings2, Trash2 } from 'lucide-react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context'
 import { useAppStore } from '@/store/appStore'
 import { useProjectStore } from '@/store/projectStore'
 import { VoxelSprite } from '@/components/workshop/VoxelSprite'
+import { SoundShelf } from '@/components/workshop/SoundShelf'
+import { loadSchematicFile } from '@/lib/importSchematicFile'
+import { SCHEMATIC_EXTENSIONS } from '@shared/schematic'
 import { KIND_COLORS, KIND_ICONS } from '@/lib/kindIcons'
 import { titleCase } from '@shared/generator/templates/block'
-import type { ArtemisElement } from '@shared/project'
+import { capitalizeWords, toRegistryName, type ArtemisElement } from '@shared/project'
 import type { BuildVariant, TreeProps } from '@shared/generator/props'
 import { cn } from '@/lib/cn'
 
-type Shelf = 'tree' | 'structure' | 'model'
+type Shelf = 'tree' | 'structure' | 'model' | 'sound'
+
+const NONE: never[] = []
+
+const NEW_LABEL: Record<Shelf, string> = {
+  tree: 'New Tree',
+  structure: 'New Structure',
+  sound: 'Add a Sound',
+
+  model: ''
+}
 
 export function WorkshopSection(): JSX.Element {
   const project = useProjectStore((s) => s.project)
@@ -31,10 +44,58 @@ export function WorkshopSection(): JSX.Element {
     () => allElements?.filter((e) => e.kind === 'structure') ?? [],
     [allElements]
   )
+  const sounds = useProjectStore((s) => s.project?.sounds) ?? NONE
+  const importSound = useProjectStore((s) => s.importSound)
   const shown = shelf === 'tree' ? trees : shelf === 'structure' ? structures : []
+  const builds = shelf === 'tree' || shelf === 'structure'
+
+  const [soundError, setSoundError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const [note, setNote] = useState<{ error: boolean; text: string } | null>(null)
+
+  const onFiles = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const files = [...(e.target.files ?? [])]
+
+    e.target.value = ''
+    if (files.length === 0 || !builds || !project) return
+    setNote(null)
+    const said: string[] = []
+    let failed = false
+    let last: string | null = null
+    for (const file of files) {
+      try {
+        const loaded = await loadSchematicFile(file, project.meta.targetBta)
+        last = createElement(shelf, {
+          name: toRegistryName(loaded.name) || shelf,
+          props: {
+            displayName: capitalizeWords(loaded.name.replace(/[_-]+/g, ' ')),
+
+            ...(shelf === 'tree' ? { design: 'built' as const } : {}),
+            variants: [{ id: crypto.randomUUID(), name: 'A', blocks: loaded.result.blocks }]
+          }
+        })
+        said.push(`${loaded.name}: ${loaded.summary}`)
+      } catch (err) {
+        failed = true
+        said.push(err instanceof Error ? err.message : String(err))
+      }
+    }
+    setNote({ error: failed, text: said.join('  ') })
+
+    if (files.length === 1 && last) openWorkshopEditor(last)
+  }
 
   const createNew = (): void => {
-    if (shelf === 'model' || !project) return
+    if (!project) return
+    if (shelf === 'sound') {
+      setSoundError(null)
+      void importSound().catch((e: unknown) =>
+        setSoundError(e instanceof Error ? e.message : String(e))
+      )
+      return
+    }
+    if (!builds) return
     const id = createElement(shelf)
 
     openWorkshopEditor(id)
@@ -55,6 +116,7 @@ export function WorkshopSection(): JSX.Element {
             [
               { id: 'tree', label: 'Trees', count: trees.length },
               { id: 'structure', label: 'Structures', count: structures.length },
+              { id: 'sound', label: 'Sounds', count: sounds.length },
               { id: 'model', label: 'Models', count: null }
             ] as const
           ).map((t) => (
@@ -89,20 +151,59 @@ export function WorkshopSection(): JSX.Element {
         </div>
 
         <div className="flex-1" />
+        {builds && (
+          <>
+            {
+
+}
+            <button
+              onClick={() => fileRef.current?.click()}
+              title="Bring in .schematic or .schem files"
+              className="flex items-center gap-1.5 rounded-md bg-ink-750 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-mist-200 transition-colors hover:bg-ink-700"
+            >
+              <FileUp size={13} strokeWidth={2.2} /> Import
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={SCHEMATIC_EXTENSIONS.map((e) => `.${e}`).join(',')}
+              multiple
+              onChange={(e) => void onFiles(e)}
+              className="hidden"
+            />
+          </>
+        )}
         {shelf !== 'model' && (
           <button
             data-tour="workshop-new"
             onClick={createNew}
             className="flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-950 transition-all hover:bg-gold-400 active:scale-[0.97]"
           >
-            <Plus size={13} strokeWidth={2.5} /> New {shelf === 'tree' ? 'Tree' : 'Structure'}
+            <Plus size={13} strokeWidth={2.5} /> {NEW_LABEL[shelf]}
           </button>
         )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        {note && builds && (
+          <div
+            className={cn(
+              'mb-4 flex items-start gap-2 rounded-md p-3',
+              note.error ? 'bg-ember-500/10' : 'bg-ink-800'
+            )}
+          >
+            {note.error ? (
+              <AlertTriangle size={13} className="mt-px shrink-0 text-ember-400" />
+            ) : (
+              <FileUp size={13} className="mt-px shrink-0 text-mist-500" />
+            )}
+            <p className="text-2xs leading-relaxed text-mist-300">{note.text}</p>
+          </div>
+        )}
         {shelf === 'model' ? (
           <ModelsComingSoon />
+        ) : shelf === 'sound' ? (
+          <SoundShelf onAdd={createNew} error={soundError} />
         ) : shown.length === 0 ? (
           <EmptyShelf shelf={shelf} onCreate={createNew} />
         ) : (

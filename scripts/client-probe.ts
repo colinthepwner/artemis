@@ -10,7 +10,15 @@ import { probeWorkspace } from './_temp'
 import { GRADLE } from './_gradle'
 import { png16DataUrl, pngDataUrl } from './_canvas'
 import { collectTextureIds } from './_texture-ids'
-import { harness, kitPieceNames, onGameClose, tailLines, treeKiller, type GameRun } from './_harness'
+import {
+  dropAbsentDependencies,
+  harness,
+  kitPieceNames,
+  onGameClose,
+  tailLines,
+  treeKiller,
+  type GameRun
+} from './_harness'
 import { javaNames, javaReport } from './_probe-java'
 
 const audit = harness()
@@ -24,14 +32,22 @@ interface Expectations {
 
   entities: string[]
   langKeys: string[]
+
+  langBlank: string[]
+
+  creativeRuns: { name: string; refs: string[] }[]
 }
 
 function expectationsFor(project: ArtemisProject, root: string): Expectations {
   const modId = project.meta.modId
   const langPath = join(root, `src/main/resources/assets/${modId}/lang/en_US/${modId}.lang`)
-  const langKeys = readFileSync(langPath, 'utf-8')
+  const langLines = readFileSync(langPath, 'utf-8')
     .split('\n')
     .filter((l) => l.includes('='))
+  const langKeys = langLines.map((l) => l.slice(0, l.indexOf('=')).trim())
+
+  const langBlank = langLines
+    .filter((l) => l.slice(l.indexOf('=') + 1).trim().length === 0)
     .map((l) => l.slice(0, l.indexOf('=')).trim())
 
   const namesUnder = (prefix: string): string[] => [
@@ -87,11 +103,45 @@ function expectationsFor(project: ArtemisProject, root: string): Expectations {
     items: [...new Set([...namesUnder('item'), ...kitPieces])],
     textures: [...new Set(textures)],
     entities,
-    langKeys
+    langKeys,
+    langBlank,
+    creativeRuns: creativeRunsFrom(project, root)
   }
 }
 
+function creativeRunsFrom(
+  project: ArtemisProject,
+  root: string
+): { name: string; refs: string[] }[] {
+  const path = join(
+    root,
+    `src/main/java/com/${project.meta.modId}/init/ModGroups.java`
+  )
+  let source: string
+  try {
+    source = readFileSync(path, 'utf-8')
+  } catch {
+    return []
+  }
+  const runs: { name: string; refs: string[] }[] = []
+  for (const line of source.split(/\r?\n/)) {
+    const comment = line.match(/^\t\t\/\/ (.+)$/)
+    if (comment) {
+      runs.push({ name: comment[1], refs: [] })
+      continue
+    }
+    const place = line.match(/place\((Mod\w+\.\w+),/)
+    if (place && runs.length > 0) runs[runs.length - 1].refs.push(place[1])
+  }
+  return runs.filter((r) => r.refs.length > 0)
+}
+
 const javaList = (values: string[]): string => values.map((v) => `\t\t"${v}"`).join(',\n')
+
+const javaRuns = (runs: { name: string; refs: string[] }[]): string =>
+  runs
+    .map((r) => `\t\t{ ${[r.name, ...r.refs].map((v) => `"${v}"`).join(', ')} }`)
+    .join(',\n')
 
 function probeSource(project: ArtemisProject, e: Expectations): string {
   const pkg = `com.${project.meta.modId}`
@@ -131,6 +181,14 @@ ${javaList(e.entities)}
 \tprivate static final String[] LANG_KEYS = {
 ${javaList(e.langKeys)}
 \t};
+\t/** of those, the ones the export meant to leave blank */
+\tprivate static final String[] LANG_BLANK = {
+${javaList(e.langBlank)}
+\t};
+\t/** { group name, ref, ref, ... } per shelved group, in placement order. */
+\tprivate static final String[][] CREATIVE_RUNS = {
+${javaRuns(e.creativeRuns)}
+\t};
 
 \tprivate static int pass = 0;
 \tprivate static int fail = 0;
@@ -166,6 +224,7 @@ ${javaReport('ARTEMIS-CLIENT')}
 \t\t\tblockModels();
 \t\t\titemModels();
 \t\t\tnames();
+\t\t\tcreativeMenu();
 \t\t} catch (Throwable t) {
 \t\t\t// Through check() rather than printed here, so the line format lives
 \t\t\t// in one place. The text is unchanged: check prints FAIL, the name,
@@ -442,6 +501,116 @@ ${javaNames({
   onMissingI18n: '\t\t\tcheck("the client has an I18n", false, String.valueOf(t));',
   detail: 'translated to itself, so it shows in game as the raw key'
 })}
+
+\t/**
+\t * A content group comes out as ONE RUN of adjacent slots, in the modder's
+\t * order, and this is the only place that can be found out.
+\t *
+\t * Everything about it up to here was reasoning over somebody else's
+\t * bytecode: that CreativeInventoryRegistry.bakeAll appends to a per-category
+\t * list in registration order, that halplibe's CreativeMenuContentsMixin
+\t * splices those lists into the vanilla one, and that placing by hand from
+\t * ModGroups therefore beats leaving the placement on each builder. All of
+\t * that compiles either way, and a mod whose tier came out scattered through
+\t * the shelf would look exactly like a mod whose tier came out together.
+\t *
+\t * CreativeMenuContents.populate is public static and is what the creative
+\t * screen itself calls, so this is the real list rather than a reconstruction
+\t * of it. Called once, deliberately: bakeAll appends without clearing, so a
+\t * second populate on the same run would double every modded entry. The probe
+\t * is the first thing to ask, because a client at AFTER_CLIENT_START has no
+\t * world yet and so has never opened the menu.
+\t */
+\tprivate static void creativeMenu() {
+\t\tif (CREATIVE_RUNS.length == 0) {
+\t\t\treturn;
+\t\t}
+\t\tjava.util.List<net.minecraft.core.item.ItemStack> list = new java.util.ArrayList<>();
+\t\ttry {
+\t\t\tnet.minecraft.core.player.inventory.CreativeMenuContents.populate(list);
+\t\t} catch (Throwable t) {
+\t\t\tcheck("the creative menu populates", false, String.valueOf(t));
+\t\t\treturn;
+\t\t}
+\t\t// A guard on the guard: every assertion below is about where things sit
+\t\t// in this list, and all of them would pass vacuously on an empty one.
+\t\tcheck("the creative menu has vanilla content in it", list.size() > 100, list.size() + " stacks");
+
+\t\tfor (String[] run : CREATIVE_RUNS) {
+\t\t\tString group = run[0];
+\t\t\tint[] at = new int[run.length - 1];
+\t\t\tboolean located = true;
+\t\t\tfor (int i = 1; i < run.length; i++) {
+\t\t\t\tint id = idOf(run[i]);
+\t\t\t\tif (id < 0) {
+\t\t\t\t\tcheck(group + ": " + run[i] + " exists in the game", false, "the field is missing or is not an item or a block");
+\t\t\t\t\tlocated = false;
+\t\t\t\t\tcontinue;
+\t\t\t\t}
+\t\t\t\tint first = -1;
+\t\t\t\tint seen = 0;
+\t\t\t\tfor (int n = 0; n < list.size(); n++) {
+\t\t\t\t\tnet.minecraft.core.item.ItemStack stack = list.get(n);
+\t\t\t\t\tif (stack == null || stack.itemID != id) {
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\t}
+\t\t\t\t\tif (first < 0) {
+\t\t\t\t\t\tfirst = n;
+\t\t\t\t\t}
+\t\t\t\t\tseen++;
+\t\t\t\t}
+\t\t\t\tcheck(group + ": " + run[i] + " is in the creative menu", first >= 0,
+\t\t\t\t\t"no player can get hold of it");
+\t\t\t\t// Twice means it was placed twice, which is the failure this design
+\t\t\t\t// invites: a builder call left on alongside the ModGroups one.
+\t\t\t\tcheck(group + ": " + run[i] + " is in the menu once", seen <= 1, "it appears " + seen + " times");
+\t\t\t\tif (first < 0) {
+\t\t\t\t\tlocated = false;
+\t\t\t\t}
+\t\t\t\tat[i - 1] = first;
+\t\t\t}
+\t\t\tif (!located || at.length < 2) {
+\t\t\t\tcontinue;
+\t\t\t}
+\t\t\tboolean ordered = true;
+\t\t\tboolean together = true;
+\t\t\tStringBuilder where = new StringBuilder();
+\t\t\tfor (int i = 0; i < at.length; i++) {
+\t\t\t\tif (i > 0) {
+\t\t\t\t\twhere.append(", ");
+\t\t\t\t\tif (at[i] <= at[i - 1]) {
+\t\t\t\t\t\tordered = false;
+\t\t\t\t\t}
+\t\t\t\t\tif (at[i] != at[i - 1] + 1) {
+\t\t\t\t\t\ttogether = false;
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\twhere.append(run[i + 1]).append("@").append(at[i]);
+\t\t\t}
+\t\t\tcheck(group + ": its members are in the order the sidebar lists them", ordered, where.toString());
+\t\t\tcheck(group + ": its members sit together, with nothing between", together, where.toString());
+\t\t}
+\t}
+
+\t/** The numeric item id behind a "ModItems.RUBY" or "ModBlocks.KILN" ref. */
+\tprivate static int idOf(String ref) {
+\t\ttry {
+\t\t\tint dot = ref.indexOf('.');
+\t\t\tClass<?> holder = Class.forName("${pkg}.init." + ref.substring(0, dot));
+\t\t\tObject value = holder.getField(ref.substring(dot + 1)).get(null);
+\t\t\tif (value instanceof net.minecraft.core.item.Item) {
+\t\t\t\treturn ((net.minecraft.core.item.Item) value).id;
+\t\t\t}
+\t\t\t// A block reaches the menu as its item form, which is what the
+\t\t\t// registry placed and what the stack in the list holds.
+\t\t\tif (value instanceof net.minecraft.core.block.Block) {
+\t\t\t\treturn ((net.minecraft.core.block.Block<?>) value).asItem().id;
+\t\t\t}
+\t\t\treturn -1;
+\t\t} catch (Throwable t) {
+\t\t\treturn -1;
+\t\t}
+\t}
 }
 `
 }
@@ -485,6 +654,14 @@ async function main(): Promise<void> {
   const modJsonPath = join(root, 'src/main/resources/fabric.mod.json')
   const modJson = JSON.parse(readFileSync(modJsonPath, 'utf-8'))
   modJson.entrypoints.main.push('artemisclientprobe.ArtemisClientProbe')
+  const dropped = dropAbsentDependencies(modJson)
+  if (dropped.length > 0) {
+    console.log(
+      `dropped ${dropped.length} required dependency(s) the loader could not satisfy ` +
+        `(${dropped.join(', ')}); the manifest itself is checked in audit-export
+`
+    )
+  }
   writeFileSync(modJsonPath, JSON.stringify(modJson, null, 2))
 
   const { out, ending, endedItself } = await runClient(root)

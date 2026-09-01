@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { dismissedByDistance } from '@/components/ui/dismissDistant'
 
 export function useOutsideClose(): {
   markOutside: () => void
@@ -10,7 +11,8 @@ export function useOutsideClose(): {
       outside.current = true
     },
     onCloseAutoFocus: (e: Event) => {
-      if (outside.current) {
+
+      if (outside.current || dismissedByDistance()) {
         e.preventDefault()
         outside.current = false
       }

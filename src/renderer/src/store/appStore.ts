@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ElementKind } from '@shared/project'
 import type { BootPhase } from '@shared/ipc'
+import type { UseRule } from '@shared/generator/props'
 
 export type SectionId =
   | 'dashboard'
@@ -86,7 +87,13 @@ interface AppState {
   inspectorOpen: boolean
   createMenuOpen: boolean
 
+  groupEditorId: string | null
+
   heroMode: HeroMode
+
+  pixelLogo: boolean
+
+  useRuleClipboard: UseRule | null
   textureEditor: TextureEditorState | null
 
   workshopEditor: { elementId: string } | null
@@ -127,9 +134,13 @@ interface AppState {
   openCreateMenu: () => void
   closeCreateMenu: () => void
   setHeroMode: (mode: HeroMode) => void
+  togglePixelLogo: () => void
+  setUseRuleClipboard: (rule: UseRule | null) => void
   openTextureEditor: (state: TextureEditorState) => void
   closeTextureEditor: () => void
   openWorkshopEditor: (elementId: string) => void
+
+  setGroupEditor: (groupId: string | null) => void
   closeWorkshopEditor: () => void
   setAutoCapitalize: (v: boolean) => void
   setBundleTestMods: (v: boolean) => void
@@ -153,12 +164,15 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   section: 'dashboard',
   editingId: null,
+  groupEditorId: null,
   history: [{ section: 'dashboard', editingId: null, textureEditor: null, workshopEditor: null }],
   historyIndex: 0,
 
   inspectorOpen: false,
   createMenuOpen: false,
   heroMode: 'choose',
+  pixelLogo: false,
+  useRuleClipboard: null,
   textureEditor: null,
   workshopEditor: null,
 
@@ -205,6 +219,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   openCreateMenu: () => set({ createMenuOpen: true }),
   closeCreateMenu: () => set({ createMenuOpen: false }),
   setHeroMode: (heroMode) => set({ heroMode }),
+  togglePixelLogo: () => set((s) => ({ pixelLogo: !s.pixelLogo })),
+  setUseRuleClipboard: (useRuleClipboard) => set({ useRuleClipboard }),
 
   openTextureEditor: (textureEditor) =>
     set((s) => ({
@@ -216,6 +232,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       textureEditor: null,
       ...record(s, { section: s.section, editingId: s.editingId, textureEditor: null, workshopEditor: null })
     })),
+  setGroupEditor: (groupEditorId) => set({ groupEditorId }),
+
   openWorkshopEditor: (elementId) =>
     set((s) => {
       const workshopEditor = { elementId }

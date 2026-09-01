@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { FolderOpen, Plus, Clock, X, Images, PackageOpen, FolderDown, ArrowLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -17,7 +18,7 @@ import { KIND_LABELS } from '@/sections/forms/registry'
 import { Select } from '@/components/ui/controls'
 import { LATEST_BTA, SUPPORTED_BTA } from '@shared/generator/mappings'
 import { cn } from '@/lib/cn'
-import logoUrl from '@/assets/logo.png'
+import { PixelfallLogo, SWAP_SECONDS } from '@/components/ui/PixelfallLogo'
 
 export function Dashboard(): JSX.Element {
   const project = useProjectStore((s) => s.project)
@@ -154,11 +155,15 @@ function TypedWordmark(props: { mode: HeroMode; switches: number }): JSX.Element
 
 }
       <span
+
+        data-typed-line
         className={cn(
-          'pixel-title block max-w-sm font-pixel',
+          'block max-w-sm',
           isWordmark
-            ? 'text-2xl tracking-[0.18em] text-mist-100'
-            : 'text-[13px] leading-relaxed tracking-[0.1em] text-gold-300/90'
+            ?
+
+              'font-display bg-gradient-to-b from-gold-300 to-gold-500 bg-clip-text text-[26px] tracking-[0.32em] text-transparent'
+            : 'pixel-title font-pixel text-[13px] leading-relaxed tracking-[0.1em] text-gold-300/90'
         )}
       >
         {text}
@@ -181,37 +186,49 @@ function TypedWordmark(props: { mode: HeroMode; switches: number }): JSX.Element
 function LogoHero(props: { mode: HeroMode; switches: number }): JSX.Element {
 
   const revealed = useAppStore((s) => s.bootPhase) === 'ready'
+
+  const pixel = useAppStore((s) => s.pixelLogo)
+  const reduceAnimations = useAppStore((s) => s.reduceAnimations)
   return (
 
-    <div className="mb-[clamp(0.75rem,4vh,2.25rem)] flex flex-col items-center">
+    <motion.div
+      layout
+      transition={{ duration: DOOR_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+      className="mb-[clamp(0.75rem,4vh,2.25rem)] flex flex-col items-center"
+    >
       <div className="relative flex items-center justify-center">
         {
-}
-        <motion.div
-          className="pointer-events-none absolute h-52 w-52 rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(230,173,85,0.5), rgba(230,173,85,0) 68%)' }}
-          animate={{ opacity: [0.3, 0.55, 0.3], scale: [0.92, 1.08, 0.92] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="pointer-events-none absolute h-44 w-44 rounded-full blur-2xl"
-          style={{ background: 'radial-gradient(circle, rgba(106,174,232,0.28), rgba(106,174,232,0) 70%)' }}
-          animate={{ opacity: [0.25, 0.45, 0.25], scale: [1.05, 0.95, 1.05] }}
-          transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.img
-          src={logoUrl}
-          alt="Artemis"
-          draggable={false}
-          initial={{ opacity: 0, y: 8, scale: 0.96 }}
-          animate={revealed ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 8, scale: 0.96 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
 
-          className="relative h-[clamp(5rem,17vh,11rem)] w-auto select-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
-        />
+}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{
+            opacity: pixel ? 0 : 1,
+            transition: reduceAnimations
+              ? 'none'
+              : `opacity ${SWAP_SECONDS * 0.45}s linear ${pixel ? 0 : SWAP_SECONDS * 0.4}s`
+          }}
+        >
+          <motion.div
+            className="pointer-events-none absolute h-52 w-52 rounded-full blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgba(230,173,85,0.5), rgba(230,173,85,0) 68%)' }}
+            animate={{ opacity: [0.3, 0.55, 0.3], scale: [0.92, 1.08, 0.92] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="pointer-events-none absolute h-44 w-44 rounded-full blur-2xl"
+            style={{ background: 'radial-gradient(circle, rgba(106,174,232,0.28), rgba(106,174,232,0) 70%)' }}
+            animate={{ opacity: [0.25, 0.45, 0.25], scale: [1.05, 0.95, 1.05] }}
+            transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </div>
+        {
+
+}
+        <PixelfallLogo revealed={revealed} />
       </div>
       <TypedWordmark mode={props.mode} switches={props.switches} />
-    </div>
+    </motion.div>
   )
 }
 
@@ -224,8 +241,26 @@ function WelcomeHero(): JSX.Element {
 
   const [switches, setSwitches] = useState(0)
 
+  const doorsRef = useRef<HTMLDivElement | null>(null)
+  const [ghost, setGhost] = useState<{
+    which: 'new' | 'existing'
+    rect: { left: number; top: number; width: number }
+  } | null>(null)
+  useEffect(() => {
+    if (!ghost) return
+    const id = window.setTimeout(() => setGhost(null), FADE_SECONDS * 1000)
+    return () => window.clearTimeout(id)
+  }, [ghost])
+
   const go = (next: HeroMode): void => {
     if (next === mode) return
+
+    if (mode === 'choose' && next !== 'choose') {
+      const box = doorsRef.current?.getBoundingClientRect()
+      if (box) {
+        setGhost({ which: next, rect: { left: box.left, top: box.top, width: box.width } })
+      }
+    }
     setMode(next)
     setSwitches((n) => n + 1)
   }
@@ -257,37 +292,67 @@ function WelcomeHero(): JSX.Element {
     >
       <LogoHero mode={mode} switches={switches} />
 
-      {
+      <div ref={doorsRef}>
+        {
 
 }
-      <motion.div
-        key={mode}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {mode === 'choose' && (
-          <ChoosePanel
-            recentCount={recents.list.length}
-            onNew={() => go('new')}
-            onExisting={chooseExisting}
-          />
-        )}
-        {mode === 'new' && <NewModPanel onBack={() => go('choose')} />}
-        {mode === 'existing' && (
-          <ExistingModPanel recents={recents} onBack={() => go('choose')} />
-        )}
-      </motion.div>
+        <motion.div
+          key={mode}
+          initial={{ y: mode === 'choose' ? 8 : 0 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {mode === 'choose' && (
+            <ChoosePanel
+              recentCount={recents.list.length}
+              onNew={() => go('new')}
+              onExisting={chooseExisting}
+            />
+          )}
+          {mode === 'new' && <NewModPanel onBack={() => go('choose')} />}
+          {mode === 'existing' && (
+            <ExistingModPanel recents={recents} onBack={() => go('choose')} />
+          )}
+        </motion.div>
+
+        {
+
+}
+        {ghost &&
+          createPortal(
+            <motion.div
+              className="pointer-events-none fixed z-20"
+              style={{ left: ghost.rect.left, top: ghost.rect.top, width: ghost.rect.width }}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: FADE_SECONDS, ease: 'linear' }}
+            >
+              <ChoosePanel
+                inert
+                opening={ghost.which}
+                recentCount={recents.list.length}
+                onNew={() => {}}
+                onExisting={() => {}}
+              />
+            </motion.div>,
+            document.body
+          )}
+      </div>
 
       {recents.error && (
         <p className="mt-3 text-center text-2xs text-ember-400">{recents.error}</p>
       )}
 
       {
+
 }
-      <p className="mt-4 text-center font-mono text-2xs text-mist-700">
+      <motion.p
+        layout
+        transition={{ duration: DOOR_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+        className="mt-4 text-center font-mono text-2xs text-mist-700"
+      >
         Artemis v{window.artemis.app.version}
-      </p>
+      </motion.p>
     </motion.div>
   )
 }
@@ -296,11 +361,21 @@ function ChoosePanel(props: {
   recentCount: number
   onNew: () => void
   onExisting: () => void
+
+  opening?: 'new' | 'existing'
+
+  inert?: boolean
 }): JSX.Element {
   return (
-    <div data-tour="dashboard-doors" className="grid gap-3 sm:grid-cols-2">
+    <div
+      data-tour={props.inert ? undefined : 'dashboard-doors'}
+      aria-hidden={props.inert}
+      className="grid gap-3 sm:grid-cols-2"
+    >
       <HeroChoice
-        anchor="dashboard-new"
+        anchor={props.inert ? undefined : 'dashboard-new'}
+        surfaceId={props.inert ? undefined : SURFACE.new}
+        muted={props.opening === 'new'}
         icon={Plus}
         title="New Mod"
         desc="Start from an empty project."
@@ -308,7 +383,9 @@ function ChoosePanel(props: {
         primary
       />
       <HeroChoice
-        anchor="dashboard-existing"
+        anchor={props.inert ? undefined : 'dashboard-existing'}
+        surfaceId={props.inert ? undefined : SURFACE.existing}
+        muted={props.opening === 'existing'}
         icon={FolderOpen}
         title="Existing Mod"
         desc={
@@ -330,10 +407,17 @@ function HeroChoice(props: {
   primary?: boolean
 
   anchor?: string
+
+  surfaceId?: string
+
+  muted?: boolean
 }): JSX.Element {
   const Icon = props.icon
   return (
-    <button
+    <motion.button
+      layoutId={props.surfaceId}
+      transition={{ duration: DOOR_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+      style={props.muted ? { opacity: 0 } : undefined}
       data-tour={props.anchor}
       onClick={props.onClick}
       className={cn(
@@ -355,18 +439,34 @@ function HeroChoice(props: {
       />
       <span className="text-[14px] font-medium text-mist-50">{props.title}</span>
       <span className="text-2xs leading-relaxed text-mist-500">{props.desc}</span>
-    </button>
+    </motion.button>
   )
 }
 
+const SURFACE: Record<'new' | 'existing', string> = {
+  new: 'hero-surface-new',
+  existing: 'hero-surface-existing'
+}
+
+const DOOR_SECONDS = 0.34
+
+const FADE_SECONDS = 0.12
+
 function BackLink(props: { onBack: () => void }): JSX.Element {
   return (
-    <button
+    <motion.button
+      initial={{ y: 32, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{
+        y: { delay: DOOR_SECONDS, duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+
+        opacity: { delay: DOOR_SECONDS, duration: 0 }
+      }}
       onClick={props.onBack}
       className="mb-2 flex items-center gap-1.5 text-2xs text-mist-500 transition-colors hover:text-mist-200"
     >
       <ArrowLeft size={12} /> Back
-    </button>
+    </motion.button>
   )
 }
 
@@ -399,7 +499,13 @@ function NewModPanel(props: { onBack: () => void }): JSX.Element {
   return (
     <div>
       <BackLink onBack={props.onBack} />
-      <div data-tour="newmod-form" className="card space-y-4 p-5">
+      <motion.div
+        layoutId={SURFACE.new}
+        transition={{ duration: DOOR_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+        data-tour="newmod-form"
+
+        className="card relative z-10 space-y-4 p-5"
+      >
         <div>
           <label className="label-base">Mod Name</label>
           <input
@@ -463,7 +569,7 @@ function NewModPanel(props: { onBack: () => void }): JSX.Element {
             <span className="truncate">Saved to {projectsDir}</span>
           </button>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -474,7 +580,12 @@ function ExistingModPanel(props: { recents: RecentsApi; onBack: () => void }): J
   return (
     <div>
       <BackLink onBack={props.onBack} />
-      <div className="card flex flex-col p-4">
+      <motion.div
+        layoutId={SURFACE.existing}
+        transition={{ duration: DOOR_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+
+        className="card relative z-10 flex flex-col p-4"
+      >
         <div className="mb-2 flex items-center gap-2">
           <Clock size={13} className="text-gold-400" />
           <h2 className="text-2xs font-semibold uppercase tracking-wider text-mist-400">
@@ -501,7 +612,7 @@ function ExistingModPanel(props: { recents: RecentsApi; onBack: () => void }): J
         >
           <FolderDown size={15} strokeWidth={1.8} /> Browse for a file
         </button>
-      </div>
+      </motion.div>
     </div>
   )
 }

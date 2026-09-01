@@ -1,9 +1,9 @@
 import type { ArtemisElement, ArtemisProject, ProjectMeta } from '../project'
-import { toConstantCase, toPascalCase } from '../project'
+import { effectiveProperties, toConstantCase, toPascalCase } from '../project'
 import { getMapping, type BtaMapping } from './mappings'
 import { getVanillaRegistry } from './vanilla'
 import { projectRegistryEntries } from './registry'
-import { JavaWriter, render, indent } from './template'
+import { JavaWriter, render, indent, dropBlankLines } from './template'
 import { emitBlock } from './templates/block'
 import { emitDimension } from './templates/dimension'
 import { emitItem } from './templates/item'
@@ -93,7 +93,16 @@ export interface EmitContext {
 
   itemModelCalls: (registryName: string) => string[]
 
-  creativeCall: (category: string) => string
+  creativeCall: (opts: {
+
+    category: string
+
+    registryName: string
+
+    family: 'block' | 'item'
+
+    hidden?: boolean
+  }) => string
 }
 
 type Emitter = (el: ArtemisElement, ctx: EmitContext) => EmitContribution
@@ -121,9 +130,23 @@ const MODEL_TEMPLATE_FOR: Record<BlockModelMode, string> = {
   fluid: 'blockFluid'
 }
 
+interface GroupPlacement {
+
+  elementId: string
+  registryName: string
+  family: 'block' | 'item'
+
+  category: string
+}
+
 export class CodeGenerator {
   private mapping: BtaMapping
   private ctx: EmitContext
+
+  private current: ArtemisElement | null = null
+  private placements: GroupPlacement[] = []
+
+  private shelfByElement = new Map<string, string>()
 
   constructor(private project: ArtemisProject) {
     this.mapping = getMapping(project.meta.targetBta)
@@ -143,11 +166,55 @@ export class CodeGenerator {
       blockExpr: (ref, writer) => this.blockExpr(ref, writer),
       blockModelCalls: (name, mode, textureName) => this.blockModelCalls(name, mode, textureName),
       itemModelCalls: (name) => this.itemModelCalls(name),
-      creativeCall: (category) =>
-        render(this.mapping.creative.call, {
-          category: this.mapping.creative.categories[category] ?? this.mapping.creative.categories.block
+      creativeCall: (opts) => {
+        const category =
+          this.mapping.creative.categories[opts.category] ?? this.mapping.creative.categories.block
+        const shelf = opts.hidden ? undefined : this.shelfByElement.get(this.current?.id ?? '')
+        if (!shelf) return render(this.mapping.creative.call, { category })
+
+        this.placements.push({
+          elementId: this.current!.id,
+          registryName: opts.registryName,
+          family: opts.family,
+          category: this.mapping.creative.categories[shelf] ?? this.mapping.creative.categories.misc
         })
+        return ''
+      }
     }
+
+    for (const group of project.groups ?? []) {
+      if (!group.shelf) continue
+      for (const id of group.members) this.shelfByElement.set(id, group.shelf)
+    }
+  }
+
+  private groupPlacementLines(): string[] {
+    if (this.placements.length === 0) return []
+    const byElement = new Map<string, GroupPlacement[]>()
+    for (const pl of this.placements) {
+      const list = byElement.get(pl.elementId) ?? []
+      list.push(pl)
+      byElement.set(pl.elementId, list)
+    }
+
+    const lines: string[] = []
+    for (const group of this.project.groups ?? []) {
+      if (!group.shelf) continue
+      const before = lines.length
+      for (const id of group.members) {
+        for (const pl of byElement.get(id) ?? []) {
+          lines.push(
+            render(this.mapping.creative.registryPlace, {
+              ref: `${pl.family === 'block' ? 'ModBlocks' : 'ModItems'}.${this.ctx.fieldOf(pl.registryName)}`,
+              category: pl.category
+            })
+          )
+        }
+      }
+
+      if (lines.length > before) lines.splice(before, 0, `// ${group.name}`)
+    }
+    return lines
   }
 
   private header(scope: string): string {
@@ -254,10 +321,20 @@ export class CodeGenerator {
       ? this.project.elements.filter((e) => e.id === onlyElementId)
       : this.project.elements
 
-    const contributions = elements.map((el) => {
-      const emitter = EMITTERS[el.kind]
-      if (!emitter) throw new Error(`No emitter for kind "${el.kind}"`)
-      return emitter(el, this.ctx)
+    this.placements = []
+    const contributions = elements.map((raw) => {
+      const emitter = EMITTERS[raw.kind]
+      if (!emitter) throw new Error(`No emitter for kind "${raw.kind}"`)
+
+      const el =
+        this.shelfByElement.size > 0 || (this.project.groups ?? []).some((g) => g.props)
+          ? { ...raw, properties: effectiveProperties(this.project, raw) }
+          : raw
+
+      this.current = el
+      const out = emitter(el, this.ctx)
+      this.current = null
+      return out
     })
 
     const collect = (key: keyof EmitContribution): string[] =>
@@ -288,7 +365,8 @@ export class CodeGenerator {
         w.useRaw(`import ${this.ctx.pkg}.block.*;`)
       }
       w.line(`public final class ModBlocks {`)
-      blockDecls.forEach((d) => w.line('').block(indent(d)))
+
+      blockDecls.forEach((d) => w.line('').block(indent(dropBlankLines(d))))
       w.line('')
       w.line('\t/** Forces static initialization. Called from the mod entrypoint. */')
       w.line('\tpublic static void init() {}')
@@ -310,13 +388,38 @@ export class CodeGenerator {
         w.useRaw(`import ${this.ctx.pkg}.item.*;`)
       }
       w.line(`public final class ModItems {`)
-      itemDecls.forEach((d) => w.line('').block(indent(d)))
+      itemDecls.forEach((d) => w.line('').block(indent(dropBlankLines(d))))
       w.line('')
       w.line('\tpublic static void init() {}')
       w.line('}')
       files.push({
         path: `${javaRoot}/init/ModItems.java`,
         content: w.toString(this.header('Item registry')),
+        language: 'java'
+      })
+    }
+
+    const groupPlace = this.groupPlacementLines()
+    if (groupPlace.length) {
+      const w = new JavaWriter(`${this.ctx.pkg}.init`, this.mapping.imports)
+      w.use(
+        'IItemConvertible',
+        'CreativeInventoryCategory',
+        'CreativeInventoryPlacement',
+        'CreativeInventoryRegistry'
+      )
+
+      w.line(`public final class ModGroups {`)
+      w.line('')
+      w.block(this.mapping.creative.registryHelper)
+      w.line('')
+      w.line('\tpublic static void init() {')
+      groupPlace.forEach((l) => w.line(`\t\t${l}`))
+      w.line('\t}')
+      w.line('}')
+      files.push({
+        path: `${javaRoot}/init/ModGroups.java`,
+        content: w.toString(this.header('Creative-menu grouping')),
         language: 'java'
       })
     }
@@ -691,6 +794,7 @@ export class CodeGenerator {
           {
             hasBlocks: blockDecls.length > 0,
             hasItems: itemDecls.length > 0,
+            hasGroups: groupPlace.length > 0,
             hasRecipes: recipeCalls.length > 0,
             hasBiomes: biomeDecls.length > 0,
             hasEntities: entityRegs.length > 0,
@@ -708,7 +812,13 @@ export class CodeGenerator {
   private entrypointFile(
     javaRoot: string,
     has: Record<
-      'hasBlocks' | 'hasItems' | 'hasRecipes' | 'hasBiomes' | 'hasEntities' | 'hasDimensions',
+      | 'hasBlocks'
+      | 'hasItems'
+      | 'hasGroups'
+      | 'hasRecipes'
+      | 'hasBiomes'
+      | 'hasEntities'
+      | 'hasDimensions',
       boolean
     >,
 
@@ -732,6 +842,7 @@ export class CodeGenerator {
     if (
       has.hasBlocks ||
       has.hasItems ||
+      has.hasGroups ||
       has.hasRecipes ||
       has.hasBiomes ||
       has.hasEntities ||
@@ -750,6 +861,8 @@ export class CodeGenerator {
     const registrations = [
       has.hasBlocks && 'ModBlocks.init();',
       has.hasItems && 'ModItems.init();',
+
+      has.hasGroups && 'ModGroups.init();',
       has.hasBiomes && 'ModBiomes.init();',
       has.hasEntities && 'ModEntities.init();',
       has.hasDimensions && 'ModDimensions.init();',

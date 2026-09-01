@@ -5,11 +5,14 @@ import {
   toRegistryName,
   type ArtemisElement,
   type ArtemisProject,
+  type ElementGroup,
   type ElementKind,
   type ProjectMeta,
   type ProjectTexture,
   type TextureLayer
 } from '@shared/project'
+import { GROUP_COLORS } from '@/lib/kindIcons'
+import { gzipToBase64, toGameAudio } from '@/lib/audio'
 import { textureSlotsFor, textureSlotsForElement } from '@shared/generator/textures'
 import { KIND_DEFAULTS, type ItemProps } from '@shared/generator/props'
 import { kitFamily } from '@shared/generator/family'
@@ -32,6 +35,7 @@ export function normalize(parsed: ArtemisProject): ArtemisProject {
   }
   parsed.textures ??= []
   parsed.sounds ??= []
+  parsed.groups ??= []
   parsed.textureAssignments ??= {}
   parsed.codeOverrides ??= {}
   parsed.meta.obfuscate ??= true
@@ -75,6 +79,22 @@ interface ProjectState {
   updateElement: (id: string, patch: { name?: string; properties?: Record<string, unknown> }) => void
   removeElement: (id: string) => void
   elementsOf: (kind: ElementKind) => ArtemisElement[]
+
+  createGroup: (name?: string) => string
+  updateGroup: (
+    id: string,
+    patch: Partial<Pick<ElementGroup, 'name' | 'shelf' | 'color' | 'props'>>
+  ) => void
+
+  removeGroup: (id: string) => void
+
+  setElementGroup: (elementId: string, groupId: string | null, index?: number) => void
+
+  canJoinGroup: (elementId: string, groupId: string) => boolean
+
+  moveInGroup: (groupId: string, from: number, to: number) => void
+
+  moveGroup: (from: number, to: number) => void
 
   setCodeOverride: (path: string, content: string | null) => void
 
@@ -122,6 +142,15 @@ function withMatchedTextures(project: ArtemisProject): ArtemisProject {
     assignments[slot.key] = texture.id
   }
   return changed ? { ...project, textureAssignments: assignments } : project
+}
+
+function reorder<T>(list: T[], from: number, to: number): T[] {
+  if (from === to) return list
+  if (from < 0 || from >= list.length) return list
+  const next = [...list]
+  const [moved] = next.splice(from, 1)
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, moved)
+  return next
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -255,6 +284,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         project: {
           ...s.project,
           elements,
+
+          groups: (s.project.groups ?? []).map((g) =>
+            g.members.includes(id) ? { ...g, members: g.members.filter((m) => m !== id) } : g
+          ),
           textures: s.project.textures.filter((t) => !orphans.has(t.id)),
 
           textureAssignments: Object.fromEntries(
@@ -355,8 +388,128 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (typeof display === 'string' && display) {
       properties['displayName'] = `${display.replace(/ copy( \d+)?$/i, '')} copy`
     }
-    return get().addElement(src.kind, name, properties)
+    const copyId = get().addElement(src.kind, name, properties)
+
+    const home = (get().project?.groups ?? []).find((g) => g.members.includes(id))
+    if (home) get().setElementGroup(copyId, home.id, home.members.indexOf(id) + 1)
+    return copyId
   },
+
+  createGroup: (name) => {
+    const id = crypto.randomUUID()
+    set((st) => {
+      if (!st.project) return st
+      const groups = st.project.groups ?? []
+      const taken = new Set(groups.map((g) => g.name.toLowerCase()))
+      const base = name?.trim() || 'New Group'
+      let free = base
+      for (let i = 2; taken.has(free.toLowerCase()); i++) free = `${base} ${i}`
+      return {
+        project: {
+          ...st.project,
+          groups: [
+            ...groups,
+            {
+              id,
+              name: free,
+
+              shelf: 'misc',
+              members: [],
+
+              color: GROUP_COLORS[groups.length % GROUP_COLORS.length]
+            }
+          ]
+        },
+        dirty: true
+      }
+    })
+    return id
+  },
+
+  updateGroup: (id, patch) =>
+    set((st) =>
+      st.project
+        ? {
+            project: {
+              ...st.project,
+              groups: (st.project.groups ?? []).map((g) => (g.id === id ? { ...g, ...patch } : g))
+            },
+            dirty: true
+          }
+        : st
+    ),
+
+  removeGroup: (id) =>
+    set((st) =>
+      st.project
+        ? {
+            project: { ...st.project, groups: (st.project.groups ?? []).filter((g) => g.id !== id) },
+            dirty: true
+          }
+        : st
+    ),
+
+  canJoinGroup: (elementId, groupId) => {
+    const project = get().project
+    const el = project?.elements.find((e) => e.id === elementId)
+    const group = project?.groups?.find((g) => g.id === groupId)
+    if (!el || !group) return false
+
+    if (group.members.includes(elementId)) return true
+    return !group.kind || group.kind === el.kind
+  },
+
+  setElementGroup: (elementId, groupId, index) =>
+    set((st) => {
+      if (!st.project) return st
+      const el = st.project.elements.find((e) => e.id === elementId)
+      if (!el) return st
+      const wanted = groupId ? st.project.groups?.find((g) => g.id === groupId) : undefined
+
+      if (wanted && !wanted.members.includes(elementId) && wanted.kind && wanted.kind !== el.kind) {
+        return st
+      }
+
+      const groups = (st.project.groups ?? []).map((g) => ({
+        ...g,
+
+        members: g.members.filter((m) => m !== elementId)
+      }))
+      const target = groupId ? groups.find((g) => g.id === groupId) : undefined
+      if (target) {
+        const at = index === undefined ? target.members.length : Math.max(0, Math.min(index, target.members.length))
+        target.members = [...target.members.slice(0, at), elementId, ...target.members.slice(at)]
+        target.kind = el.kind
+      }
+
+      for (const g of groups) {
+        if (g.members.length === 0 && (g.kind || g.props)) {
+          delete g.kind
+          delete g.props
+        }
+      }
+      return { project: { ...st.project, groups }, dirty: true }
+    }),
+
+  moveInGroup: (groupId, from, to) =>
+    set((st) => {
+      if (!st.project) return st
+      return {
+        project: {
+          ...st.project,
+          groups: (st.project.groups ?? []).map((g) => {
+            if (g.id !== groupId) return g
+            return { ...g, members: reorder(g.members, from, to) }
+          })
+        },
+        dirty: true
+      }
+    }),
+
+  moveGroup: (from, to) =>
+    set((st) =>
+      st.project ? { project: { ...st.project, groups: reorder(st.project.groups ?? [], from, to) }, dirty: true } : st
+    ),
 
   elementsOf: (kind) => get().project?.elements.filter((el) => el.kind === kind) ?? [],
 
@@ -413,8 +566,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     ),
 
   importSound: async () => {
-    const picked = await window.artemis.sound.importOgg()
+    const picked = await window.artemis.sound.importAudio()
     if (!picked) return null
+    const raw = Uint8Array.from(atob(picked.data), (c) => c.charCodeAt(0))
+
+    const converted = await toGameAudio(raw.buffer as ArrayBuffer, picked.ext)
+    const audio = await gzipToBase64(converted.data)
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     const name = toRegistryName(picked.name) || 'sound'
@@ -425,7 +582,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               ...st.project,
               sounds: [
                 ...(st.project.sounds ?? []),
-                { id, name, event: name.replace(/_/g, '.'), ogg: picked.ogg, bytes: picked.bytes, createdAt: now, updatedAt: now }
+                {
+                  id,
+                  name,
+                  event: name.replace(/_/g, '.'),
+                  format: converted.format,
+                  audio,
+
+                  bytes: converted.data.length,
+                  createdAt: now,
+                  updatedAt: now
+                }
               ]
             },
             dirty: true

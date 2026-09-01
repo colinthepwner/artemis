@@ -1,10 +1,54 @@
-@import '@fontsource-variable/inter';
-@import '@fontsource-variable/jetbrains-mono';
+/* The '/full.css' is load-bearing and is the one thing here that fails
+   silently. The bare '@fontsource-variable/recursive' entry point resolves to
+   the WEIGHT-ONLY build of the font: against that file every MONO and CASL
+   declaration below is parsed, accepted, ignored, and renders as ordinary
+   proportional text. No console error, no build warning, nothing. The full
+   build is 666KB across all subsets, which is irrelevant in a packaged app and
+   is what buys us both the interface face and the code face from one file.
+
+   To confirm a build actually got the full file, measure it. In devtools:
+     const p = document.createElement('span')
+     p.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;' +
+       'font:16px "Recursive Variable";font-variation-settings:"MONO" 1'
+     document.body.appendChild(p)
+     const w = (t) => ((p.textContent = t), p.getBoundingClientRect().width)
+     w('iiiiiiiiii') === w('WWWWWWWWWW')  // true = monospace axis is live
+*/
+@import '@fontsource-variable/recursive/full.css';
 @import '@fontsource/silkscreen';
+@import '@fontsource/marcellus';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Recursive carries five axes in one file, and two of them matter here.
+
+   MONO is the whole reason this font was chosen: 0 is the proportional cut
+   that draws the interface, 1 is the monospaced cut that draws generated Java.
+   Same design, same weights, same metrics family, one axis apart.
+
+   CASL is the "casual" axis, and 1 is a rounded, chattier design that is wrong
+   for a dense tool. It is pinned to 0 explicitly rather than left to the font's
+   default, because a default is a thing that can change under you on a version
+   bump and this one would change the look of every screen at once.
+
+   These extend Tailwind's own font-sans / font-mono utilities rather than
+   replacing them: Tailwind supplies font-family from the config, these supply
+   the axis it cannot express. */
+@layer utilities {
+  .font-sans {
+    font-variation-settings:
+      'MONO' 0,
+      'CASL' 0;
+  }
+
+  .font-mono {
+    font-variation-settings:
+      'MONO' 1,
+      'CASL' 0;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Native-app feel. Websites select text and show I-beams everywhere;  */
@@ -23,6 +67,16 @@ body {
   font-size: 13px;
   user-select: none;
   cursor: default;
+  /* Deliberately duplicated. `@apply font-sans` above does pick up the
+     same-named rule added to the utilities layer, so the compiled body rule
+     carries these settings twice, which is harmless and verified. It stays
+     stated outright because this is the single most load-bearing typographic
+     property in the app: every screen inherits its axis from here, and the
+     day someone changes what body @applies, the axis should not leave with
+     it. Nothing renders text at the font's own default instance by accident. */
+  font-variation-settings:
+    'MONO' 0,
+    'CASL' 0;
 }
 
 input:not([type='range']):not([type='color']):not([type='checkbox']):not([type='radio']),
@@ -178,8 +232,8 @@ input[type='radio'] {
 
 /* Kill the light-blue Chrome autofill flash inside dark inputs */
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 30px #151a21 inset;
-  -webkit-text-fill-color: #eef1f6;
+  -webkit-box-shadow: 0 0 0 30px #1c1c1c inset;
+  -webkit-text-fill-color: #f2f2f2;
 }
 
 /* Number inputs: hide spinners, we render our own steppers where needed */
@@ -358,12 +412,29 @@ input[type='number']::-webkit-outer-spin-button {
 [data-radix-popper-content-wrapper] [data-state='closed'][data-side='top'] {
   animation: menu-zip-up-close 0.14s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
-/* sideways poppers (submenus, tooltips at left/right) keep the anchored
-   grow, where a vertical slide would move across the trigger */
-[data-radix-popper-content-wrapper] [data-state='open']:not([data-side='top']):not([data-side='bottom']) {
+/*
+ * Sideways poppers (submenus, tooltips at left/right) keep the anchored grow,
+ * where a vertical slide would move across the trigger.
+ *
+ * Matched by data-side='left'/'right' and NOT by "no top and no bottom",
+ * which is what these said first and is a much wider net than it looks.
+ * data-side is on popper CONTENT; data-state is on anything Radix opens and
+ * closes, triggers included. So a submenu TRIGGER, which sits inside the
+ * parent menu's wrapper carrying data-state='closed' and no data-side of its
+ * own, matched the close rule: it played menu-exit, and menu-exit is
+ * `forwards`, so the row stayed at opacity 0 and scale 0.96 for good. The row
+ * was there, the right size and the right colour, and simply not painted
+ * until you pointed at it and its state flipped to open.
+ *
+ * Nothing had a submenu until content groups did, which is why a rule this
+ * old only started showing.
+ */
+[data-radix-popper-content-wrapper] [data-state='open'][data-side='left'],
+[data-radix-popper-content-wrapper] [data-state='open'][data-side='right'] {
   animation: menu-enter 0.13s cubic-bezier(0.22, 1, 0.36, 1);
 }
-[data-radix-popper-content-wrapper] [data-state='closed']:not([data-side='top']):not([data-side='bottom']) {
+[data-radix-popper-content-wrapper] [data-state='closed'][data-side='left'],
+[data-radix-popper-content-wrapper] [data-state='closed'][data-side='right'] {
   animation: menu-exit 0.11s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
@@ -436,7 +507,7 @@ input[type='number']::-webkit-outer-spin-button {
 .fx-slider::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
-  background: #212934;
+  background: #2b2b2b;
 }
 .fx-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -444,7 +515,7 @@ input[type='number']::-webkit-outer-spin-button {
   height: 12px;
   width: 12px;
   border-radius: 50%;
-  background: #eef1f6;
+  background: #f2f2f2;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   transition: transform 0.1s;
 }
@@ -502,4 +573,40 @@ input[type='number']::-webkit-outer-spin-button {
    a media query because it is a preference in the settings menu. */
 :root[data-reduce-motion='true'] .pixel-caret {
   animation: none;
+}
+
+/*
+ * One particle leaving the cursor, over the particle picker.
+ *
+ * A keyframe rather than a transition, and that is the whole reason it is in
+ * a stylesheet at all. A transition needs the element to exist at a starting
+ * value and then be changed; a mote is mounted at its final value in the same
+ * commit it is born in, so there is no change to transition FROM and it would
+ * simply appear where it was going. An animation runs from mount.
+ *
+ * The drift is per mote and arrives as two custom properties, so every one of
+ * them gets its own heading out of one rule.
+ */
+@keyframes mote-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  /* Holds before it goes. Fading from the moment it is born makes a trail
+     that is already leaving; holding first makes something that is hanging
+     there and then goes out, which is what a puff in the game looks like. */
+  55% {
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--mote-dx, 0px), var(--mote-dy, -12px), 0);
+    opacity: 0;
+  }
+}
+
+/* Nothing to soften here: the whole effect is the motion. */
+@media (prefers-reduced-motion: reduce) {
+  .mote {
+    display: none;
+  }
 }

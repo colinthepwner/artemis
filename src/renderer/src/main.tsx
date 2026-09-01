@@ -61,7 +61,7 @@ if (!window.artemis) {
     },
     prefs: { load: async () => ({}), save: () => {} },
 
-    sound: { importOgg: async () => null },
+    sound: { importAudio: async () => null },
 
     texture: { exportFile: async () => null, exportClipboard: async () => false },
     presence: { update: () => {} },
@@ -82,7 +82,7 @@ if (!window.artemis) {
     boot: { phase: async () => 'ready', onPhase: () => () => {} },
 
     session: { onYieldRequested: () => () => {} },
-    vanilla: { art: async () => ({ blocks: {}, items: {}, tops: {} }) }
+    vanilla: { art: async () => ({ blocks: {}, items: {}, tops: {}, particles: {} }) }
   }
 }
 

@@ -6,20 +6,24 @@ module.exports = {
 
       colors: {
         ink: {
-          950: '#07090c',
-          900: '#0b0e12',
-          850: '#10141a',
-          800: '#151a21',
-          750: '#1a2029',
-          700: '#212934',
-          600: '#2c3644'
+          950: '#0a0a0a',
+          900: '#0f0f0f',
+          850: '#141414',
+          800: '#1c1c1c',
+          750: '#212121',
+          700: '#2b2b2b',
+          600: '#383838'
         },
+
         mist: {
-          50: '#eef1f6',
-          200: '#c3cad6',
-          400: '#8b96a8',
-          500: '#667183',
-          600: '#4a5464'
+          50: '#f2f2f2',
+          100: '#e0e0e0',
+          200: '#cccccc',
+          300: '#b3b3b3',
+          400: '#999999',
+          500: '#757575',
+          600: '#575757',
+          700: '#3d3d3d'
         },
         gold: {
           300: '#f2c77e',
@@ -29,12 +33,16 @@ module.exports = {
           glow: 'rgba(230, 173, 85, 0.16)'
         },
         moss: { 400: '#7fb069', 500: '#619b4d' },
-        ember: { 400: '#e06c55', 500: '#c9553f', 600: '#9c3a29' },
+
+        ember: { 400: '#e05e55', 500: '#c9483f', 600: '#9c3129' },
         sky: { 400: '#6aaee8' }
       },
       fontFamily: {
-        sans: ['"Inter Variable"', 'Segoe UI', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono Variable"', 'Consolas', 'monospace'],
+
+        display: ['Marcellus', 'Georgia', 'serif'],
+
+        sans: ['"Recursive Variable"', 'Segoe UI', 'system-ui', 'sans-serif'],
+        mono: ['"Recursive Variable"', 'Consolas', 'monospace'],
 
         pixel: ['Silkscreen', '"Courier New"', 'monospace']
       },
@@ -43,6 +51,9 @@ module.exports = {
       },
       boxShadow: {
         panel: '0 0 0 1px rgba(255,255,255,0.045)',
+
+        'panel-edge': '8px 0 20px -8px rgba(0,0,0,0.4)',
+        'chrome-edge': '0 8px 20px -8px rgba(0,0,0,0.4)',
         raised: '0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35)',
         'glow-gold': '0 0 0 1px rgba(230,173,85,0.35), 0 0 18px rgba(230,173,85,0.12)',
         'glow-ember': '0 0 0 1px rgba(224,108,85,0.4), 0 0 18px rgba(224,108,85,0.12)'
