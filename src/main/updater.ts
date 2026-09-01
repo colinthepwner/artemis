@@ -93,9 +93,9 @@ export function installKind(): { kind: InstallKind; target: string } {
   return detectInstallKind()
 }
 
-function portableExe(): string | null {
+export function installedCopy(): string | null {
   const { kind, target } = detectInstallKind()
-  return kind === 'windows-portable' || kind === 'appimage' ? target : null
+  return kind === 'managed' ? null : target
 }
 
 function assetFor(kind: InstallKind, assets: ReleaseAsset[], arch: string): ReleaseAsset | null {
@@ -275,6 +275,8 @@ async function swapAndRelaunch(
     await swapExe(current, fresh)
     await rm(staging, { force: true, recursive: true }).catch(() => {})
     await rm(downloaded, { force: true }).catch(() => {})
+
+    await rm(`${current}${OLD_SUFFIX}`, { force: true, recursive: true }).catch(() => {})
 
     await handOffTo('/usr/bin/open', ['-n', current])
     return
@@ -457,7 +459,7 @@ export async function installUpdate(
 export async function checkForUpdates(win: BrowserWindow): Promise<boolean> {
   if (!app.isPackaged) return false
 
-  const current = portableExe()
+  const current = installedCopy()
   if (current) await cleanupLeftovers(dirname(current))
 
   try {

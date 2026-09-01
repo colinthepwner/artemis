@@ -1,6 +1,8 @@
 import {
   swapExe,
   cleanupLeftovers,
+  installedCopy,
+  installKind,
   noteSummary,
   pendingApplyTarget,
   stagingPath,
@@ -248,7 +250,61 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`\n${audit.passes} checks passed, ${audit.failures} failed`)
+  console.log('every install this app writes over is one it also sweeps')
+
+  {
+    const dir = mkdtempSync(join(tmpdir(), 'artemis-mac-'))
+    const bundle = join(dir, 'Artemis.app')
+    mkdirSync(join(bundle, 'Contents', 'MacOS'), { recursive: true })
+    writeFileSync(join(bundle, 'Contents', 'Info.plist'), '<plist/>')
+
+    const stale = `${bundle}${OLD_SUFFIX}`
+    mkdirSync(join(stale, 'Contents'), { recursive: true })
+    writeFileSync(join(stale, 'Contents', 'Info.plist'), '<plist/>')
+    writeFileSync(join(dir, `${DOWNLOAD_PREFIX}Artemis.zip`), 'half a download')
+
+    await cleanupLeftovers(dir)
+    check(
+      'a macOS bundle left aside by an update is swept, directory and all',
+      !existsSync(stale),
+      readdirSync(dir).join(' ')
+    )
+    check('and the new bundle beside it is untouched', existsSync(bundle))
+    check(
+      'and a part-finished download goes with it',
+      !existsSync(join(dir, `${DOWNLOAD_PREFIX}Artemis.zip`)),
+      readdirSync(dir).join(' ')
+    )
+    rmSync(dir, { recursive: true, force: true })
+
+    const { kind, target } = installKind()
+    const swept = installedCopy()
+    check(
+      `installedCopy agrees with installKind on this machine (${kind})`,
+      kind === 'managed' ? swept === null : swept === target,
+      `kind ${kind}, target ${JSON.stringify(target)}, swept ${JSON.stringify(swept)}`
+    )
+
+    const src = readFileSync('src/main/updater.ts', 'utf-8')
+    const from = src.indexOf('export function installedCopy')
+    const to = src.indexOf('\n}', from)
+    check('the sweep decision is still shaped the way this reads it', from >= 0 && to > from)
+    const body = src.slice(from, to)
+
+    check(
+      'the sweep excludes only a managed install, by name',
+      body.includes("kind === 'managed' ? null : target"),
+      body.split('\n').filter((l) => l.includes('return')).join(' | ')
+    )
+    check(
+      'and never lists the kinds it sweeps, which is how macOS was missed',
+      !body.includes("'windows-portable'") && !body.includes("'appimage'"),
+      body
+    )
+  }
+
+  console.log(`
+${audit.passes} checks passed, ${audit.failures} failed`)
   if (audit.failures) {
     console.log('UPDATER FAIL')
     process.exit(1)
